@@ -1,0 +1,106 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "FRITZ!Box verbinden",
+        "description": "Zugangsdaten eines FRITZ!Box-Benutzers mit Telefonie-Berechtigung. TR-064 muss unter Heimnetz > Netzwerk > Netzwerkeinstellungen > \"Zugriff für Anwendungen zulassen\" aktiviert sein.",
+        "data": {
+          "host": "Hostname oder IP-Adresse",
+          "username": "Benutzername",
+          "password": "Kennwort",
+          "use_tls": "Verschlüsselte Verbindung (TLS) verwenden",
+          "port": "Port (optional, Standard je nach TLS-Einstellung)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung zur FRITZ!Box fehlgeschlagen.",
+      "invalid_auth": "Benutzername oder Kennwort falsch, oder der Benutzer hat keine Telefonie-Berechtigung.",
+      "unknown": "Unerwarteter Fehler."
+    },
+    "abort": {
+      "already_configured": "Diese FRITZ!Box ist bereits konfiguriert."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Abfrageintervall (Sekunden)",
+          "call_list_days": "Anruflisten-Zeitraum (Tage)",
+          "call_list_max": "Maximale Anzahl Anrufe",
+          "enable_call_monitor": "Anrufmonitor (Echtzeit-Anrufstatus) aktivieren",
+          "callmonitor_port": "Anrufmonitor-Port",
+          "prefixes": "Vorwahl-Präfixe für Rufnummernabgleich (z. B. +49), kommagetrennt",
+          "phoneblock_enabled": "PhoneBlock-Spamerkennung aktivieren (kostenloser Account auf phoneblock.net nötig)",
+          "phoneblock_username": "PhoneBlock-Benutzername",
+          "phoneblock_password": "PhoneBlock-Kennwort",
+          "phoneblock_spam_threshold": "Spam-Schwellwert (%, ab dieser Spam-Wahrscheinlichkeit gilt eine Nummer als Spam)",
+          "reverse_lookup_enabled": "Online-Rückwärtssuche über Tellows aktivieren (sendet unbekannte Rufnummern im Klartext an tellows.de, kein Account nötig)"
+        }
+      }
+    },
+    "error": {
+      "phoneblock_credentials_required": "PhoneBlock ist aktiviert, aber Benutzername und/oder Kennwort fehlen."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "call_list": {
+        "name": "Anrufliste"
+      },
+      "missed_calls": {
+        "name": "Verpasste Anrufe"
+      },
+      "call_monitor": {
+        "name": "Anrufmonitor",
+        "state": {
+          "idle": "Inaktiv",
+          "ringing": "Klingelt",
+          "dialing": "Wählt",
+          "talking": "Gespräch"
+        }
+      }
+    }
+  },
+  "services": {
+    "mark_message_read": {
+      "name": "Nachricht als gelesen markieren",
+      "description": "Markiert eine Anrufbeantworter-Nachricht als gelesen oder ungelesen.",
+      "fields": {
+        "message_index": {
+          "name": "Nachrichtenindex",
+          "description": "Index der Nachricht (siehe Attribut 'messages' des Anrufbeantworter-Sensors)."
+        },
+        "read": {
+          "name": "Gelesen",
+          "description": "Ein = als gelesen markieren, Aus = als ungelesen markieren."
+        }
+      }
+    },
+    "delete_message": {
+      "name": "Nachricht löschen",
+      "description": "Löscht eine Anrufbeantworter-Nachricht auf der FRITZ!Box unwiderruflich.",
+      "fields": {
+        "message_index": {
+          "name": "Nachrichtenindex",
+          "description": "Index der Nachricht (siehe Attribut 'messages' des Anrufbeantworter-Sensors)."
+        }
+      }
+    },
+    "download_message": {
+      "name": "Nachricht herunterladen",
+      "description": "Lädt die Audio-Aufnahme einer Anrufbeantworter-Nachricht nach config/www/fritzbox_tam/ herunter.",
+      "fields": {
+        "message_index": {
+          "name": "Nachrichtenindex",
+          "description": "Index der Nachricht (siehe Attribut 'messages' des Anrufbeantworter-Sensors)."
+        },
+        "filename": {
+          "name": "Dateiname",
+          "description": "Zieldateiname, z. B. nachricht_3.mp3"
+        }
+      }
+    }
+  }
+}

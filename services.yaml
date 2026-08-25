@@ -1,0 +1,54 @@
+mark_message_read:
+  target:
+    entity:
+      integration: fritzbox_phone
+      domain: sensor
+  fields:
+    message_index:
+      required: true
+      example: 3
+      selector:
+        number:
+          min: 0
+          max: 999
+          mode: box
+    read:
+      required: false
+      default: true
+      selector:
+        boolean:
+
+delete_message:
+  target:
+    entity:
+      integration: fritzbox_phone
+      domain: sensor
+  fields:
+    message_index:
+      required: true
+      example: 3
+      selector:
+        number:
+          min: 0
+          max: 999
+          mode: box
+
+download_message:
+  target:
+    entity:
+      integration: fritzbox_phone
+      domain: sensor
+  fields:
+    message_index:
+      required: true
+      example: 3
+      selector:
+        number:
+          min: 0
+          max: 999
+          mode: box
+    filename:
+      required: true
+      example: nachricht_3.mp3
+      selector:
+        text:

@@ -1,0 +1,12 @@
+{
+  "domain": "fritzbox_phone",
+  "name": "FRITZ!Box Telefon",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": ["http"],
+  "documentation": "https://fritz.com/pages/schnittstellen",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://fritz.com/pages/schnittstellen",
+  "requirements": ["fritzconnection>=1.13.0", "requests>=2.28.0", "phonenumbers>=8.13.0"],
+  "version": "1.14.1"
+}
