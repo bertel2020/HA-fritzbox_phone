@@ -1,51 +1,105 @@
-# FRITZ!Box Telefon (custom_component)
+# FRITZ!Box Telefon für Home Assistant
 
-Home-Assistant-Integration für **Telefonbuch**, **Anrufliste**,
+Benutzerdefinierte Home-Assistant-Integration für **Telefonbuch**, **Anrufliste**,
 **Anrufbeantworter** und **Echtzeit-Anrufstatus** einer FRITZ!Box – über
 TR-064 (`X_AVM-DE_OnTel`, `X_AVM-DE_TAM`) und das CallMonitor-Protokoll
 (Port 1012).
 
-Schnittstellenbeschreibung: https://fritz.com/pages/schnittstellen
-(TR-064_Contact_SCPD.pdf, TR-064_TAM.pdf).
+Die Integration arbeitet lokal mit der FRITZ!Box. Nur die optionalen
+Dienste PhoneBlock und Tellows bauen Internetverbindungen auf. Technische
+Grundlage sind die [AVM-Schnittstellenbeschreibungen](https://fritz.com/pages/schnittstellen)
+für TR-064 (`X_AVM-DE_OnTel`, `X_AVM-DE_TAM`, `X_VoIP`).
 
-> Dieser Ordner liegt nur lokal in diesem Repo – es wurden **keine
-> Änderungen an einer laufenden Home-Assistant-Instanz vorgenommen**. Die
-> Integration (bzw. Updates daran) muss manuell installiert werden.
+Aktuelle Integrationsversion: **1.14.1** (siehe `manifest.json`).
 
 ## Inhalt
 
 - [Voraussetzungen auf der FRITZ!Box](#voraussetzungen-auf-der-fritzbox)
 - [Installation](#installation)
+- [Update](#update)
 - [Optionen](#optionen)
 - [Spam-Erkennung (PhoneBlock)](#spam-erkennung-phoneblock)
 - [Rückwärtssuche (Tellows)](#rückwärtssuche-tellows)
 - [Orts-/Länderkennung (offline)](#orts-länderkennung-offline)
 - [Entitäten](#entitäten)
-- [Services](#services)
+- [Aktionen (Services)](#aktionen-services)
 - [Dashboard-Karte: fritzbox-phone-card](#dashboard-karte-fritzbox-phone-card)
 - [Dateien](#dateien)
+- [Markenhinweis](#markenhinweis)
 - [Hinweise](#hinweise)
+- [Fehlerbehebung](#fehlerbehebung)
 
 ## Voraussetzungen auf der FRITZ!Box
 
 | # | Was | Wo |
 |---|-----|----|
 | 1 | TR-064 aktivieren | Heimnetz → Netzwerk → Netzwerkeinstellungen → „Zugriff für Anwendungen zulassen" |
-| 2 | Benutzer mit Telefonie-Berechtigung | System → FRITZ!Box-Benutzer → Berechtigung „FRITZ!Box Einstellungen" |
+| 2 | Eigener FRITZ!Box-Benutzer für Home Assistant | System → FRITZ!Box-Benutzer → Berechtigung „FRITZ!Box-Einstellungen" (enthält den Zugriff auf Telefonie, Anrufliste und Sprachnachrichten) |
 | 3 | Mindestens ein eingerichteter Anrufbeantworter (nur für TAM-Sensoren nötig) | Telefonie → Anrufbeantworter |
 | 4 | CallMonitor aktivieren (nur für den Anrufmonitor-Sensor nötig) | einmalig `#96*5*` von einem angeschlossenen Telefon wählen (`#96*4*` deaktiviert wieder) |
 
 ## Installation
 
-1. Diesen Ordner (`fritzbox_phone`) nach
-   `<HA-Konfigurationsverzeichnis>/custom_components/fritzbox_phone` kopieren
-   (bei Updates: den kompletten Ordner überschreiben).
-2. Home Assistant neu starten.
-3. **Einstellungen → Geräte & Dienste → Integration hinzufügen** → „FRITZ!Box
-   Telefon" suchen.
-4. Host/IP, Benutzername und Kennwort eingeben. TLS ist optional; der Port
+Die Integration kann direkt aus dem
+[GitHub-Repository](https://github.com/bertel2020/HA-fritzbox_phone)
+installiert werden.
+
+### Installation über HACS (empfohlen)
+
+Voraussetzung ist eine bereits eingerichtete
+[HACS-Installation](https://www.hacs.xyz/).
+
+1. In Home Assistant **HACS** öffnen.
+2. Oben rechts das Drei-Punkte-Menü öffnen und **Benutzerdefinierte
+   Repositories** auswählen.
+3. Als Repository
+   `https://github.com/bertel2020/HA-fritzbox_phone` eintragen.
+4. Als Typ **Integration** auswählen und das Repository hinzufügen.
+5. In HACS nach **FRITZ!Box Telefon** suchen und die Integration
+   herunterladen.
+6. Home Assistant neu starten.
+7. **Einstellungen → Geräte & Dienste → Integration hinzufügen** öffnen und
+   „FRITZ!Box Telefon" auswählen.
+8. Host/IP, Benutzername und Kennwort eingeben. TLS ist optional; der Port
    wird automatisch anhand der TLS-Einstellung gewählt, kann aber
    überschrieben werden.
+
+### Manuelle Installation
+
+Den Inhalt des Repositorys manuell nach
+`<HA-Konfigurationsverzeichnis>/custom_components/fritzbox_phone/` kopieren.
+Im Home-Assistant-Konfigurationsverzeichnis muss anschließend diese Struktur
+vorliegen:
+
+```text
+<HA-Konfigurationsverzeichnis>/
+└── custom_components/
+    └── fritzbox_phone/
+        ├── manifest.json
+        ├── __init__.py
+        ├── sensor.py
+        └── ...
+```
+
+Der Zielordner muss exakt `fritzbox_phone` heißen und `manifest.json` muss
+direkt darin liegen. Anschließend Home Assistant neu starten und die
+Integration wie oben unter **Einstellungen → Geräte & Dienste** hinzufügen.
+
+Beim ersten Start installiert Home Assistant die in `manifest.json`
+aufgeführten Python-Abhängigkeiten automatisch. Dafür kann einmalig ein
+Internetzugang des Home-Assistant-Systems erforderlich sein.
+
+## Update
+
+Bei einer HACS-Installation werden verfügbare Aktualisierungen in HACS
+angezeigt und von dort installiert. Bei einer manuellen Installation den
+Inhalt von `custom_components/fritzbox_phone/` vollständig durch den Inhalt
+der neuen Version ersetzen. Die Konfiguration liegt in Home Assistant und
+geht dadurch nicht verloren.
+
+Anschließend Home Assistant neu starten. Falls sich die Dashboard-Karte
+geändert hat: Browser neu laden. Bei alten Darstellungen zusätzlich den
+Browser-Cache leeren oder die Dashboard-Ressourcen neu laden.
 
 ## Optionen
 
@@ -72,11 +126,13 @@ einer Spam-Einschätzung von [PhoneBlock](https://phoneblock.net) (kostenlos,
 Open Source, community-gepflegte Spam-Nummern-Datenbank, extra für
 FRITZ!Box-Anwendungsfälle gebaut).
 
-**Datenschutz:** Es wird **nie die Rufnummer selbst** an PhoneBlock
-geschickt, sondern nur ihr SHA1-Hash (`GET /api/check?sha1=...`) – exakt so,
-wie es PhoneBlocks eigener mobiler Client macht, und laut deren eigener
-Dokumentation bewusst so gebaut, "ohne die Nummer preiszugeben". Angefragt
-wird nur bei Anrufen/Nachrichten, die die FritzBox selbst keinem
+**Datenschutz:** Es wird **nicht die Rufnummer selbst** an PhoneBlock
+geschickt. Die Integration normalisiert sie nach Möglichkeit auf E.164 und
+sendet an `GET /api/check` den SHA-1-Hash der vollständigen Nummer sowie zwei
+weitere SHA-1-Hashes, bei denen die letzte bzw. die letzten beiden Ziffern
+fehlen (`prefix10` und `prefix100`). Diese zusätzlichen Hashes ermöglichen
+PhoneBlock die Erkennung von Nummernbereichen. Angefragt wird nur bei
+Anrufen/Nachrichten, die die FRITZ!Box selbst keinem
 Telefonbuch-Kontakt zuordnen konnte; Ergebnisse werden 6 Stunden lang lokal
 zwischengespeichert, um nicht bei jedem Abfragezyklus erneut nachzufragen.
 
@@ -100,10 +156,8 @@ für eine echte Namensauflösung siehe [Rückwärtssuche (Tellows)](#rückwärts
 
 Optionale, standardmäßig deaktivierte Namensauflösung unbekannter Anrufer
 über [Tellows](https://www.tellows.de) – eine öffentliche, community-
-gepflegte Anrufer-/Spam-Datenbank. Tellows bietet dafür eine kostenlos
-nutzbare API **ohne Account/Login** (`GET /basic/num/{nummer}?xml=1`) – das
-ist dieselbe Datenquelle, die AVM selbst für die eingebaute
-Anrufererkennung mancher FRITZ!OS-Märkte lizenziert.
+gepflegte Anrufer-/Spam-Datenbank. Die Integration verwendet dafür den
+ohne Account erreichbaren Endpunkt `GET /basic/num/{nummer}?xml=1`.
 
 **Datenschutz:** Anders als bei der PhoneBlock-Spam-Erkennung wird hier die
 **Rufnummer im Klartext** an Tellows geschickt – das ist der Zweck der
@@ -125,7 +179,7 @@ in den aufklappbaren Details, sobald kein Telefonbuch-Name vorliegt.
 
 ## Orts-/Länderkennung (offline)
 
-Zusätzlich zur Namensauflösung zeigt jeder Anruf/jede Nachricht (in den
+Zusätzlich zur Namensauflösung kann jeder Anruf/jede Nachricht (in den
 aufklappbaren Details der `fritzbox-phone-card`, Feld „Ort/Land") eine
 Ortsangabe wie „Berlin" oder „Köln" bzw. bei internationalen Nummern das
 Land. Das läuft **immer** und ganz ohne FritzBox- oder Internet-Abfrage:
@@ -168,16 +222,30 @@ Attributschema entsprechen dem Core-Sensor `fritzbox_callmonitor`, nutzt
 aber die bereits konfigurierten Zugangsdaten und Telefonbücher dieser
 Integration statt eines eigenen Config-Eintrags.
 
-## Services
+## Aktionen (Services)
 
-| Service | Zweck | Felder |
+| Aktion | Zweck | Felder |
 |---------|-------|--------|
 | `fritzbox_phone.mark_message_read` | Anrufbeantworter-Nachricht als (un)gelesen markieren | `message_index`, `read` |
 | `fritzbox_phone.delete_message` | Nachricht auf der Box löschen | `message_index` |
 | `fritzbox_phone.download_message` | Sprachnachricht nach `config/www/fritzbox_tam/<Dateiname>` herunterladen (danach z. B. über `/local/fritzbox_tam/<Dateiname>` abspielbar) | `message_index`, `filename` |
 
 Alle drei werden auf einer `sensor.*_<anrufbeantworter>`-Entität aufgerufen;
-`message_index` steht im Attribut `messages` des jeweiligen Sensors.
+`message_index` steht als `index` im Attribut `messages` des jeweiligen
+Sensors. Beispiel für eine Automation oder die Entwicklerwerkzeuge:
+
+```yaml
+action: fritzbox_phone.mark_message_read
+target:
+  entity_id: sensor.DEIN_ANRUFBEANTWORTER
+data:
+  message_index: 3
+  read: true
+```
+
+`delete_message` löscht die gewählte Nachricht auf der FRITZ!Box. Vor dem
+Einsatz in Automationen sollte deshalb geprüft werden, ob die Zielentität und
+der Nachrichtenindex wirklich passen.
 
 ## Dashboard-Karte: fritzbox-phone-card
 
@@ -234,10 +302,19 @@ Anrufbeantworter-Karte (`entity` direkt auf den Anrufbeantworter-Sensor
 gesetzt, ohne `tam_entity`) weiterhin vollständig nutzbar, inkl. aller
 Nachrichten unabhängig vom Anrufliste-Zeitraum.
 
-**Einmalig einrichten:** Einstellungen → Dashboards → oben rechts ⋮ →
-Ressourcen → Ressource hinzufügen:
+**Einmalig einrichten (Dashboard im Storage-Modus):** Einstellungen →
+Dashboards → oben rechts ⋮ → Ressourcen → Ressource hinzufügen:
 - URL: `/fritzbox_phone_static/fritzbox-phone-card.js`
 - Typ: JavaScript-Modul
+
+Bei YAML-Ressourcen entspricht das:
+
+```yaml
+lovelace:
+  resources:
+    - url: /fritzbox_phone_static/fritzbox-phone-card.js
+      type: module
+```
 
 Danach per **"Karte hinzufügen" → "FRITZ!Box Anrufliste / Anrufbeantworter /
 Anrufmonitor"** mit grafischem Editor (Entität, Titel, Zeilenanzahl, …)
@@ -314,7 +391,20 @@ Browser können die Datei aber trotzdem kurzzeitig cachen).
 | `sensor.py` / `switch.py` | Entitäten |
 | `services.yaml`, `strings.json`, `translations/de.json` | Service- und UI-Texte |
 | `www/fritzbox-phone-card.js` | Lovelace-Karte (Anrufliste/Anrufbeantworter, siehe oben) |
-| `brand/` | Icon/Logo für Geräteseite und Integrationsübersicht |
+| `brand/` | FRITZ!-Logo und quadratisches Symbol für Geräteseite und Integrationsübersicht |
+| `hacs.json` | Metadaten für die Installation als benutzerdefiniertes HACS-Repository |
+
+## Markenhinweis
+
+Die Integration enthält das FRITZ!-Markenlogo und eine quadratische Variante
+im von Home Assistant unterstützten lokalen `brand/`-Verzeichnis. Die
+Markenrechte verbleiben bei der FRITZ! GmbH.
+
+> **Markenhinweis:** Dieses Projekt ist eine unabhängige, inoffizielle
+> Integration und steht in keiner Verbindung zur FRITZ! GmbH. FRITZ!,
+> FRITZ!Box und FRITZ!OS sowie die zugehörigen Logos sind geschützte Marken
+> ihrer jeweiligen Inhaber. Die Marken und Markenabbildungen sind nicht
+> Bestandteil der Open-Source-Lizenz dieses Projekts.
 
 ## Hinweise
 
@@ -323,7 +413,31 @@ Browser können die Datei aber trotzdem kurzzeitig cachen).
   nutzen auch die Core-Integrationen `fritz` und `fritzbox_callmonitor`).
 - Neue Telefonbücher oder zusätzlich aktivierte Anrufbeantworter werden erst
   nach einem Neuladen der Integration als Entität angelegt.
+- Die Integration nutzt für TR-064 wahlweise HTTP oder HTTPS. Der
+  CallMonitor selbst ist ein separates, unverschlüsseltes TCP-Protokoll im
+  lokalen Netz (standardmäßig Port 1012).
+- Telefonbuchkontakte, Anruflisten und Anrufbeantworter-Nachrichten werden als
+  Entitätsattribute in Home Assistant sichtbar. Berücksichtige das bei
+  Benutzerrechten, Backups und der Freigabe von Diagnoseinformationen.
 - Nach AVM-Spezifikation bedeutet `New=0` in der
   Anrufbeantworter-Nachrichtenliste „neu/ungelesen" – das ist in `api.py`
   entsprechend invertiert, damit der Sensorzustand intuitiv „Anzahl neuer
   Nachrichten" zeigt.
+
+## Fehlerbehebung
+
+| Problem | Prüfen |
+|---------|--------|
+| Integration wird nicht gefunden | Zielordner heißt exakt `custom_components/fritzbox_phone`; `manifest.json` liegt direkt darin; Home Assistant wurde neu gestartet |
+| Verbindung oder Anmeldung schlägt fehl | Host/IP erreichbar, TR-064 aktiviert, eigener FRITZ!Box-Benutzer und passende Berechtigung, Kennwort korrekt; bei TLS/abweichendem Port die Eingaben prüfen |
+| Anrufmonitor bleibt ohne Ereignisse | `#96*5*` an einem an der FRITZ!Box angeschlossenen Telefon wählen; Port 1012 zwischen Home Assistant und FRITZ!Box erreichbar; Option „Anrufmonitor aktivieren" eingeschaltet |
+| Neue Telefonbücher/Anrufbeantworter fehlen | Integration über **Einstellungen → Geräte & Dienste** neu laden oder Home Assistant neu starten |
+| Karte erscheint nicht im Karten-Dialog | Dashboard-Ressource mit Typ `module` eingetragen, Integration geladen, Browser neu geladen |
+| Karte zeigt nach einem Update alten Inhalt | Dashboard-Ressourcen neu laden oder Browser-Cache leeren |
+
+Für detaillierte Meldungen unter **Einstellungen → System → Protokolle** nach
+`fritzbox_phone` suchen.
+
+---
+
+Copyright © 2026 bertel2020
