@@ -446,3 +446,6 @@ Für detaillierte Meldungen unter **Einstellungen → System → Protokolle** na
 ---
 
 Copyright © 2026 bertel2020
+
+Der Quellcode steht unter der [MIT-Lizenz](LICENSE). Ausgenommen sind die im
+[Markenhinweis](#markenhinweis) genannten Marken und Markenabbildungen.
