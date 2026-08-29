@@ -10,7 +10,8 @@ Dienste PhoneBlock und Tellows bauen Internetverbindungen auf. Technische
 Grundlage sind die [AVM-Schnittstellenbeschreibungen](https://fritz.com/pages/schnittstellen)
 für TR-064 (`X_AVM-DE_OnTel`, `X_AVM-DE_TAM`, `X_VoIP`).
 
-Aktuelle Integrationsversion: **1.14.1** (siehe `manifest.json`).
+Aktuelle Integrationsversion: **1.14.1** (siehe
+`custom_components/fritzbox_phone/manifest.json`).
 
 ## Inhalt
 
@@ -66,7 +67,7 @@ Voraussetzung ist eine bereits eingerichtete
 
 ### Manuelle Installation
 
-Den Inhalt des Repositorys manuell nach
+Den Ordner `custom_components/fritzbox_phone` aus dem Repository manuell nach
 `<HA-Konfigurationsverzeichnis>/custom_components/fritzbox_phone/` kopieren.
 Im Home-Assistant-Konfigurationsverzeichnis muss anschließend diese Struktur
 vorliegen:
@@ -379,6 +380,9 @@ Browser können die Datei aber trotzdem kurzzeitig cachen).
 
 ## Dateien
 
+Die Integrationsdateien liegen im Repository unter
+`custom_components/fritzbox_phone/`.
+
 | Pfad | Inhalt |
 |------|--------|
 | `api.py` | TR-064-Client (Telefonbuch, Anrufliste, Anrufbeantworter) |
@@ -397,8 +401,9 @@ Browser können die Datei aber trotzdem kurzzeitig cachen).
 ## Markenhinweis
 
 Die Integration enthält das FRITZ!-Markenlogo und eine quadratische Variante
-im von Home Assistant unterstützten lokalen `brand/`-Verzeichnis. Die
-Markenrechte verbleiben bei der FRITZ! GmbH.
+im von Home Assistant unterstützten lokalen
+`custom_components/fritzbox_phone/brand/`-Verzeichnis. Die Markenrechte
+verbleiben bei der FRITZ! GmbH.
 
 > **Markenhinweis:** Dieses Projekt ist eine unabhängige, inoffizielle
 > Integration und steht in keiner Verbindung zur FRITZ! GmbH. FRITZ!,
