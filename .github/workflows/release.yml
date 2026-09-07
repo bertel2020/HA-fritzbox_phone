@@ -54,7 +54,7 @@ jobs:
               next
             }
             found { print }
-          ' CHANGELOG.md > notes.md
+          ' CHANGELOG.md | sed -e '/./,$!d' > notes.md
           if [ ! -s notes.md ]; then
             echo "::error::CHANGELOG.md hat keinen Abschnitt '## ${{ steps.version.outputs.version }}'."
             exit 1
