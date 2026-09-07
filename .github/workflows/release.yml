@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Bereits vorhandenes Tag, für das ein Release erstellt werden soll"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Publish release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          # Annotated tags carry the release title, and only a full clone
+          # brings their message along.
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        run: |
+          tag="${{ inputs.tag || github.ref_name }}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Check tag against manifest.json
+        run: |
+          manifest=$(jq -r .version custom_components/fritzbox_phone/manifest.json)
+          if [ "$manifest" != "${{ steps.version.outputs.version }}" ]; then
+            echo "::error::Tag ${{ steps.version.outputs.tag }} und manifest.json ($manifest) passen nicht zusammen."
+            exit 1
+          fi
+
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          # Everything between "## <version>" and the next "## " heading.
+          # Compared as plain text, not as a regex - the dots in a version
+          # number would otherwise match any character.
+          awk -v want="${{ steps.version.outputs.version }}" '
+            substr($0, 1, 3) == "## " {
+              if (found) exit
+              head = substr($0, 4)
+              if (head == want || substr(head, 1, length(want) + 1) == want " ") found = 1
+              next
+            }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "::error::CHANGELOG.md hat keinen Abschnitt '## ${{ steps.version.outputs.version }}'."
+            exit 1
+          fi
+          echo "" >> notes.md
+          echo "Vollständiger Änderungsverlauf: [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)" >> notes.md
+
+      - name: Determine release title
+        id: title
+        run: |
+          # Subject line of the annotated tag, e.g. "1.15.0 - Klartext-
+          # Begründungen im Logbuch"; falls back to the bare version for a
+          # lightweight tag.
+          subject=$(git tag -l --format='%(contents:subject)' "${{ steps.version.outputs.tag }}")
+          echo "title=${subject:-${{ steps.version.outputs.version }}}" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          case "${{ steps.version.outputs.version }}" in
+            *-*) prerelease="--prerelease" ;;
+          esac
+          if gh release view "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            gh release edit "${{ steps.version.outputs.tag }}" \
+              --title "${{ steps.title.outputs.title }}" \
+              --notes-file notes.md
+          else
+            gh release create "${{ steps.version.outputs.tag }}" $prerelease \
+              --title "${{ steps.title.outputs.title }}" \
+              --notes-file notes.md
+          fi

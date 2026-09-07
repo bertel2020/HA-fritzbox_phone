@@ -7,6 +7,21 @@ die Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## Unveröffentlicht
 
+### Hinzugefügt
+
+- GitHub-Action `Release`: Beim Push eines `v*`-Tags entsteht das
+  GitHub-Release automatisch. Die Release-Notes stammen aus dem passenden
+  Abschnitt dieser Datei, der Titel aus der Beschriftung des annotierten Tags.
+  Der Workflow bricht ab, wenn Tag und `version` in `manifest.json` nicht
+  zusammenpassen oder der Changelog-Abschnitt fehlt; Tags mit Suffix
+  (z. B. `v1.16.0-beta1`) werden als Vorabversion veröffentlicht.
+
+### Geändert
+
+- Installationsabschnitt im README auf die My-Home-Assistant-Badges umgestellt:
+  ein Klick öffnet das Repository in HACS bzw. startet die Einrichtung direkt
+  in der eigenen Home-Assistant-Instanz.
+
 ## 1.15.0 – 2026-09-08
 
 ### Hinzugefügt

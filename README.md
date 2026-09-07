@@ -10,8 +10,9 @@ Dienste PhoneBlock und Tellows bauen Internetverbindungen auf. Technische
 Grundlage sind die [AVM-Schnittstellenbeschreibungen](https://fritz.com/pages/schnittstellen)
 für TR-064 (`X_AVM-DE_OnTel`, `X_AVM-DE_TAM`, `X_VoIP`).
 
-Aktuelle Integrationsversion: **1.14.1** (siehe
-`custom_components/fritzbox_phone/manifest.json`).
+Aktuelle Integrationsversion: **1.15.0** (siehe
+`custom_components/fritzbox_phone/manifest.json` und den
+[Änderungsverlauf](CHANGELOG.md)).
 
 ## Inhalt
 
@@ -43,31 +44,26 @@ Aktuelle Integrationsversion: **1.14.1** (siehe
 
 ## Installation
 
-Die Integration kann direkt aus dem
-[GitHub-Repository](https://github.com/bertel2020/HA-fritzbox_phone)
-installiert werden.
+### Über HACS (empfohlen)
 
-### Installation über HACS (empfohlen)
+[![HACS-Repository in My Home Assistant öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=bertel2020&repository=HA-fritzbox_phone&category=integration)
+[![FRITZ!Box Telefon zu My Home Assistant hinzufügen](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=fritzbox_phone)
 
-Voraussetzung ist eine bereits eingerichtete
-[HACS-Installation](https://www.hacs.xyz/).
-
-1. In Home Assistant **HACS** öffnen.
-2. Oben rechts das Drei-Punkte-Menü öffnen und **Benutzerdefinierte
-   Repositories** auswählen.
-3. Als Repository
-   `https://github.com/bertel2020/HA-fritzbox_phone` eintragen.
-4. Als Typ **Integration** auswählen und das Repository hinzufügen.
-5. In HACS nach **FRITZ!Box Telefon** suchen und die Integration
-   herunterladen.
-6. Home Assistant neu starten.
-7. **Einstellungen → Geräte & Dienste → Integration hinzufügen** öffnen und
-   „FRITZ!Box Telefon" auswählen.
-8. Host/IP, Benutzername und Kennwort eingeben. TLS ist optional; der Port
+1. Über den ersten Button das FRITZ!Box-Telefon-Repository in HACS öffnen.
+2. **FRITZ!Box Telefon** herunterladen und Home Assistant neu starten.
+3. Über den zweiten Button die Integration hinzufügen. Alternativ in Home
+   Assistant **Einstellungen → Geräte & Dienste → Integration hinzufügen →
+   FRITZ!Box Telefon** öffnen.
+4. Host/IP, Benutzername und Kennwort eingeben. TLS ist optional; der Port
    wird automatisch anhand der TLS-Einstellung gewählt, kann aber
    überschrieben werden.
 
-### Manuelle Installation
+Falls der erste Button nicht funktioniert, in HACS unter **Integrationen →
+Benutzerdefinierte Repositories** `https://github.com/bertel2020/HA-fritzbox_phone`
+als Kategorie **Integration** eintragen. Voraussetzung ist in beiden Fällen eine
+eingerichtete [HACS-Installation](https://www.hacs.xyz/).
+
+### Manuell
 
 Den Ordner `custom_components/fritzbox_phone` aus dem Repository manuell nach
 `<HA-Konfigurationsverzeichnis>/custom_components/fritzbox_phone/` kopieren.
@@ -86,7 +82,8 @@ vorliegen:
 
 Der Zielordner muss exakt `fritzbox_phone` heißen und `manifest.json` muss
 direkt darin liegen. Anschließend Home Assistant neu starten und die
-Integration wie oben unter **Einstellungen → Geräte & Dienste** hinzufügen.
+Integration über den zweiten Button oben oder unter **Einstellungen → Geräte &
+Dienste → Integration hinzufügen → FRITZ!Box Telefon** einrichten.
 
 Beim ersten Start installiert Home Assistant die in `manifest.json`
 aufgeführten Python-Abhängigkeiten automatisch. Dafür kann einmalig ein
