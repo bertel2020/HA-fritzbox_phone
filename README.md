@@ -23,12 +23,14 @@ Aktuelle Integrationsversion: **1.14.1** (siehe
 - [Rückwärtssuche (Tellows)](#rückwärtssuche-tellows)
 - [Orts-/Länderkennung (offline)](#orts-länderkennung-offline)
 - [Entitäten](#entitäten)
+- [Logbuch und Ereignisse](#logbuch-und-ereignisse)
 - [Aktionen (Services)](#aktionen-services)
 - [Dashboard-Karte: fritzbox-phone-card](#dashboard-karte-fritzbox-phone-card)
 - [Dateien](#dateien)
 - [Markenhinweis](#markenhinweis)
 - [Hinweise](#hinweise)
 - [Fehlerbehebung](#fehlerbehebung)
+- [Änderungsverlauf](CHANGELOG.md)
 
 ## Voraussetzungen auf der FRITZ!Box
 
@@ -223,6 +225,55 @@ Attributschema entsprechen dem Core-Sensor `fritzbox_callmonitor`, nutzt
 aber die bereits konfigurierten Zugangsdaten und Telefonbücher dieser
 Integration statt eines eigenen Config-Eintrags.
 
+## Logbuch und Ereignisse
+
+Home Assistant zeigt im Aktivitätsdialog einer Entität unter **„Was ist
+passiert“** den Grund einer Zustandsänderung an. Damit dort nicht „Für diese
+Aktivität wurde kein Grund festgehalten“ steht, feuert die Integration zu
+jeder nennenswerten Änderung ein Ereignis und schreibt den neuen Zustand im
+selben Kontext – das Logbuch macht daraus deutschen Klartext:
+
+| Entität | Beispiel für „Was ist passiert“ |
+|---------|--------------------------------|
+| `sensor.*_anrufmonitor` | Eingehender Anruf von Max Mustermann (+49301234567) |
+| | Ausgehender Anruf an Max Mustermann (+49301234567) über DECT1 |
+| | Gespräch mit Max Mustermann (+49301234567) angenommen (nach 0:12 Klingeln) |
+| | Gespräch mit Max Mustermann (+49301234567) beendet nach 2:31 |
+| | Anruf von +49309999999 (Berlin) nicht angenommen – als Spam eingestuft (Vertrauen 95 %) |
+| `sensor.*_anrufliste` | Neuer Eintrag: Ausgehender Anruf an Max Mustermann (+49301234567) |
+| | 2 Einträge nicht mehr in der Anrufliste (außerhalb des Zeitfensters oder auf der FRITZ!Box gelöscht) |
+| `sensor.*_verpasste_anrufe` | Verpasster Anruf von +49309999999 (Berlin) um 16:10 |
+| `sensor.*_<anrufbeantworter>` | Neue Nachricht von Max Mustermann (+49301234567), Dauer 0:42 |
+
+Die Ereignisse lassen sich auch direkt als Automations-Auslöser verwenden:
+
+| Ereignis | Wann | Nutzbare Felder |
+|----------|------|-----------------|
+| `fritzbox_phone_call` | jede Änderung des Anrufmonitors | `call_state` (`ringing`/`dialing`/`talking`/`idle`), `direction`, `number`, `name`, `device`, `vip`, `is_spam`, `spam_confidence`, `answered`, `duration_formatted`, `ring_duration_formatted` |
+| `fritzbox_phone_call_list_changed` | neue oder entfallene Einträge der Anrufliste | `added` (Liste), `added_count`, `removed` |
+| `fritzbox_phone_missed_call` | neue oder entfallene verpasste Anrufe | `added` (Liste), `added_count`, `removed` |
+| `fritzbox_phone_tam_message` | neue oder gelesene/gelöschte AB-Nachrichten | `tam_index`, `tam_name`, `added` (Liste), `added_count`, `removed` |
+
+Jedes Ereignis enthält zusätzlich `config_entry_id` und `host`, um bei mehreren
+FRITZ!Boxen filtern zu können. Beispiel:
+
+```yaml
+triggers:
+  - trigger: event
+    event_type: fritzbox_phone_call
+    event_data:
+      call_state: ringing
+      is_spam: true
+actions:
+  - action: notify.persistent_notification
+    data:
+      message: "Spam-Anruf von {{ trigger.event.data.number }}"
+```
+
+> Die Ereignisse tragen bewusst **keine** `entity_id`: Home Assistant würde sie
+> sonst zusätzlich als eigene Zeile in der Aktivitätsliste der Entität führen –
+> also doppelt zu der Zustandsänderung, die sie ohnehin schon erklären.
+
 ## Aktionen (Services)
 
 | Aktion | Zweck | Felder |
@@ -392,6 +443,7 @@ Die Integrationsdateien liegen im Repository unter
 | `tellows.py` | Tellows-Client für die optionale Online-Rückwärtssuche |
 | `geocoding.py` | Offline Ort-/Länderkennung (`phonenumbers`) |
 | `config_flow.py` | Einrichtung + Optionen (UI) |
+| `logbook.py` | Klartext-Begründungen im Logbuch („Was ist passiert“) |
 | `sensor.py` / `switch.py` | Entitäten |
 | `services.yaml`, `strings.json`, `translations/de.json` | Service- und UI-Texte |
 | `www/fritzbox-phone-card.js` | Lovelace-Karte (Anrufliste/Anrufbeantworter, siehe oben) |

@@ -62,3 +62,25 @@ CALLMONITOR_STATE_IDLE = "idle"
 CALLMONITOR_STATE_RINGING = "ringing"
 CALLMONITOR_STATE_DIALING = "dialing"
 CALLMONITOR_STATE_TALKING = "talking"
+
+# Events fired by this integration. They exist so that Home Assistant's
+# logbook can put a human-readable reason ("Was ist passiert") on the
+# entity state changes they cause: every event is fired with a fresh
+# Context that the affected entity then adopts before writing its state,
+# and logbook.py turns the event back into German plain text.
+#
+# On purpose the payloads carry no entity_id: an entity-filtered logbook
+# query matches external events by event_data.entity_id, so including it
+# would list every event a second time next to the state change it
+# already explains. Use `config_entry_id`/`host` to filter in automations.
+EVENT_CALL = f"{DOMAIN}_call"
+EVENT_CALL_LIST_CHANGED = f"{DOMAIN}_call_list_changed"
+EVENT_MISSED_CALL = f"{DOMAIN}_missed_call"
+EVENT_TAM_MESSAGE = f"{DOMAIN}_tam_message"
+
+# Context keys under which the coordinator parks the Context belonging to
+# a just-fired event, for the matching entity to pick up (see
+# FritzBoxPhoneEntity._handle_coordinator_update).
+CONTEXT_KEY_CALL_LIST = "call_list"
+CONTEXT_KEY_MISSED_CALLS = "missed_calls"
+CONTEXT_KEY_TAM = "tam_{}"

@@ -5,11 +5,13 @@ from dataclasses import dataclass
 from datetime import timedelta
 import logging
 from pathlib import Path
+from typing import Any
 
 from fritzconnection.core.exceptions import FritzConnectionException
 import phonenumbers
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.const import CONF_HOST
+from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import CallEntry, FritzBoxPhoneClient, Phonebook, Tam, TamMessage
@@ -25,6 +27,9 @@ from .const import (
     CONF_PREFIXES,
     CONF_REVERSE_LOOKUP_ENABLED,
     CONF_SCAN_INTERVAL,
+    CONTEXT_KEY_CALL_LIST,
+    CONTEXT_KEY_MISSED_CALLS,
+    CONTEXT_KEY_TAM,
     DEFAULT_CALL_LIST_DAYS,
     DEFAULT_CALL_LIST_MAX,
     DEFAULT_COUNTRY_PREFIX,
@@ -33,12 +38,22 @@ from .const import (
     DEFAULT_REVERSE_LOOKUP_ENABLED,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    EVENT_CALL_LIST_CHANGED,
+    EVENT_MISSED_CALL,
+    EVENT_TAM_MESSAGE,
+    MISSED_CALL_TYPE,
     OUTGOING_CALL_TYPE,
 )
 from .phoneblock import PhoneBlockClient, PhoneBlockInfo
 from .tellows import TellowsClient, TellowsInfo
 
 _LOGGER = logging.getLogger(__name__)
+
+# Upper bound on how many changed entries travel inside a single event.
+# One poll cycle normally brings one or two; only a long connection gap
+# can pile them up, and the recorder should not have to store (nor the
+# logbook render) an unbounded list in that case.
+MAX_EVENT_ENTRIES = 10
 
 
 @dataclass
@@ -60,6 +75,13 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         self.tellows = self._build_tellows_client()
         self._own_area_code: str | None = None
         self._own_area_code_fetched = False
+        # Change detection for the logbook events. `None` means "no poll
+        # yet": the first cycle only records the baseline, otherwise every
+        # restart would report the whole call list as brand new.
+        self._known_call_ids: set[str] | None = None
+        self._known_missed_ids: set[str] | None = None
+        self._known_new_messages: dict[int, set[str]] | None = None
+        self._pending_contexts: dict[str, Context] = {}
         scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         super().__init__(
             hass,
@@ -121,9 +143,156 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
 
     async def _async_update_data(self) -> FritzBoxPhoneData:
         try:
-            return await self.hass.async_add_executor_job(self._update)
+            data = await self.hass.async_add_executor_job(self._update)
         except FritzConnectionException as err:
             raise UpdateFailed(str(err)) from err
+        # Fire before returning: the coordinator notifies its entities the
+        # moment this returns, and they need the Contexts to already be
+        # parked when they write their new state.
+        self._async_report_changes(data)
+        return data
+
+    @callback
+    def take_context(self, key: str) -> Context | None:
+        """Hand out (once) the Context of the event explaining this update."""
+        return self._pending_contexts.pop(key, None)
+
+    def _event_base(self) -> dict[str, Any]:
+        return {
+            "config_entry_id": self.entry.entry_id,
+            "host": self.entry.data[CONF_HOST],
+        }
+
+    @callback
+    def _fire(self, event_type: str, context_key: str, data: dict[str, Any]) -> None:
+        """Fire one logbook event and park its Context for the entity."""
+        context = Context()
+        self.hass.bus.async_fire(event_type, self._event_base() | data, context=context)
+        self._pending_contexts[context_key] = context
+
+    @callback
+    def _async_report_changes(self, data: FritzBoxPhoneData) -> None:
+        """Turn this poll's diff into events the logbook can describe."""
+        self._pending_contexts.clear()
+        self._report_call_list(data.calls)
+        self._report_missed_calls(data.calls)
+        self._report_tam_messages(data.tams)
+
+    @callback
+    def _report_call_list(self, calls: list[CallEntry]) -> None:
+        current = {call.id for call in calls}
+        known, self._known_call_ids = self._known_call_ids, current
+        if known is None:
+            return
+        added = [call for call in calls if call.id not in known]
+        removed = len(known - current)
+        if not added and not removed:
+            return
+        self._fire(
+            EVENT_CALL_LIST_CHANGED,
+            CONTEXT_KEY_CALL_LIST,
+            {
+                "added": [self._call_payload(call) for call in added[:MAX_EVENT_ENTRIES]],
+                "added_count": len(added),
+                "removed": removed,
+            },
+        )
+
+    @callback
+    def _report_missed_calls(self, calls: list[CallEntry]) -> None:
+        missed = [call for call in calls if call.type == MISSED_CALL_TYPE]
+        current = {call.id for call in missed}
+        known, self._known_missed_ids = self._known_missed_ids, current
+        if known is None:
+            return
+        added = [call for call in missed if call.id not in known]
+        removed = len(known - current)
+        if not added and not removed:
+            return
+        self._fire(
+            EVENT_MISSED_CALL,
+            CONTEXT_KEY_MISSED_CALLS,
+            {
+                "added": [self._call_payload(call) for call in added[:MAX_EVENT_ENTRIES]],
+                "added_count": len(added),
+                "removed": removed,
+            },
+        )
+
+    @callback
+    def _report_tam_messages(self, tams: list[Tam]) -> None:
+        # Keyed by timestamp and number rather than by message index: the
+        # box renumbers its recordings whenever one is deleted, which
+        # would otherwise look like a batch of new messages.
+        current = {
+            tam.index: {
+                self._message_key(message) for message in tam.messages if message.new
+            }
+            for tam in tams
+        }
+        known, self._known_new_messages = self._known_new_messages, current
+        if known is None:
+            return
+        for tam in tams:
+            previous = known.get(tam.index)
+            if previous is None:
+                continue
+            added = [
+                message
+                for message in tam.messages
+                if message.new and self._message_key(message) not in previous
+            ]
+            removed = len(previous - current[tam.index])
+            if not added and not removed:
+                continue
+            self._fire(
+                EVENT_TAM_MESSAGE,
+                CONTEXT_KEY_TAM.format(tam.index),
+                {
+                    "tam_index": tam.index,
+                    "tam_name": tam.name,
+                    "added": [
+                        self._message_payload(message)
+                        for message in added[:MAX_EVENT_ENTRIES]
+                    ],
+                    "added_count": len(added),
+                    "removed": removed,
+                },
+            )
+
+    @staticmethod
+    def _message_key(message: TamMessage) -> str:
+        return f"{message.date}|{message.number}"
+
+    def _call_payload(self, call: CallEntry) -> dict[str, Any]:
+        """The fields logbook.py needs to phrase a call list entry."""
+        return {
+            "type": call.type_name,
+            "name": call.name,
+            "number": self._call_counterpart_number(call),
+            "area_name": call.area_name,
+            "reverse_name": call.reverse_name,
+            "is_spam": call.is_spam,
+            "spam_confidence": call.spam_confidence,
+            "date": call.date,
+            "duration": call.duration,
+            "is_fax": call.is_fax,
+            "is_answering_machine": call.is_tam,
+        }
+
+    @staticmethod
+    def _message_payload(message: TamMessage) -> dict[str, Any]:
+        """The fields logbook.py needs to phrase an answering machine message."""
+        return {
+            "name": message.name,
+            "number": message.number,
+            "area_name": message.area_name,
+            "reverse_name": message.reverse_name,
+            "is_spam": message.is_spam,
+            "spam_confidence": message.spam_confidence,
+            "date": message.date,
+            "duration": message.duration,
+        }
 
     def _update(self) -> FritzBoxPhoneData:
         days = self.entry.options.get(CONF_CALL_LIST_DAYS, DEFAULT_CALL_LIST_DAYS)

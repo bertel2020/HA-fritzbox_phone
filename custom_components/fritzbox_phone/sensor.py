@@ -10,7 +10,7 @@ import voluptuous as vol
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, EVENT_HOMEASSISTANT_STOP
-from homeassistant.core import Event, HomeAssistant
+from homeassistant.core import Context, Event, HomeAssistant, callback
 from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -23,9 +23,13 @@ from .const import (
     CALLMONITOR_STATE_IDLE,
     CONF_CALLMONITOR_PORT,
     CONF_ENABLE_CALLMONITOR,
+    CONTEXT_KEY_CALL_LIST,
+    CONTEXT_KEY_MISSED_CALLS,
+    CONTEXT_KEY_TAM,
     DEFAULT_CALLMONITOR_PORT,
     DEFAULT_ENABLE_CALLMONITOR,
     DOMAIN,
+    EVENT_CALL,
     MISSED_CALL_TYPE,
     SERVICE_DELETE_MESSAGE,
     SERVICE_DOWNLOAD_MESSAGE,
@@ -158,6 +162,7 @@ class FritzBoxCallListSensor(FritzBoxPhoneEntity, SensorEntity):
 
     _attr_icon = "mdi:phone-log"
     _attr_translation_key = "call_list"
+    _context_key = CONTEXT_KEY_CALL_LIST
 
     def __init__(self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
@@ -177,6 +182,7 @@ class FritzBoxMissedCallsSensor(FritzBoxPhoneEntity, SensorEntity):
 
     _attr_icon = "mdi:phone-missed"
     _attr_translation_key = "missed_calls"
+    _context_key = CONTEXT_KEY_MISSED_CALLS
 
     def __init__(self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
@@ -260,6 +266,7 @@ class FritzBoxTamSensor(FritzBoxPhoneEntity, SensorEntity):
     ) -> None:
         super().__init__(coordinator, entry)
         self._tam_index = tam_index
+        self._context_key = CONTEXT_KEY_TAM.format(tam_index)
         self._attr_unique_id = f"{entry.entry_id}_tam_{tam_index}"
 
     @property
@@ -374,6 +381,19 @@ class FritzBoxCallMonitorSensor(FritzBoxPhoneEntity, SensorEntity):
         return self._attributes
 
     def _handle_event(self, state: str, attributes: dict[str, Any]) -> None:
+        """CallMonitor reader thread: resolve, then hand over to the loop.
+
+        The caller-ID enrichment below does blocking network I/O
+        (PhoneBlock, Tellows), so it has to stay on this thread - only
+        firing the event and writing the state moves to the event loop,
+        where both belong.
+        """
+        resolved = self._resolve_event(state, attributes)
+        self.hass.loop.call_soon_threadsafe(self._async_apply_event, state, resolved)
+
+    def _resolve_event(self, state: str, attributes: dict[str, Any]) -> dict[str, Any]:
+        """Enrich a raw CallMonitor event with caller ID, area and spam
+        info. Blocking, runs on the CallMonitor reader thread."""
         resolved = dict(attributes)
         call_type = resolved.get("type")
         if call_type == "incoming" and resolved.get("from"):
@@ -430,9 +450,50 @@ class FritzBoxCallMonitorSensor(FritzBoxPhoneEntity, SensorEntity):
                 resolved["ring_duration_formatted"] = _format_call_duration(
                     str(ring_seconds) if ring_seconds is not None else None
                 )
+        return resolved
+
+    @callback
+    def _async_apply_event(self, state: str, resolved: dict[str, Any]) -> None:
+        """Announce the call, then write the state under the same Context.
+
+        Sharing the Context is what lets the logbook explain the state
+        change ("Was ist passiert") with the message logbook.py builds
+        from the event - a state written without it shows up as
+        "Für diese Aktivität wurde kein Grund festgehalten".
+        """
+        context = Context()
+        self.hass.bus.async_fire(
+            EVENT_CALL, self._call_event_data(state, resolved), context=context
+        )
+        self.async_set_context(context)
         self._state = state
         self._attributes = resolved
-        self.schedule_update_ha_state()
+        self.async_write_ha_state()
+
+    def _call_event_data(self, state: str, resolved: dict[str, Any]) -> dict[str, Any]:
+        """Flatten the resolved attributes into the event payload that
+        logbook.py phrases its message from."""
+        direction = resolved.get("type")
+        # CONNECT/DISCONNECT name the other party as `with`; RING and CALL
+        # only ever fill the leg matching their direction.
+        other = "to" if direction == "outgoing" else "from"
+        return {
+            "config_entry_id": self._entry.entry_id,
+            "host": self._entry.data[CONF_HOST],
+            "call_state": state,
+            "direction": direction,
+            "number": resolved.get("with") or resolved.get(other),
+            "name": resolved.get("with_name") or resolved.get(f"{other}_name"),
+            "reverse_name": resolved.get("reverse_name"),
+            "area_name": resolved.get("area_name"),
+            "device": resolved.get("device"),
+            "vip": bool(resolved.get("vip")),
+            "is_spam": bool(resolved.get("is_spam")),
+            "spam_confidence": resolved.get("spam_confidence"),
+            "duration_formatted": resolved.get("duration_formatted"),
+            "ring_duration_formatted": resolved.get("ring_duration_formatted"),
+            "answered": bool(resolved.get("accepted")),
+        }
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
