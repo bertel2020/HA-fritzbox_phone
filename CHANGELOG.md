@@ -4,6 +4,13 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ## Unveröffentlicht
 
+### Behoben
+
+- `requests` aus den `requirements` der `manifest.json` entfernt: Home Assistant
+  liefert die Bibliothek selbst mit, Hassfest lehnt den Eintrag deshalb ab und
+  der nächtliche Validierungslauf schlug fehl. Am Verhalten der Integration
+  ändert sich nichts.
+
 ### Hinzugefügt
 
 - GitHub-Action `Release`: Beim Push eines `v*`-Tags entsteht das
