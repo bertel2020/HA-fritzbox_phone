@@ -4,6 +4,8 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ## Unveröffentlicht
 
+## 1.15.1 – 2026-10-07
+
 ### Behoben
 
 - `requests` aus den `requirements` der `manifest.json` entfernt: Home Assistant
