@@ -97,7 +97,7 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
   Verbindung nicht steht.
 - Die Listen-Attribute (`calls`, `contacts`, `messages`) werden nicht mehr im
   Recorder gespeichert.
-- Mindestversion Home Assistant 2025.2; Laufzeitdaten liegen in
+- Mindestversion Home Assistant 2025.10; Laufzeitdaten liegen in
   `entry.runtime_data`.
 - `numbers.py` heißt `phone_numbers.py` (Namensüberschneidung mit der
   Standardbibliothek).
