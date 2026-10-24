@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta
 import logging
+import time
 from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree as ET
@@ -24,6 +25,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import CallEntry, FritzBoxPhoneClient, Phonebook, Tam, TamMessage
 from .callmonitor import normalize_number
 from .geocoding import describe_number
+from .numbers import normalize as normalize_phone_number
 from .const import (
     CONF_CALL_LIST_DAYS,
     CONF_CALL_LIST_MAX,
@@ -50,6 +52,7 @@ from .const import (
     EVENT_TAM_MESSAGE,
     MISSED_CALL_TYPE,
     OUTGOING_CALL_TYPE,
+    PHONEBOOK_REFRESH_INTERVAL,
 )
 from .phoneblock import PhoneBlockClient, PhoneBlockInfo
 from .tellows import TellowsClient, TellowsInfo
@@ -82,6 +85,12 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         self.tellows = self._build_tellows_client()
         self._own_area_code: str | None = None
         self._own_area_code_fetched = False
+        # Phonebooks are re-downloaded only every PHONEBOOK_REFRESH_INTERVAL
+        # seconds; the number -> contact indexes are rebuilt with them.
+        self._phonebooks: list[Phonebook] | None = None
+        self._phonebooks_fetched = 0.0
+        self._contacts_by_number: dict[str, tuple[str, bool]] = {}
+        self._contacts_by_digits: dict[str, tuple[str, bool]] = {}
         # Change detection for the logbook events. `None` means "no poll
         # yet": the first cycle only records the baseline, otherwise every
         # restart would report the whole call list as brand new.
@@ -97,10 +106,25 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             update_interval=timedelta(seconds=scan_interval),
         )
 
+    def _prefixes(self) -> list[str]:
+        raw = self.entry.options.get(CONF_PREFIXES, "")
+        return [p.strip() for p in raw.split(",") if p.strip()]
+
     def _country_prefix(self) -> str:
-        prefixes_raw = self.entry.options.get(CONF_PREFIXES, "")
-        prefixes = [p.strip() for p in prefixes_raw.split(",") if p.strip()]
-        return prefixes[0] if prefixes else DEFAULT_COUNTRY_PREFIX
+        """Dial prefix of the country the box is in (e.g. "+49").
+
+        The optional `prefixes` setting wins; without it the country
+        configured in Home Assistant decides.
+        """
+        prefixes = self._prefixes()
+        if prefixes:
+            return prefixes[0]
+        country = self.hass.config.country
+        if country:
+            code = phonenumbers.country_code_for_region(country)
+            if code:
+                return f"+{code}"
+        return DEFAULT_COUNTRY_PREFIX
 
     def _region_code(self) -> str:
         """ISO region code (e.g. "DE") derived from the configured country
@@ -110,6 +134,12 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             return phonenumbers.region_code_for_country_code(int(digits)) or "DE"
         except (ValueError, TypeError):
             return "DE"
+
+    def normalize_number(self, number: str | None) -> str | None:
+        """Canonical (E.164) form of a number as the box reports it."""
+        return normalize_phone_number(
+            number, self._region_code(), self._country_prefix(), self._get_own_area_code()
+        )
 
     def _get_own_area_code(self) -> str | None:
         """The box's own configured area code, fetched once and cached
@@ -327,10 +357,42 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             self._enrich_calls_with_tellows(calls)
             self._enrich_tam_messages_with_tellows(tams)
         return FritzBoxPhoneData(
-            phonebooks=self.client.get_phonebooks(),
+            phonebooks=self._get_phonebooks(),
             calls=calls,
             tams=tams,
         )
+
+    def _get_phonebooks(self) -> list[Phonebook]:
+        age = time.monotonic() - self._phonebooks_fetched
+        if self._phonebooks is not None and age < PHONEBOOK_REFRESH_INTERVAL:
+            return self._phonebooks
+        try:
+            phonebooks = self.client.get_phonebooks()
+        except Exception as err:  # noqa: BLE001
+            if self._phonebooks is None:
+                raise
+            # Contacts are secondary data: keep serving the copy we have
+            # rather than failing the whole poll, and retry next time.
+            _LOGGER.debug("Telefonbuch-Aktualisierung fehlgeschlagen: %s", err)
+            return self._phonebooks
+        self._phonebooks = phonebooks
+        self._phonebooks_fetched = time.monotonic()
+        self._index_contacts(phonebooks)
+        return phonebooks
+
+    def _index_contacts(self, phonebooks: list[Phonebook]) -> None:
+        by_number: dict[str, tuple[str, bool]] = {}
+        by_digits: dict[str, tuple[str, bool]] = {}
+        for phonebook in phonebooks:
+            for contact in phonebook.contacts:
+                for entry_number in contact.numbers:
+                    value = (contact.name, contact.vip)
+                    if canonical := self.normalize_number(entry_number.number):
+                        by_number.setdefault(canonical, value)
+                    if digits := normalize_number(entry_number.number):
+                        by_digits.setdefault(digits, value)
+        self._contacts_by_number = by_number
+        self._contacts_by_digits = by_digits
 
     def _call_counterpart_number(self, call: CallEntry) -> str | None:
         """The "other side" number for a call, direction-aware."""
@@ -375,7 +437,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
     def _apply_phoneblock_info(self, target: CallEntry | TamMessage, number: str | None) -> None:
         if not number:
             return
-        info = self.phoneblock.check(number)
+        info = self.phoneblock.check(self.normalize_number(number))
         if info is None:
             return
         target.spam_confidence = info.spam_confidence
@@ -387,7 +449,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         """Look up a number's PhoneBlock spam rating, if enabled. Blocking."""
         if self.phoneblock is None or not number:
             return None
-        return self.phoneblock.check(number)
+        return self.phoneblock.check(self.normalize_number(number))
 
     def _enrich_calls_with_tellows(self, calls: list[CallEntry]) -> None:
         for call in calls:
@@ -405,7 +467,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
     def _apply_tellows_info(self, target: CallEntry | TamMessage, number: str | None) -> None:
         if not number:
             return
-        info = self.tellows.lookup(number)
+        info = self.tellows.lookup(self.normalize_number(number))
         if info is None or not info.name:
             return
         target.reverse_name = info.name
@@ -416,7 +478,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         enabled. Blocking."""
         if self.tellows is None or not number:
             return None
-        return self.tellows.lookup(number)
+        return self.tellows.lookup(self.normalize_number(number))
 
     def get_area_name(self, number: str | None) -> str | None:
         """Offline country/area-code description for a number (e.g. "Berlin").
@@ -432,31 +494,24 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
     def resolve_contact(self, number: str) -> tuple[str | None, bool]:
         """Look up a phone number in the currently loaded phonebooks.
 
-        Returns (name, vip) or (None, False) if unknown. Also tries the
-        configured `prefixes` (e.g. "+49") to bridge local vs.
-        internationalized number formats, same as HA core's
-        fritzbox_callmonitor integration.
+        Returns (name, vip) or (None, False) if unknown. The number is
+        compared in canonical (E.164) form, so national, international and
+        local-area spellings of the same number all match. The plain-digit
+        comparison with the configured `prefixes` (e.g. "+49") stays as a
+        fallback for numbers libphonenumber cannot interpret.
         """
-        target = normalize_number(number)
-        if not target:
+        if not normalize_number(number):
             return None, False
-        candidates: dict[str, tuple[str, bool]] = {}
-        for phonebook in self.data.phonebooks:
-            for contact in phonebook.contacts:
-                for pb_number in contact.numbers:
-                    candidates[normalize_number(pb_number.number)] = (
-                        contact.name,
-                        contact.vip,
-                    )
-        if target in candidates:
-            return candidates[target]
-        prefixes_raw = self.entry.options.get(CONF_PREFIXES, "")
-        prefixes = [p.strip() for p in prefixes_raw.split(",") if p.strip()]
-        for prefix in prefixes:
-            if prefix + target in candidates:
-                return candidates[prefix + target]
-            if prefix + target.lstrip("0") in candidates:
-                return candidates[prefix + target.lstrip("0")]
+        canonical = self.normalize_number(number)
+        if canonical and canonical in self._contacts_by_number:
+            return self._contacts_by_number[canonical]
+        target = normalize_number(number)
+        if target in self._contacts_by_digits:
+            return self._contacts_by_digits[target]
+        for prefix in self._prefixes():
+            for candidate in (prefix + target, prefix + target.lstrip("0")):
+                if candidate in self._contacts_by_digits:
+                    return self._contacts_by_digits[candidate]
         return None, False
 
     def download_message(self, tam_index: int, message_index: int, filename: str) -> str:

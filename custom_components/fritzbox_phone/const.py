@@ -25,6 +25,9 @@ DEFAULT_CALLMONITOR_PORT = 1012
 DEFAULT_PHONEBLOCK_ENABLED = False
 DEFAULT_PHONEBLOCK_THRESHOLD = 50
 DEFAULT_COUNTRY_PREFIX = "+49"
+# The phonebooks change rarely and downloading them (plus their images)
+# every poll is the most expensive part of an update.
+PHONEBOOK_REFRESH_INTERVAL = 900  # seconds
 DEFAULT_REVERSE_LOOKUP_ENABLED = False
 
 # X_AVM-DE_OnTel CallList "Type" values (TR-064_Contact_SCPD.pdf, table 70)
