@@ -1,30 +1,21 @@
 """Sensor platform for the FRITZ!Box phone integration."""
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timedelta
 import logging
 from typing import Any
 
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, EVENT_HOMEASSISTANT_STOP
-from homeassistant.core import Context, Event, HomeAssistant, callback
+from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .api import CallEntry, Phonebook, Tam
 from .callmonitor import FritzCallMonitor
 from .const import (
-    CALLMONITOR_STATE_IDLE,
-    CONF_CALLMONITOR_PORT,
-    CONF_ENABLE_CALLMONITOR,
     CONTEXT_KEY_CALL_LIST,
     CONTEXT_KEY_MISSED_CALLS,
     CONTEXT_KEY_TAM,
-    DEFAULT_CALLMONITOR_PORT,
-    DEFAULT_ENABLE_CALLMONITOR,
-    EVENT_CALL,
     MISSED_CALL_TYPE,
 )
 from .coordinator import FritzBoxPhoneCoordinator
@@ -37,45 +28,6 @@ _LOGGER = logging.getLogger(__name__)
 # All state comes from the coordinator (or the call monitor's own socket), so
 # entities never need to be throttled against each other.
 PARALLEL_UPDATES = 0
-
-
-def _format_call_duration(raw: str | None) -> str | None:
-    """Format the CallMonitor protocol's DISCONNECT duration (whole
-    seconds, exact - unlike the polled call list's rounded "hh:mm") as
-    "m:ss" or "h:mm:ss"."""
-    if raw is None:
-        return None
-    try:
-        total_seconds = int(raw)
-    except ValueError:
-        return None
-    hours, remainder = divmod(total_seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    if hours:
-        return f"{hours}:{minutes:02d}:{seconds:02d}"
-    return f"{minutes}:{seconds:02d}"
-
-
-def _compute_call_start(closed: str | None, duration: str | None) -> str | None:
-    """Start of the connected call (ISO timestamp), derived as
-    closed - duration - CallMonitor's DISCONNECT line gives the end time
-    and the exact duration, but not the start time directly."""
-    if not closed or duration is None:
-        return None
-    try:
-        closed_dt = datetime.fromisoformat(closed)
-        seconds = int(duration)
-    except ValueError:
-        return None
-    return (closed_dt - timedelta(seconds=seconds)).isoformat()
-
-
-def _seconds_between(earlier: str, later: str) -> int | None:
-    try:
-        delta = datetime.fromisoformat(later) - datetime.fromisoformat(earlier)
-    except ValueError:
-        return None
-    return max(0, round(delta.total_seconds()))
 
 
 async def async_setup_entry(
@@ -94,15 +46,8 @@ async def async_setup_entry(
     entities.extend(
         FritzBoxTamSensor(coordinator, entry, tam.index) for tam in coordinator.data.tams
     )
-    if entry.options.get(CONF_ENABLE_CALLMONITOR, DEFAULT_ENABLE_CALLMONITOR):
-        entities.append(
-            FritzBoxCallMonitorSensor(
-                coordinator,
-                entry,
-                entry.data[CONF_HOST],
-                entry.options.get(CONF_CALLMONITOR_PORT, DEFAULT_CALLMONITOR_PORT),
-            )
-        )
+    if (monitor := entry.runtime_data.call_monitor) is not None:
+        entities.append(FritzBoxCallMonitorSensor(coordinator, entry, monitor))
     async_add_entities(entities)
 
 
@@ -329,11 +274,11 @@ class FritzBoxCallMonitorSensor(FritzBoxPhoneEntity, SensorEntity):
     """Live call state via the FRITZ!Box CallMonitor protocol (port 1012).
 
     Unlike the other sensors this does not depend on the polling
-    coordinator: it keeps its own persistent socket connection and pushes
-    state changes the instant the box reports them (ringing/dialing/
-    talking/idle), same as Home Assistant core's fritzbox_callmonitor
-    integration - but reusing this integration's own phonebook data for
-    caller-ID lookup instead of a separate config entry.
+    coordinator: the FritzCallMonitor it shows keeps its own persistent
+    socket connection and pushes state changes the instant the box reports
+    them (ringing/dialing/talking/idle), same as Home Assistant core's
+    fritzbox_callmonitor integration - but reusing this integration's own
+    phonebook data for caller-ID lookup instead of a separate config entry.
     """
 
     _attr_icon = "mdi:phone-in-talk"
@@ -342,160 +287,42 @@ class FritzBoxCallMonitorSensor(FritzBoxPhoneEntity, SensorEntity):
     _attr_options = ["idle", "ringing", "dialing", "talking"]
 
     def __init__(
-        self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry, host: str, port: int
+        self,
+        coordinator: FritzBoxPhoneCoordinator,
+        entry: ConfigEntry,
+        monitor: FritzCallMonitor,
     ) -> None:
         super().__init__(coordinator, entry)
         self._attr_unique_id = f"{entry.entry_id}_call_monitor"
-        self._state = CALLMONITOR_STATE_IDLE
-        self._attributes: dict[str, Any] = {}
-        self._monitor = FritzCallMonitor(host, port, self._handle_event)
+        self._monitor = monitor
 
     @property
     def available(self) -> bool:
-        # Independent of the TR-064 polling coordinator - the CallMonitor
-        # keeps its own always-on socket connection.
-        return True
+        # Independent of the TR-064 polling coordinator - what matters is
+        # whether the monitor's own socket to the box is up.
+        return self._monitor.connected
 
     @property
     def native_value(self) -> str:
-        return self._state
+        return self._monitor.state
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        return self._attributes
+        return self._monitor.attributes
 
-    def _handle_event(self, state: str, attributes: dict[str, Any]) -> None:
-        """CallMonitor reader thread: resolve, then hand over to the loop.
-
-        The caller-ID enrichment below does blocking network I/O
-        (PhoneBlock, Tellows), so it has to stay on this thread - only
-        firing the event and writing the state moves to the event loop,
-        where both belong.
-        """
-        resolved = self._resolve_event(state, attributes)
-        self.hass.loop.call_soon_threadsafe(self._async_apply_event, state, resolved)
-
-    def _run_on_loop(self, coro, timeout: float = 12):
-        """Run a lookup on the event loop and wait for it on this thread."""
-        try:
-            return asyncio.run_coroutine_threadsafe(coro, self.hass.loop).result(timeout)
-        except Exception:  # noqa: BLE001 - lookups are best effort
-            return None
-
-    def _resolve_event(self, state: str, attributes: dict[str, Any]) -> dict[str, Any]:
-        """Enrich a raw CallMonitor event with caller ID, area and spam
-        info. Blocking, runs on the CallMonitor reader thread."""
-        resolved = dict(attributes)
-        call_type = resolved.get("type")
-        if call_type == "incoming" and resolved.get("from"):
-            name, vip = self.coordinator.resolve_contact(resolved["from"])
-            resolved["from_name"] = name
-            resolved["vip"] = vip
-            resolved["area_name"] = self.coordinator.get_area_name(resolved["from"])
-            if not name:
-                # Unknown caller and not (yet) ringing/answered enough to
-                # matter for outgoing/connected legs - worth a spam check.
-                info = self._run_on_loop(self.coordinator.async_check_phoneblock(resolved["from"]))
-                if info is not None:
-                    resolved["is_spam"] = info.is_spam
-                    resolved["spam_confidence"] = info.spam_confidence
-                    resolved["spam_rating"] = info.rating
-                    resolved["spam_location"] = info.location
-                reverse = self._run_on_loop(self.coordinator.async_identify_caller(resolved["from"]))
-                if reverse is not None and reverse.name:
-                    resolved["reverse_name"] = reverse.name
-                    resolved["reverse_category"] = reverse.category
-        elif call_type == "outgoing" and resolved.get("to"):
-            name, vip = self.coordinator.resolve_contact(resolved["to"])
-            resolved["to_name"] = name
-            resolved["vip"] = vip
-            resolved["area_name"] = self.coordinator.get_area_name(resolved["to"])
-        elif "with" in resolved:
-            # CONNECT doesn't repeat the RING/CALL event's `initiated`
-            # timestamp - carry it forward so the eventual idle summary
-            # can still show how long the phone rang before pickup.
-            if "initiated" not in resolved and "initiated" in self._attributes:
-                resolved["initiated"] = self._attributes["initiated"]
-            name, vip = self.coordinator.resolve_contact(resolved["with"])
-            resolved["with_name"] = name
-            resolved["vip"] = vip
-            resolved["area_name"] = self.coordinator.get_area_name(resolved["with"])
-        elif state == CALLMONITOR_STATE_IDLE:
-            # DISCONNECT only carries `duration` (exact seconds) and
-            # `closed` - keep whoever the last ringing/dialing/talking
-            # event resolved (name, number, device, vip, area, spam/
-            # reverse-lookup fields, initiated/accepted timestamps) so the
-            # final state still shows a full call summary instead of
-            # losing that context the moment the call ends.
-            resolved = {**self._attributes, **resolved}
-            resolved["duration_formatted"] = _format_call_duration(resolved.get("duration"))
-            # DISCONNECT's `duration` is exact but only covers the
-            # connected/talking part of the call - `accepted` (if the call
-            # was answered) is the true, direct start of that window and
-            # preferred over deriving it from closed - duration.
-            resolved["started"] = resolved.get("accepted") or _compute_call_start(
-                resolved.get("closed"), resolved.get("duration")
-            )
-            if resolved.get("initiated") and resolved.get("accepted"):
-                ring_seconds = _seconds_between(resolved["initiated"], resolved["accepted"])
-                resolved["ring_duration_formatted"] = _format_call_duration(
-                    str(ring_seconds) if ring_seconds is not None else None
-                )
-        return resolved
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(self._monitor.async_add_listener(self._handle_monitor_update))
 
     @callback
-    def _async_apply_event(self, state: str, resolved: dict[str, Any]) -> None:
-        """Announce the call, then write the state under the same Context.
+    def _handle_monitor_update(self, context: Context | None) -> None:
+        """Write the new state under the Context of the call event.
 
         Sharing the Context is what lets the logbook explain the state
         change ("Was ist passiert") with the message logbook.py builds
         from the event - a state written without it shows up as
         "Für diese Aktivität wurde kein Grund festgehalten".
         """
-        context = Context()
-        self.hass.bus.async_fire(
-            EVENT_CALL, self._call_event_data(state, resolved), context=context
-        )
-        self.async_set_context(context)
-        self._state = state
-        self._attributes = resolved
+        if context is not None:
+            self.async_set_context(context)
         self.async_write_ha_state()
-
-    def _call_event_data(self, state: str, resolved: dict[str, Any]) -> dict[str, Any]:
-        """Flatten the resolved attributes into the event payload that
-        logbook.py phrases its message from."""
-        direction = resolved.get("type")
-        # CONNECT/DISCONNECT name the other party as `with`; RING and CALL
-        # only ever fill the leg matching their direction.
-        other = "to" if direction == "outgoing" else "from"
-        return {
-            "config_entry_id": self._entry.entry_id,
-            "host": self._entry.data[CONF_HOST],
-            "call_state": state,
-            "direction": direction,
-            "number": resolved.get("with") or resolved.get(other),
-            "name": resolved.get("with_name") or resolved.get(f"{other}_name"),
-            "reverse_name": resolved.get("reverse_name"),
-            "area_name": resolved.get("area_name"),
-            "device": resolved.get("device"),
-            "vip": bool(resolved.get("vip")),
-            "is_spam": bool(resolved.get("is_spam")),
-            "spam_confidence": resolved.get("spam_confidence"),
-            "duration_formatted": resolved.get("duration_formatted"),
-            "ring_duration_formatted": resolved.get("ring_duration_formatted"),
-            "answered": bool(resolved.get("accepted")),
-        }
-
-    async def async_added_to_hass(self) -> None:
-        await super().async_added_to_hass()
-        await self.hass.async_add_executor_job(self._monitor.connect)
-        self.async_on_remove(
-            self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, self._stop_monitor)
-        )
-
-    async def async_will_remove_from_hass(self) -> None:
-        await super().async_will_remove_from_hass()
-        await self.hass.async_add_executor_job(self._monitor.disconnect)
-
-    def _stop_monitor(self, event: Event | None = None) -> None:
-        self._monitor.disconnect()

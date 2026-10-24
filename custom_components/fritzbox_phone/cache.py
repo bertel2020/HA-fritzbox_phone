@@ -3,9 +3,6 @@ from __future__ import annotations
 
 from collections import OrderedDict
 import time
-from typing import Generic, TypeVar
-
-T = TypeVar("T")
 
 DEFAULT_TTL = 6 * 3600  # seconds; ratings don't change minute to minute
 # A failed lookup (timeout, outage) is remembered only briefly so a short
@@ -15,7 +12,7 @@ DEFAULT_FAILURE_TTL = 300
 DEFAULT_MAX_ENTRIES = 1000
 
 
-class LookupCache(Generic[T]):
+class LookupCache[T]:
     """TTL cache with a size limit (least recently used goes first)."""
 
     def __init__(

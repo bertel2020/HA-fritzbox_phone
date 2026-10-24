@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from homeassistant.config_entries import ConfigEntry
 
+from .callmonitor import FritzCallMonitor
 from .coordinator import FritzBoxPhoneCoordinator
 
 
@@ -13,6 +14,8 @@ class FritzBoxPhoneRuntimeData:
     """What a loaded entry keeps alive."""
 
     coordinator: FritzBoxPhoneCoordinator
+    # None when the call monitor is switched off in the options.
+    call_monitor: FritzCallMonitor | None = None
 
 
 type FritzBoxPhoneConfigEntry = ConfigEntry[FritzBoxPhoneRuntimeData]
