@@ -6,12 +6,19 @@ from datetime import timedelta
 import logging
 from pathlib import Path
 from typing import Any
+from xml.etree import ElementTree as ET
 
-from fritzconnection.core.exceptions import FritzConnectionException
+from fritzconnection.core.exceptions import (
+    FritzAuthorizationError,
+    FritzConnectionException,
+    FritzSecurityError,
+)
 import phonenumbers
+import requests
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST
 from homeassistant.core import Context, HomeAssistant, callback
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import CallEntry, FritzBoxPhoneClient, Phonebook, Tam, TamMessage
@@ -144,8 +151,20 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
     async def _async_update_data(self) -> FritzBoxPhoneData:
         try:
             data = await self.hass.async_add_executor_job(self._update)
-        except FritzConnectionException as err:
-            raise UpdateFailed(str(err)) from err
+        except (FritzAuthorizationError, FritzSecurityError) as err:
+            raise ConfigEntryAuthFailed(str(err)) from err
+        except (
+            FritzConnectionException,
+            requests.RequestException,
+            ET.ParseError,
+            ValueError,
+            OSError,
+        ) as err:
+            # Keeping the previous data (UpdateFailed) matters: a failed
+            # poll must never look like an empty call list, or the change
+            # detection below would report every call as removed and then
+            # as new again.
+            raise UpdateFailed(f"{type(err).__name__}: {err}") from err
         # Fire before returning: the coordinator notifies its entities the
         # moment this returns, and they need the Contexts to already be
         # parked when they write their new state.

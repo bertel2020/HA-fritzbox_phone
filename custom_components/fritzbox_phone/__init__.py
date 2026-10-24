@@ -4,12 +4,17 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from fritzconnection.core.exceptions import FritzConnectionException
+from fritzconnection.core.exceptions import (
+    FritzAuthorizationError,
+    FritzConnectionException,
+    FritzSecurityError,
+)
+import requests
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 
 from .api import FritzBoxPhoneClient
 from .const import CARD_JS_FILENAME, CARD_JS_URL, CONF_USE_TLS, DOMAIN
@@ -33,7 +38,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     try:
         await hass.async_add_executor_job(client.connect)
-    except FritzConnectionException as err:
+    except (FritzAuthorizationError, FritzSecurityError) as err:
+        raise ConfigEntryAuthFailed(
+            f"Anmeldung an der FRITZ!Box {entry.data[CONF_HOST]} abgelehnt: {err}"
+        ) from err
+    except (FritzConnectionException, requests.RequestException, OSError) as err:
         raise ConfigEntryNotReady(
             f"Verbindung zur FRITZ!Box {entry.data[CONF_HOST]} fehlgeschlagen: {err}"
         ) from err

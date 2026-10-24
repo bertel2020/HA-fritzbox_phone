@@ -133,3 +133,45 @@ async def test_options_require_phoneblock_credentials(hass: HomeAssistant) -> No
     )
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "phoneblock_credentials_required"}
+
+
+async def test_reauth_updates_credentials(hass: HomeAssistant) -> None:
+    entry = MockConfigEntry(domain=DOMAIN, unique_id="ABC123", data=USER_INPUT)
+    entry.add_to_hass(hass)
+    result = await entry.start_reauth_flow(hass)
+    assert result["step_id"] == "reauth_confirm"
+    with patch(CLIENT, _client()):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_USERNAME: "user", CONF_PASSWORD: "new"}
+        )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reauth_successful"
+    assert entry.data[CONF_PASSWORD] == "new"
+
+
+async def test_reauth_rejects_other_box(hass: HomeAssistant) -> None:
+    entry = MockConfigEntry(domain=DOMAIN, unique_id="ABC123", data=USER_INPUT)
+    entry.add_to_hass(hass)
+    result = await entry.start_reauth_flow(hass)
+    with patch(CLIENT, _client(serial="OTHER")):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_USERNAME: "user", CONF_PASSWORD: "new"}
+        )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "wrong_device"
+    assert entry.data[CONF_PASSWORD] == "secret"
+
+
+async def test_reconfigure_changes_host(hass: HomeAssistant) -> None:
+    entry = MockConfigEntry(domain=DOMAIN, unique_id="ABC123", data=USER_INPUT)
+    entry.add_to_hass(hass)
+    result = await entry.start_reconfigure_flow(hass)
+    assert result["step_id"] == "reconfigure"
+    with patch(CLIENT, _client()):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_HOST: "192.168.178.1", CONF_USERNAME: "user", CONF_PASSWORD: "secret"},
+        )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+    assert entry.data[CONF_HOST] == "192.168.178.1"

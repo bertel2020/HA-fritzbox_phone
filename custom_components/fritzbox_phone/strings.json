@@ -11,6 +11,25 @@
           "use_tls": "Verschlüsselte Verbindung (TLS) verwenden",
           "port": "Port (optional, Standard je nach TLS-Einstellung)"
         }
+      },
+      "reauth_confirm": {
+        "title": "FRITZ!Box neu anmelden",
+        "description": "Die FRITZ!Box {host} hat die gespeicherten Zugangsdaten abgelehnt. Bitte neue Zugangsdaten eingeben.",
+        "data": {
+          "username": "Benutzername",
+          "password": "Kennwort"
+        }
+      },
+      "reconfigure": {
+        "title": "FRITZ!Box-Verbindung ändern",
+        "description": "Host, Port, Verschlüsselung oder Zugangsdaten anpassen. Es muss dieselbe FRITZ!Box bleiben.",
+        "data": {
+          "host": "Hostname oder IP-Adresse",
+          "username": "Benutzername",
+          "password": "Kennwort",
+          "use_tls": "Verschlüsselte Verbindung (TLS) verwenden",
+          "port": "Port (optional, Standard je nach TLS-Einstellung)"
+        }
       }
     },
     "error": {
@@ -19,7 +38,10 @@
       "unknown": "Unerwarteter Fehler."
     },
     "abort": {
-      "already_configured": "Diese FRITZ!Box ist bereits konfiguriert."
+      "already_configured": "Diese FRITZ!Box ist bereits konfiguriert.",
+      "reauth_successful": "Die Anmeldung war erfolgreich.",
+      "reconfigure_successful": "Die Verbindung wurde aktualisiert.",
+      "wrong_device": "Unter diesen Angaben antwortet eine andere FRITZ!Box als die ursprünglich eingerichtete."
     }
   },
   "options": {
