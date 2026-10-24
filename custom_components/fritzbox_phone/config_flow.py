@@ -4,13 +4,18 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fritzconnection.core.exceptions import FritzAuthorizationError, FritzConnectionException
+from fritzconnection.core.exceptions import (
+    FritzAuthorizationError,
+    FritzConnectionException,
+    FritzSecurityError,
+)
+import requests
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 
 from .api import FritzBoxPhoneClient
@@ -44,7 +49,9 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_HOST, default="fritz.box"): str,
         vol.Required(CONF_USERNAME): str,
-        vol.Required(CONF_PASSWORD): str,
+        vol.Required(CONF_PASSWORD): selector.TextSelector(
+            selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
+        ),
         vol.Optional(CONF_USE_TLS, default=False): bool,
         vol.Optional(CONF_PORT): int,
     }
@@ -75,14 +82,14 @@ class FritzBoxPhoneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
             try:
                 info = await _validate_input(self.hass, user_input)
-            except FritzAuthorizationError:
+            except (FritzAuthorizationError, FritzSecurityError):
                 errors["base"] = "invalid_auth"
-            except (FritzConnectionException, OSError):
+            except (FritzConnectionException, requests.RequestException, OSError):
                 errors["base"] = "cannot_connect"
             except Exception:  # noqa: BLE001
                 _LOGGER.exception("Unerwarteter Fehler beim Verbindungstest")
@@ -107,11 +114,17 @@ class FritzBoxPhoneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class FritzBoxPhoneOptionsFlow(config_entries.OptionsFlow):
     """Options for polling interval, call list scope and PhoneBlock spam-check."""
 
-    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         options = self.config_entry.options
 
         if user_input is not None:
+            # The stored PhoneBlock password is never sent back to the
+            # browser (so the field is empty on every visit); leaving it
+            # empty therefore means "keep the current one".
+            user_input = dict(user_input)
+            if not user_input.get(CONF_PHONEBLOCK_PASSWORD):
+                user_input[CONF_PHONEBLOCK_PASSWORD] = options.get(CONF_PHONEBLOCK_PASSWORD, "")
             if user_input.get(CONF_PHONEBLOCK_ENABLED) and not (
                 user_input.get(CONF_PHONEBLOCK_USERNAME)
                 and user_input.get(CONF_PHONEBLOCK_PASSWORD)
@@ -154,10 +167,7 @@ class FritzBoxPhoneOptionsFlow(config_entries.OptionsFlow):
                     CONF_PHONEBLOCK_USERNAME,
                     default=options.get(CONF_PHONEBLOCK_USERNAME, ""),
                 ): str,
-                vol.Optional(
-                    CONF_PHONEBLOCK_PASSWORD,
-                    default=options.get(CONF_PHONEBLOCK_PASSWORD, ""),
-                ): selector.TextSelector(
+                vol.Optional(CONF_PHONEBLOCK_PASSWORD): selector.TextSelector(
                     selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
                 ),
                 vol.Optional(

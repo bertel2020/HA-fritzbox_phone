@@ -34,7 +34,7 @@
           "prefixes": "Vorwahl-Präfixe für Rufnummernabgleich (z. B. +49), kommagetrennt",
           "phoneblock_enabled": "PhoneBlock-Spamerkennung aktivieren (kostenloser Account auf phoneblock.net nötig)",
           "phoneblock_username": "PhoneBlock-Benutzername",
-          "phoneblock_password": "PhoneBlock-Kennwort",
+          "phoneblock_password": "PhoneBlock-Kennwort (leer lassen = unverändert)",
           "phoneblock_spam_threshold": "Spam-Schwellwert (%, ab dieser Spam-Wahrscheinlichkeit gilt eine Nummer als Spam)",
           "reverse_lookup_enabled": "Online-Rückwärtssuche über Tellows aktivieren (sendet unbekannte Rufnummern im Klartext an tellows.de, kein Account nötig)"
         }

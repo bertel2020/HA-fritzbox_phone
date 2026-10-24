@@ -132,9 +132,18 @@ class FritzBoxPhoneClient:
         self._use_tls = use_tls
         self._timeout = timeout
         self.fc: FritzConnection | None = None
+        self.serial_number: str | None = None
+        self.software_version: str | None = None
 
     def connect(self) -> None:
-        """Open the TR-064 connection. Blocking."""
+        """Open the TR-064 connection and verify the credentials. Blocking.
+
+        Opening the connection alone only reads the public device
+        description, so a wrong password would go unnoticed until the
+        first action. GetInfo needs authentication, which makes it a cheap
+        credential check; FritzAuthorizationError / FritzSecurityError
+        propagate to the caller.
+        """
         self.fc = FritzConnection(
             address=self._host,
             port=self._port,
@@ -143,14 +152,9 @@ class FritzBoxPhoneClient:
             use_tls=self._use_tls,
             timeout=self._timeout,
         )
-
-    @property
-    def serial_number(self) -> str | None:
-        try:
-            info = self.fc.call_action(DEVICEINFO_SERVICE, "GetInfo")
-        except FritzConnectionException:
-            return None
-        return info.get("NewSerialNumber")
+        info = self.fc.call_action(DEVICEINFO_SERVICE, "GetInfo")
+        self.serial_number = info.get("NewSerialNumber") or None
+        self.software_version = info.get("NewSoftwareVersion") or None
 
     @property
     def model_name(self) -> str:

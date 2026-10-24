@@ -1,0 +1,4 @@
+pytest-homeassistant-custom-component
+fritzconnection>=1.13.0
+phonenumbers>=8.13.0
+ruff
