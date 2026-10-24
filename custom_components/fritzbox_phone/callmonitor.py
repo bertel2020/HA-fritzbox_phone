@@ -269,6 +269,7 @@ class FritzCallMonitor:
             _LOGGER.info("Anrufmonitor: Verbindung zu %s:%s hergestellt", self._host, self._port)
         self._failures = 0
         self.connected = True
+        self._forget_calls()
         self._notify()
 
     async def _async_retry(self, _now: datetime) -> None:
@@ -330,6 +331,7 @@ class FritzCallMonitor:
             return
         _LOGGER.warning("Anrufmonitor: Verbindung zur FRITZ!Box %s verloren", self._host)
         self.connected = False
+        self._forget_calls()
         self._notify()
         self._failures = 1
         self._retry_cancel = async_call_later(self.hass, RETRY_DELAYS[0], self._async_retry)
@@ -451,6 +453,9 @@ class FritzCallMonitor:
             return
 
         call = self._active.get(connection_id)
+        # The box reuses connection ids: a different call may hold this one now.
+        if call is not None and call.attributes.get("from") != number:
+            return
         if call is not None:
             call.attributes.update(found)
             self._publish(call.phase, call, Context(), enriched=True)
@@ -472,6 +477,13 @@ class FritzCallMonitor:
         for listener in list(self._event_listeners):
             listener("updated" if enriched else _EVENT_TYPE.get(event_state, event_state), payload)
         self._notify(context)
+
+    def _forget_calls(self) -> None:
+        """Calls seen before a connection loss may have ended unseen (their
+        DISCONNECT was lost); keeping them would pin the state forever."""
+        if self._active:
+            self._active.clear()
+            self._recompute()
 
     def _recompute(self) -> None:
         """The entity shows the most important of the calls still going on -

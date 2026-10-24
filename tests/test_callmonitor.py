@@ -287,3 +287,44 @@ async def test_stopping_while_connecting_leaves_nothing_behind(
     assert monitor.connected is False
     assert monitor._retry_cancel is None
     assert monitor._reader is None or not monitor._reader.is_alive()
+
+
+async def test_call_lost_with_the_connection_does_not_stay_forever(
+    hass: HomeAssistant, fake_monitor
+) -> None:
+    entry, monitor = await setup_monitor(hass)
+    sensor = entity_id(hass, entry, "call_monitor")
+
+    monitor.async_handle_line(line("24.10.26 10:00:00;RING;1;0301;0300;SIP0;"))
+    monitor.async_handle_line(line("24.10.26 10:00:03;CONNECT;1;1;0301;"))
+    await hass.async_block_till_done()
+    assert hass.states.get(sensor).state == "talking"
+
+    fake_monitor.instances[-1].alive = False  # the DISCONNECT is never seen
+    await wait_for(lambda: not monitor.connected)
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=31))
+    await wait_for(lambda: monitor.connected)
+    await hass.async_block_till_done()
+    assert hass.states.get(sensor).state == "idle"
+
+
+async def test_lookup_result_is_not_applied_to_a_reused_connection_id(
+    hass: HomeAssistant, fake_monitor
+) -> None:
+    entry, monitor = await setup_monitor(hass)
+    coordinator = get_coordinator(hass, entry)
+
+    async def spam(number):
+        return PhoneBlockInfo("E_ADVERTISING", 5, 0, False, False, None, None, 90, True)
+
+    async def nobody(number):
+        return None
+
+    coordinator.async_check_phoneblock = spam
+    coordinator.async_identify_caller = nobody
+    monitor.async_handle_line(line("24.10.26 10:00:00;RING;0;0301;0300;SIP0;"))
+    monitor.async_handle_line(line("24.10.26 10:00:01;DISCONNECT;0;0;"))
+    monitor.async_handle_line(line("24.10.26 10:00:02;CALL;0;1;0300;0999;SIP0;"))
+    await monitor._async_enrich("0", "0301")  # the old call's lookup finishes now
+    assert "is_spam" not in monitor.attributes
+    assert "reverse_name" not in monitor.attributes
