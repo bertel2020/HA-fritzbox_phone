@@ -34,7 +34,6 @@ class FritzBoxCallEvent(FritzBoxPhoneEntity, EventEntity):
     arrives as event attributes, ready for a UI automation trigger."""
 
     _attr_translation_key = "call"
-    _attr_icon = "mdi:phone-log"
     _attr_event_types = EVENT_TYPES
 
     def __init__(

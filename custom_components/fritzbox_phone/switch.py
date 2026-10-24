@@ -37,7 +37,7 @@ async def async_setup_entry(
 class FritzBoxTamSwitch(FritzBoxPhoneEntity, SwitchEntity):
     """Enables/disables a FRITZ!Box answering machine (X_AVM-DE_TAM SetEnable)."""
 
-    _attr_icon = "mdi:voicemail"
+    _attr_translation_key = "tam_enabled"
 
     def __init__(
         self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry, tam_index: int
@@ -55,9 +55,9 @@ class FritzBoxTamSwitch(FritzBoxPhoneEntity, SwitchEntity):
         return super().available and self._tam is not None
 
     @property
-    def name(self) -> str:
+    def translation_placeholders(self) -> dict[str, str]:
         tam = self._tam
-        return f"{tam.name if tam else self._tam_index} aktiv"
+        return {"name": tam.name if tam else str(self._tam_index)}
 
     @property
     def is_on(self) -> bool | None:

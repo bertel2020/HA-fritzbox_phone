@@ -103,7 +103,6 @@ def _call_to_dict(call: CallEntry) -> dict[str, Any]:
 class FritzBoxCallListSensor(FritzBoxPhoneEntity, SensorEntity):
     """All calls currently in the FRITZ!Box call list (bounded by options)."""
 
-    _attr_icon = "mdi:phone-log"
     _attr_translation_key = "call_list"
     # Whole lists in attributes outgrow the recorder's per-state size
     # limit and would be dropped there anyway; the logbook events keep
@@ -127,7 +126,6 @@ class FritzBoxCallListSensor(FritzBoxPhoneEntity, SensorEntity):
 class FritzBoxMissedCallsSensor(FritzBoxPhoneEntity, SensorEntity):
     """Missed calls within the currently loaded call list."""
 
-    _attr_icon = "mdi:phone-missed"
     _attr_translation_key = "missed_calls"
     _unrecorded_attributes = frozenset({"calls"})
     _context_key = CONTEXT_KEY_MISSED_CALLS
@@ -152,7 +150,7 @@ class FritzBoxMissedCallsSensor(FritzBoxPhoneEntity, SensorEntity):
 class FritzBoxPhonebookSensor(FritzBoxPhoneEntity, SensorEntity):
     """Number of contacts in a single FRITZ!Box phonebook, plus the full list."""
 
-    _attr_icon = "mdi:contacts"
+    _attr_translation_key = "phonebook"
     _unrecorded_attributes = frozenset({"contacts"})
 
     def __init__(
@@ -174,9 +172,9 @@ class FritzBoxPhonebookSensor(FritzBoxPhoneEntity, SensorEntity):
         return super().available and self._phonebook is not None
 
     @property
-    def name(self) -> str:
+    def translation_placeholders(self) -> dict[str, str]:
         phonebook = self._phonebook
-        return phonebook.name if phonebook else f"Telefonbuch {self._phonebook_id}"
+        return {"name": phonebook.name if phonebook else str(self._phonebook_id)}
 
     @property
     def native_value(self) -> int | None:
@@ -208,7 +206,7 @@ class FritzBoxPhonebookSensor(FritzBoxPhoneEntity, SensorEntity):
 class FritzBoxTamSensor(FritzBoxPhoneEntity, SensorEntity):
     """New-message count and message list of a single answering machine."""
 
-    _attr_icon = "mdi:voicemail"
+    _attr_translation_key = "answering_machine"
     _unrecorded_attributes = frozenset({"messages"})
 
     def __init__(
@@ -228,9 +226,9 @@ class FritzBoxTamSensor(FritzBoxPhoneEntity, SensorEntity):
         return super().available and self._tam is not None
 
     @property
-    def name(self) -> str:
+    def translation_placeholders(self) -> dict[str, str]:
         tam = self._tam
-        return tam.name if tam else f"Anrufbeantworter {self._tam_index}"
+        return {"name": tam.name if tam else str(self._tam_index)}
 
     @property
     def native_value(self) -> int | None:
@@ -307,7 +305,6 @@ class FritzBoxCallMonitorSensor(FritzBoxPhoneEntity, SensorEntity):
     phonebook data for caller-ID lookup instead of a separate config entry.
     """
 
-    _attr_icon = "mdi:phone-in-talk"
     _attr_translation_key = "call_monitor"
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_options = ["idle", "ringing", "dialing", "talking"]

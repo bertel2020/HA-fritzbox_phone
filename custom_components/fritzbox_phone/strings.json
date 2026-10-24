@@ -2,135 +2,170 @@
   "config": {
     "step": {
       "user": {
-        "title": "FRITZ!Box verbinden",
-        "description": "Zugangsdaten eines FRITZ!Box-Benutzers mit Telefonie-Berechtigung. TR-064 muss unter Heimnetz > Netzwerk > Netzwerkeinstellungen > \"Zugriff für Anwendungen zulassen\" aktiviert sein.",
+        "title": "Connect FRITZ!Box",
+        "description": "Credentials of a FRITZ!Box user with the telephony permission. TR-064 must be enabled under Home Network > Network > Network Settings > \"Allow access for applications\".",
         "data": {
-          "host": "Hostname oder IP-Adresse",
-          "username": "Benutzername",
-          "password": "Kennwort",
-          "use_tls": "Verschlüsselte Verbindung (TLS) verwenden",
-          "port": "Port (optional, Standard je nach TLS-Einstellung)"
+          "host": "Host name or IP address",
+          "username": "Username",
+          "password": "Password",
+          "use_tls": "Use an encrypted connection (TLS)",
+          "port": "Port (optional, defaults depend on the TLS setting)"
         }
       },
       "reauth_confirm": {
-        "title": "FRITZ!Box neu anmelden",
-        "description": "Die FRITZ!Box {host} hat die gespeicherten Zugangsdaten abgelehnt. Bitte neue Zugangsdaten eingeben.",
+        "title": "Sign in to the FRITZ!Box again",
+        "description": "The FRITZ!Box {host} rejected the stored credentials. Please enter new credentials.",
         "data": {
-          "username": "Benutzername",
-          "password": "Kennwort"
+          "username": "Username",
+          "password": "Password"
         }
       },
       "reconfigure": {
-        "title": "FRITZ!Box-Verbindung ändern",
-        "description": "Host, Port, Verschlüsselung oder Zugangsdaten anpassen. Es muss dieselbe FRITZ!Box bleiben.",
+        "title": "Change the FRITZ!Box connection",
+        "description": "Adjust host, port, encryption or credentials. It has to remain the same FRITZ!Box.",
         "data": {
-          "host": "Hostname oder IP-Adresse",
-          "username": "Benutzername",
-          "password": "Kennwort",
-          "use_tls": "Verschlüsselte Verbindung (TLS) verwenden",
-          "port": "Port (optional, Standard je nach TLS-Einstellung)"
+          "host": "Host name or IP address",
+          "username": "Username",
+          "password": "Password",
+          "use_tls": "Use an encrypted connection (TLS)",
+          "port": "Port (optional, defaults depend on the TLS setting)"
         }
       }
     },
     "error": {
-      "cannot_connect": "Verbindung zur FRITZ!Box fehlgeschlagen.",
-      "invalid_auth": "Benutzername oder Kennwort falsch, oder der Benutzer hat keine Telefonie-Berechtigung.",
-      "unknown": "Unerwarteter Fehler."
+      "cannot_connect": "Could not connect to the FRITZ!Box.",
+      "invalid_auth": "Wrong username or password, or the user lacks the telephony permission.",
+      "unknown": "Unexpected error."
     },
     "abort": {
-      "already_configured": "Diese FRITZ!Box ist bereits konfiguriert.",
-      "reauth_successful": "Die Anmeldung war erfolgreich.",
-      "reconfigure_successful": "Die Verbindung wurde aktualisiert.",
-      "wrong_device": "Unter diesen Angaben antwortet eine andere FRITZ!Box als die ursprünglich eingerichtete."
+      "already_configured": "This FRITZ!Box is already configured.",
+      "reauth_successful": "Signing in worked.",
+      "reconfigure_successful": "The connection was updated.",
+      "wrong_device": "A different FRITZ!Box answers under these details than the one originally set up."
     }
   },
   "options": {
     "step": {
       "init": {
         "data": {
-          "scan_interval": "Abfrageintervall (Sekunden)",
-          "call_list_days": "Anruflisten-Zeitraum (Tage)",
-          "call_list_max": "Maximale Anzahl Anrufe",
-          "enable_call_monitor": "Anrufmonitor (Echtzeit-Anrufstatus) aktivieren",
-          "callmonitor_port": "Anrufmonitor-Port",
-          "prefixes": "Vorwahl-Präfixe für Rufnummernabgleich (z. B. +49), kommagetrennt",
-          "phoneblock_enabled": "PhoneBlock-Spamerkennung aktivieren (kostenloser Account auf phoneblock.net nötig)",
-          "phoneblock_username": "PhoneBlock-Benutzername",
-          "phoneblock_password": "PhoneBlock-Kennwort (leer lassen = unverändert)",
-          "phoneblock_spam_threshold": "Spam-Schwellwert (%, ab dieser Spam-Wahrscheinlichkeit gilt eine Nummer als Spam)",
-          "reverse_lookup_enabled": "Online-Rückwärtssuche über Tellows aktivieren (sendet unbekannte Rufnummern im Klartext an tellows.de, kein Account nötig)"
+          "scan_interval": "Polling interval (seconds)",
+          "call_list_days": "Call list period (days)",
+          "call_list_max": "Maximum number of calls",
+          "enable_call_monitor": "Enable the call monitor (real-time call state)",
+          "callmonitor_port": "Call monitor port",
+          "prefixes": "Country prefixes for number matching (e.g. +49), comma separated; empty = country of Home Assistant",
+          "phoneblock_enabled": "Enable PhoneBlock spam detection (free account on phoneblock.net required)",
+          "phoneblock_username": "PhoneBlock username",
+          "phoneblock_password": "PhoneBlock password (leave empty = unchanged)",
+          "phoneblock_spam_threshold": "Spam threshold (%, a number counts as spam from this spam probability)",
+          "reverse_lookup_enabled": "Enable online reverse lookup via Tellows (sends unknown phone numbers in clear text to tellows.de, no account needed)"
         }
       }
     },
     "error": {
-      "phoneblock_credentials_required": "PhoneBlock ist aktiviert, aber Benutzername und/oder Kennwort fehlen."
+      "phoneblock_credentials_required": "PhoneBlock is enabled, but the username and/or password are missing."
     }
   },
   "entity": {
     "sensor": {
       "call_list": {
-        "name": "Anrufliste"
+        "name": "Call list"
       },
       "missed_calls": {
-        "name": "Verpasste Anrufe"
+        "name": "Missed calls"
       },
       "call_monitor": {
-        "name": "Anrufmonitor",
+        "name": "Call monitor",
         "state": {
-          "idle": "Inaktiv",
-          "ringing": "Klingelt",
-          "dialing": "Wählt",
-          "talking": "Gespräch"
+          "idle": "Idle",
+          "ringing": "Ringing",
+          "dialing": "Dialing",
+          "talking": "Talking"
+        }
+      },
+      "phonebook": {
+        "name": "{name}"
+      },
+      "answering_machine": {
+        "name": "{name}"
+      }
+    },
+    "switch": {
+      "tam_enabled": {
+        "name": "{name} active"
+      }
+    },
+    "binary_sensor": {
+      "ringing": {
+        "name": "Ringing"
+      },
+      "unread_messages": {
+        "name": "Unread messages"
+      }
+    },
+    "event": {
+      "call": {
+        "name": "Call",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "ringing": "Ringing",
+              "dialing": "Dialing",
+              "talking": "Talking",
+              "ended": "Ended",
+              "updated": "Identified"
+            }
+          }
         }
       }
     }
   },
   "services": {
     "mark_message_read": {
-      "name": "Nachricht als gelesen markieren",
-      "description": "Markiert eine Anrufbeantworter-Nachricht als gelesen oder ungelesen.",
+      "name": "Mark message as read",
+      "description": "Marks an answering machine message as read or unread.",
       "fields": {
         "message_index": {
-          "name": "Nachrichtenindex",
-          "description": "Index der Nachricht (siehe Attribut 'messages' des Anrufbeantworter-Sensors)."
+          "name": "Message index",
+          "description": "Index of the message (see the 'messages' attribute of the answering machine sensor)."
         },
         "read": {
-          "name": "Gelesen",
-          "description": "Ein = als gelesen markieren, Aus = als ungelesen markieren."
+          "name": "Read",
+          "description": "On = mark as read, off = mark as unread."
         }
       }
     },
     "delete_message": {
-      "name": "Nachricht löschen",
-      "description": "Löscht eine Anrufbeantworter-Nachricht auf der FRITZ!Box unwiderruflich.",
+      "name": "Delete message",
+      "description": "Permanently deletes an answering machine message on the FRITZ!Box.",
       "fields": {
         "message_index": {
-          "name": "Nachrichtenindex",
-          "description": "Index der Nachricht (siehe Attribut 'messages' des Anrufbeantworter-Sensors)."
+          "name": "Message index",
+          "description": "Index of the message (see the 'messages' attribute of the answering machine sensor)."
         }
       }
     },
     "download_message": {
-      "name": "Nachricht herunterladen",
-      "description": "Veraltet: speichert die Aufnahme als Datei unter config/www/fritzbox_tam/. Diese Dateien sind ohne Anmeldung abrufbar - die Karte spielt Aufnahmen stattdessen angemeldet direkt von der FRITZ!Box ab. Nur Dateinamen mit Endung .wav, .mp3 oder .ogg sind erlaubt.",
+      "name": "Download message",
+      "description": "Deprecated: saves the recording as a file under config/www/fritzbox_tam/. These files can be fetched without logging in - the card plays recordings signed in, straight from the FRITZ!Box, instead. Only file names ending in .wav, .mp3 or .ogg are accepted.",
       "fields": {
         "message_index": {
-          "name": "Nachrichtenindex",
-          "description": "Index der Nachricht (siehe Attribut 'messages' des Anrufbeantworter-Sensors)."
+          "name": "Message index",
+          "description": "Index of the message (see the 'messages' attribute of the answering machine sensor)."
         },
         "filename": {
-          "name": "Dateiname",
-          "description": "Zieldateiname, z. B. nachricht_3.mp3"
+          "name": "File name",
+          "description": "Target file name, e.g. message_3.wav"
         }
       }
     }
   },
   "exceptions": {
     "not_answering_machine": {
-      "message": "Dieser Dienst funktioniert nur mit den Sensoren eines Anrufbeantworters."
+      "message": "This action only works with the sensors of an answering machine."
     },
     "box_request_failed": {
-      "message": "Die FRITZ!Box hat die Anfrage nicht ausgeführt: {error}"
+      "message": "The FRITZ!Box did not carry out the request: {error}"
     }
   }
 }

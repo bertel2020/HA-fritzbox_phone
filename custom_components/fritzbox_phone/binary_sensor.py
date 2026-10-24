@@ -46,7 +46,6 @@ class FritzBoxRingingSensor(FritzBoxPhoneEntity, BinarySensorEntity):
     """On while a call is ringing - the simplest trigger for automations."""
 
     _attr_translation_key = "ringing"
-    _attr_icon = "mdi:phone-ring"
 
     def __init__(
         self,
@@ -92,7 +91,6 @@ class FritzBoxUnreadMessagesSensor(FritzBoxPhoneEntity, BinarySensorEntity):
     """On while any answering machine holds a message nobody has heard."""
 
     _attr_translation_key = "unread_messages"
-    _attr_icon = "mdi:voicemail"
 
     def __init__(self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)

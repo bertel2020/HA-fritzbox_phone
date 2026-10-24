@@ -1,0 +1,62 @@
+{
+  "entity": {
+    "sensor": {
+      "call_list": {
+        "default": "mdi:phone-log"
+      },
+      "missed_calls": {
+        "default": "mdi:phone-missed"
+      },
+      "call_monitor": {
+        "default": "mdi:phone",
+        "state": {
+          "idle": "mdi:phone-hangup",
+          "ringing": "mdi:phone-ring",
+          "dialing": "mdi:phone-outgoing",
+          "talking": "mdi:phone-in-talk"
+        }
+      },
+      "phonebook": {
+        "default": "mdi:contacts"
+      },
+      "answering_machine": {
+        "default": "mdi:voicemail"
+      }
+    },
+    "switch": {
+      "tam_enabled": {
+        "default": "mdi:voicemail",
+        "state": {
+          "off": "mdi:voicemail"
+        }
+      }
+    },
+    "binary_sensor": {
+      "ringing": {
+        "default": "mdi:phone-hangup",
+        "state": {
+          "on": "mdi:phone-ring"
+        }
+      },
+      "unread_messages": {
+        "default": "mdi:voicemail"
+      }
+    },
+    "event": {
+      "call": {
+        "default": "mdi:phone-log"
+      }
+    }
+  },
+  "services": {
+    "mark_message_read": {
+      "service": "mdi:email-open"
+    },
+    "delete_message": {
+      "service": "mdi:delete"
+    },
+    "download_message": {
+      "service": "mdi:download"
+    }
+  }
+}

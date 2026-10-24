@@ -53,7 +53,7 @@
           "call_list_max": "Maximale Anzahl Anrufe",
           "enable_call_monitor": "Anrufmonitor (Echtzeit-Anrufstatus) aktivieren",
           "callmonitor_port": "Anrufmonitor-Port",
-          "prefixes": "Vorwahl-Präfixe für Rufnummernabgleich (z. B. +49), kommagetrennt",
+          "prefixes": "Länder-Präfixe für den Rufnummernabgleich (z. B. +49), kommagetrennt; leer = Land von Home Assistant",
           "phoneblock_enabled": "PhoneBlock-Spamerkennung aktivieren (kostenloser Account auf phoneblock.net nötig)",
           "phoneblock_username": "PhoneBlock-Benutzername",
           "phoneblock_password": "PhoneBlock-Kennwort (leer lassen = unverändert)",
@@ -81,6 +81,41 @@
           "ringing": "Klingelt",
           "dialing": "Wählt",
           "talking": "Gespräch"
+        }
+      },
+      "phonebook": {
+        "name": "{name}"
+      },
+      "answering_machine": {
+        "name": "{name}"
+      }
+    },
+    "switch": {
+      "tam_enabled": {
+        "name": "{name} aktiv"
+      }
+    },
+    "binary_sensor": {
+      "ringing": {
+        "name": "Klingelt"
+      },
+      "unread_messages": {
+        "name": "Ungelesene Nachrichten"
+      }
+    },
+    "event": {
+      "call": {
+        "name": "Anruf",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "ringing": "Klingelt",
+              "dialing": "Wählt",
+              "talking": "Gespräch",
+              "ended": "Beendet",
+              "updated": "Näher bestimmt"
+            }
+          }
         }
       }
     }
