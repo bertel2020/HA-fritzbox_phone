@@ -1,6 +1,9 @@
 {
   "domain": "fritzbox_phone",
   "name": "FRITZ!Box Telefon",
+  "after_dependencies": [
+    "frontend"
+  ],
   "codeowners": [
     "@bertel2020"
   ],

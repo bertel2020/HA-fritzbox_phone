@@ -1140,11 +1140,15 @@ class FritzboxPhoneCardEditor extends HTMLElement {
   }
 }
 
-customElements.define(CARD_TAG, FritzboxPhoneCard);
-customElements.define(EDITOR_TAG, FritzboxPhoneCardEditor);
+// The integration loads this file itself and an older setup may have added it
+// as a dashboard resource too: defining the elements twice would throw.
+if (!customElements.get(CARD_TAG)) {
+  customElements.define(CARD_TAG, FritzboxPhoneCard);
+  customElements.define(EDITOR_TAG, FritzboxPhoneCardEditor);
+}
 
 window.customCards = window.customCards || [];
-window.customCards.push({
+if (!window.customCards.some((card) => card.type === CARD_TAG)) window.customCards.push({
   type: CARD_TAG,
   name: "FRITZ!Box Anrufliste / Anrufbeantworter / Anrufmonitor",
   description:

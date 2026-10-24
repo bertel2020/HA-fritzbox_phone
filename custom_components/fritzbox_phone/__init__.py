@@ -10,12 +10,14 @@ from fritzconnection.core.exceptions import (
     FritzSecurityError,
 )
 import requests
+from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME, EVENT_HOMEASSISTANT_STOP, Platform
 from homeassistant.core import Event, HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.loader import async_get_integration
 
 from .api import FritzBoxPhoneClient
 from .callmonitor import FritzCallMonitor
@@ -108,12 +110,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: FritzBoxPhoneConfigEntry
 
 
 async def _async_register_frontend_resource(hass: HomeAssistant) -> None:
-    """Serve the fritzbox-phone-card.js Lovelace card from the www/ folder.
+    """Serve fritzbox-phone-card.js and load it in every dashboard session.
 
-    This only exposes the file at a stable URL; adding it as a Lovelace
-    resource (Settings -> Dashboards -> Resources) is still a manual,
-    one-time step, since that varies between storage- and YAML-mode
-    dashboards.
+    The file is served at a stable URL and also announced to the frontend
+    (add_extra_js_url), so the card is available without adding a Lovelace
+    resource by hand - which also works in YAML-mode dashboards. The
+    version in the URL makes browsers fetch a new card after an update.
+    A resource added manually in the past keeps working; the card guards
+    against being defined twice.
     """
     domain_data = hass.data.setdefault(DOMAIN, {})
     if domain_data.get(_FRONTEND_REGISTERED_KEY):
@@ -122,6 +126,11 @@ async def _async_register_frontend_resource(hass: HomeAssistant) -> None:
     await hass.http.async_register_static_paths(
         [StaticPathConfig(CARD_JS_URL, str(js_path), cache_headers=False)]
     )
+    # A real installation always has the frontend; headless setups (and
+    # tests) do not, and have nothing to announce the card to.
+    if "frontend" in hass.config.components:
+        version = (await async_get_integration(hass, DOMAIN)).version
+        add_extra_js_url(hass, f"{CARD_JS_URL}?v={version}")
     domain_data[_FRONTEND_REGISTERED_KEY] = True
 
 
