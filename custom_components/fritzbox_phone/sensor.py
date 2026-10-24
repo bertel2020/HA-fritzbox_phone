@@ -6,21 +6,16 @@ from datetime import datetime, timedelta
 import logging
 from typing import Any
 
-import voluptuous as vol
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import Context, Event, HomeAssistant, callback
-from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .api import CallEntry, Phonebook, Tam
 from .callmonitor import FritzCallMonitor
 from .const import (
-    ATTR_FILENAME,
-    ATTR_MESSAGE_INDEX,
-    ATTR_READ,
     CALLMONITOR_STATE_IDLE,
     CONF_CALLMONITOR_PORT,
     CONF_ENABLE_CALLMONITOR,
@@ -32,12 +27,10 @@ from .const import (
     DOMAIN,
     EVENT_CALL,
     MISSED_CALL_TYPE,
-    SERVICE_DELETE_MESSAGE,
-    SERVICE_DOWNLOAD_MESSAGE,
-    SERVICE_MARK_MESSAGE_READ,
 )
 from .coordinator import FritzBoxPhoneCoordinator
 from .entity import FritzBoxPhoneEntity
+from .views import recording_path
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -108,29 +101,6 @@ async def async_setup_entry(
         )
     async_add_entities(entities)
 
-    platform = entity_platform.async_get_current_platform()
-    platform.async_register_entity_service(
-        SERVICE_MARK_MESSAGE_READ,
-        {
-            vol.Required(ATTR_MESSAGE_INDEX): vol.Coerce(int),
-            vol.Optional(ATTR_READ, default=True): bool,
-        },
-        "async_mark_message_read",
-    )
-    platform.async_register_entity_service(
-        SERVICE_DELETE_MESSAGE,
-        {vol.Required(ATTR_MESSAGE_INDEX): vol.Coerce(int)},
-        "async_delete_message",
-    )
-    platform.async_register_entity_service(
-        SERVICE_DOWNLOAD_MESSAGE,
-        {
-            vol.Required(ATTR_MESSAGE_INDEX): vol.Coerce(int),
-            vol.Required(ATTR_FILENAME): str,
-        },
-        "async_download_message",
-    )
-
 
 def _call_to_dict(call: CallEntry) -> dict[str, Any]:
     return {
@@ -147,7 +117,11 @@ def _call_to_dict(call: CallEntry) -> dict[str, Any]:
         "duration": call.duration,
         "is_fax": call.is_fax,
         "is_answering_machine": call.is_tam,
-        "recording_url": call.recording_url,
+        # The recording itself is delivered by views.py; the box's session
+        # id (part of the raw URL) must not end up in the state machine.
+        "has_recording": call.recording_url is not None,
+        "tam_index": call.tam_index,
+        "tam_message_index": call.tam_message_index,
         "area_name": call.area_name,
         "is_spam": call.is_spam,
         "spam_confidence": call.spam_confidence,
@@ -246,7 +220,7 @@ class FritzBoxPhonebookSensor(FritzBoxPhoneEntity, SensorEntity):
                     "name": contact.name,
                     "vip": contact.vip,
                     "uniqueid": contact.uniqueid,
-                    "image_url": contact.image_url,
+                    "has_image": contact.image_url is not None,
                     "numbers": [
                         {"number": number.number, "type": number.type}
                         for number in contact.numbers
@@ -310,7 +284,12 @@ class FritzBoxTamSensor(FritzBoxPhoneEntity, SensorEntity):
                     "duration": message.duration,
                     "new": message.new,
                     "in_phonebook": message.inbook,
-                    "download_url": message.download_url,
+                    "has_recording": message.download_url is not None,
+                    "recording_path": (
+                        recording_path(self._entry.entry_id, self._tam_index, message.index)
+                        if message.download_url
+                        else None
+                    ),
                     "area_name": message.area_name,
                     "is_spam": message.is_spam,
                     "spam_confidence": message.spam_confidence,
@@ -324,19 +303,19 @@ class FritzBoxTamSensor(FritzBoxPhoneEntity, SensorEntity):
         }
 
     async def async_mark_message_read(self, message_index: int, read: bool = True) -> None:
-        await self.hass.async_add_executor_job(
+        await self._async_box_call(
             self.coordinator.client.mark_message, self._tam_index, message_index, read
         )
         await self.coordinator.async_request_refresh()
 
     async def async_delete_message(self, message_index: int) -> None:
-        await self.hass.async_add_executor_job(
+        await self._async_box_call(
             self.coordinator.client.delete_message, self._tam_index, message_index
         )
         await self.coordinator.async_request_refresh()
 
     async def async_download_message(self, message_index: int, filename: str) -> None:
-        path = await self.hass.async_add_executor_job(
+        path = await self._async_box_call(
             self.coordinator.download_message, self._tam_index, message_index, filename
         )
         _LOGGER.info("Anrufbeantworter-Nachricht gespeichert unter %s", path)

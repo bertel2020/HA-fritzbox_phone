@@ -1020,31 +1020,31 @@ class FritzboxPhoneCard extends HTMLElement {
     this.shadowRoot.querySelectorAll("audio").forEach((a) => {
       if (a !== audio) a.pause();
     });
-    const filename = `tam_${message.index}.mp3`;
-    const play = () => {
-      audio.src = `/local/fritzbox_tam/${filename}?t=${Date.now()}`;
-      audio.play();
-    };
-    if (audio.dataset.loaded === "1") {
-      play();
+    if (!message.recording_path) {
+      alert("Zu dieser Nachricht gibt es keine Aufnahme.");
       return;
     }
     playBtn.disabled = true;
     try {
-      await this._hass.callService("fritzbox_phone", "download_message", {
-        entity_id: entityId,
-        message_index: message.index,
-        filename,
+      // The recording is streamed from the box by the integration, behind
+      // Home Assistant's login. A plain <audio> element cannot send the
+      // auth header, so it gets a short-lived signed URL instead.
+      const signed = await this._hass.callWS({
+        type: "auth/sign_path",
+        path: message.recording_path,
+        expires: 3600,
       });
-      audio.dataset.loaded = "1";
-      play();
+      audio.src = signed.path;
+      await audio.play();
       row.classList.remove("is-new");
       if (this._config.mark_read_on_play !== false) {
-        this._hass.callService("fritzbox_phone", "mark_message_read", {
-          entity_id: entityId,
-          message_index: message.index,
-          read: true,
-        });
+        this._hass
+          .callService("fritzbox_phone", "mark_message_read", {
+            entity_id: entityId,
+            message_index: message.index,
+            read: true,
+          })
+          .catch(() => {});
       }
     } catch (err) {
       alert(`Fehler beim Laden der Nachricht: ${err.message || err}`);

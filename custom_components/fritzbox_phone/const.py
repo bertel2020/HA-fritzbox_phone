@@ -56,6 +56,10 @@ SERVICE_MARK_MESSAGE_READ = "mark_message_read"
 SERVICE_DELETE_MESSAGE = "delete_message"
 SERVICE_DOWNLOAD_MESSAGE = "download_message"
 
+# Authenticated delivery of answering machine recordings (views.py).
+RECORDING_URL_TEMPLATE = "/api/fritzbox_phone/recording/{entry_id}/{tam_index}/{message_index}"
+RECORDING_URL_PATTERN = "/api/fritzbox_phone/recording/{entry_id}/{tam_index}/{message_index}"
+
 # Lovelace card frontend resource, served from the integration's www/ folder.
 CARD_JS_FILENAME = "fritzbox-phone-card.js"
 CARD_JS_URL = "/fritzbox_phone_static/fritzbox-phone-card.js"

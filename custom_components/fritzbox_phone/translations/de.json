@@ -112,7 +112,7 @@
     },
     "download_message": {
       "name": "Nachricht herunterladen",
-      "description": "Lädt die Audio-Aufnahme einer Anrufbeantworter-Nachricht nach config/www/fritzbox_tam/ herunter.",
+      "description": "Veraltet: speichert die Aufnahme als Datei unter config/www/fritzbox_tam/. Diese Dateien sind ohne Anmeldung abrufbar - die Karte spielt Aufnahmen stattdessen angemeldet direkt von der FRITZ!Box ab. Nur Dateinamen mit Endung .wav, .mp3 oder .ogg sind erlaubt.",
       "fields": {
         "message_index": {
           "name": "Nachrichtenindex",
@@ -123,6 +123,14 @@
           "description": "Zieldateiname, z. B. nachricht_3.mp3"
         }
       }
+    }
+  },
+  "exceptions": {
+    "not_answering_machine": {
+      "message": "Dieser Dienst funktioniert nur mit den Sensoren eines Anrufbeantworters."
+    },
+    "box_request_failed": {
+      "message": "Die FRITZ!Box hat die Anfrage nicht ausgeführt: {error}"
     }
   }
 }

@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 import logging
 import threading
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, parse_qsl, urlparse
 from xml.etree import ElementTree as ET
 
 import requests
@@ -89,6 +89,11 @@ class CallEntry:
     area_name: str | None = None
     reverse_name: str | None = None
     reverse_category: str | None = None
+    # Raw download path of the recording (without session id) and, once the
+    # coordinator has matched it to an answering machine message, which one.
+    path: str | None = None
+    tam_index: int | None = None
+    tam_message_index: int | None = None
 
 
 @dataclass
@@ -110,6 +115,7 @@ class TamMessage:
     area_name: str | None = None
     reverse_name: str | None = None
     reverse_category: str | None = None
+    path: str | None = None
 
 
 @dataclass
@@ -120,6 +126,16 @@ class Tam:
     running: bool
     capacity_minutes: int | None
     messages: list[TamMessage] = field(default_factory=list)
+
+
+def path_key(path: str | None) -> tuple[str, tuple[tuple[str, str], ...]] | None:
+    """Comparable form of a download path: the same file spelled with
+    different session ids or parameter order compares equal."""
+    if not path:
+        return None
+    parsed = urlparse(path)
+    params = tuple(sorted((k, v) for k, v in parse_qsl(parsed.query) if k != "sid"))
+    return parsed.path, params
 
 
 def _to_int(value: str | None, default: int = 0) -> int:
@@ -306,6 +322,7 @@ class FritzBoxPhoneClient:
                     is_fax=port == str(FAX_PORT),
                     is_tam=self._is_tam_port(port),
                     recording_url=self._absolute_url(path, sid) if path else None,
+                    path=path or None,
                 )
             )
         return entries
@@ -385,6 +402,7 @@ class FritzBoxPhoneClient:
                     new=is_new,
                     inbook=msg_el.findtext("Inbook") == "1",
                     download_url=self._absolute_url(path, sid) if path else None,
+                    path=path or None,
                 )
             )
         return messages

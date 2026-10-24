@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.fritzbox_phone.api import (
@@ -177,3 +178,11 @@ async def setup_integration(
 
 def get_coordinator(hass: HomeAssistant, entry: MockConfigEntry):
     return hass.data[DOMAIN][entry.entry_id]
+
+
+def entity_id(hass: HomeAssistant, entry: MockConfigEntry, suffix: str, domain: str = "sensor"):
+    """Entity id looked up by unique id (names depend on the UI language)."""
+    registry = er.async_get(hass)
+    found = registry.async_get_entity_id(domain, DOMAIN, f"{entry.entry_id}_{suffix}")
+    assert found, f"no {domain} entity with unique id suffix {suffix}"
+    return found

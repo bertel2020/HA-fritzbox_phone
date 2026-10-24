@@ -24,7 +24,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import CallEntry, FritzBoxPhoneClient, Phonebook, Tam, TamMessage
+from .api import CallEntry, FritzBoxPhoneClient, Phonebook, Tam, TamMessage, path_key
 from .callmonitor import normalize_number
 from .geocoding import describe_number
 from .numbers import normalize as normalize_phone_number
@@ -364,11 +364,30 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         tams = self.client.get_tams()
         self._enrich_calls_with_area_info(calls)
         self._enrich_tam_messages_with_area_info(tams)
+        self._link_calls_to_messages(calls, tams)
         return FritzBoxPhoneData(
             phonebooks=self._get_phonebooks(),
             calls=calls,
             tams=tams,
         )
+
+    @staticmethod
+    def _link_calls_to_messages(calls: list[CallEntry], tams: list[Tam]) -> None:
+        """Tell each answering-machine call which message holds its recording.
+
+        The call list and the message list share no id, but both point at
+        the same recording file, so matching on that path is exact - unlike
+        guessing from number and time.
+        """
+        by_path = {
+            key: (tam.index, message.index)
+            for tam in tams
+            for message in tam.messages
+            if (key := path_key(message.path))
+        }
+        for call in calls:
+            if (key := path_key(call.path)) and key in by_path:
+                call.tam_index, call.tam_message_index = by_path[key]
 
     def _get_phonebooks(self) -> list[Phonebook]:
         age = time.monotonic() - self._phonebooks_fetched
@@ -547,16 +566,14 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
                     return self._contacts_by_digits[candidate]
         return None, False
 
-    def download_message(self, tam_index: int, message_index: int, filename: str) -> str:
-        """Download a TAM recording into config/www/fritzbox_tam/<filename>.
+    def fetch_recording(self, tam_index: int, message_index: int) -> bytes:
+        """The audio of one answering machine message. Blocking.
 
-        Runs blocking I/O, must be called from an executor thread.
+        The message list is fetched fresh instead of using the last polled
+        data: AVM's download URLs embed a session-bound token that can
+        expire well within the polling interval, so a URL that was valid at
+        the last poll may already 404 by the time somebody presses play.
         """
-        # Fetch the message list fresh instead of using the coordinator's
-        # last-polled data: AVM's download URLs embed a session-bound token
-        # that can expire well within the polling interval, so a URL that
-        # was valid at the last poll may already 404 by the time the user
-        # clicks play.
         messages = self.client.get_tam_messages(tam_index)
         message = next((m for m in messages if m.index == message_index), None)
         if message is None or not message.download_url:
@@ -564,10 +581,37 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
                 f"Nachricht {message_index} auf Anrufbeantworter {tam_index} "
                 "wurde nicht gefunden oder hat keine Aufnahme"
             )
-        # Prevent path traversal via a maliciously crafted service call.
-        safe_filename = Path(filename).name
+        return self.client.download(message.download_url)
+
+    def download_message(self, tam_index: int, message_index: int, filename: str) -> str:
+        """Download a TAM recording into config/www/fritzbox_tam/<filename>.
+
+        Runs blocking I/O, must be called from an executor thread.
+        """
+        safe_filename = validate_recording_filename(filename)
+        audio = self.fetch_recording(tam_index, message_index)
         dest_dir = Path(self.hass.config.path("www", "fritzbox_tam"))
         dest_dir.mkdir(parents=True, exist_ok=True)
         dest_path = dest_dir / safe_filename
-        dest_path.write_bytes(self.client.download(message.download_url))
+        dest_path.write_bytes(audio)
         return str(dest_path)
+
+
+ALLOWED_RECORDING_SUFFIXES = (".wav", ".mp3", ".ogg")
+
+
+def validate_recording_filename(filename: str) -> str:
+    """A bare file name with an audio extension, or ValueError.
+
+    The name arrives from a service call and ends up in a folder that Home
+    Assistant serves without authentication, so anything that is not
+    plainly an audio file name is refused.
+    """
+    name = Path(str(filename)).name
+    if name != filename or name in ("", ".", "..") or name.startswith("."):
+        raise ValueError(f"Ungültiger Dateiname: {filename!r}")
+    if Path(name).suffix.lower() not in ALLOWED_RECORDING_SUFFIXES:
+        raise ValueError(
+            "Dateiname muss auf " + ", ".join(ALLOWED_RECORDING_SUFFIXES) + " enden"
+        )
+    return name

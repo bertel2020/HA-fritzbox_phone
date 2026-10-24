@@ -11,20 +11,76 @@ from fritzconnection.core.exceptions import (
 )
 import requests
 from homeassistant.components.http import StaticPathConfig
+from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.helpers import config_validation as cv, service
+import voluptuous as vol
+from homeassistant.helpers.typing import ConfigType
 
 from .api import FritzBoxPhoneClient
-from .const import CARD_JS_FILENAME, CARD_JS_URL, CONF_USE_TLS, DOMAIN
+from .const import (
+    ATTR_FILENAME,
+    ATTR_MESSAGE_INDEX,
+    ATTR_READ,
+    CARD_JS_FILENAME,
+    CARD_JS_URL,
+    CONF_USE_TLS,
+    DOMAIN,
+    SERVICE_DELETE_MESSAGE,
+    SERVICE_DOWNLOAD_MESSAGE,
+    SERVICE_MARK_MESSAGE_READ,
+)
 from .coordinator import FritzBoxPhoneCoordinator
+from .views import FritzBoxRecordingView
 
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH]
 
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
 _FRONTEND_REGISTERED_KEY = "_frontend_registered"
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Register what does not belong to a single config entry."""
+    hass.http.register_view(FritzBoxRecordingView())
+
+    for name, schema, func in (
+        (
+            SERVICE_MARK_MESSAGE_READ,
+            {
+                vol.Required(ATTR_MESSAGE_INDEX): vol.Coerce(int),
+                vol.Optional(ATTR_READ, default=True): bool,
+            },
+            "async_mark_message_read",
+        ),
+        (
+            SERVICE_DELETE_MESSAGE,
+            {vol.Required(ATTR_MESSAGE_INDEX): vol.Coerce(int)},
+            "async_delete_message",
+        ),
+        (
+            SERVICE_DOWNLOAD_MESSAGE,
+            {
+                vol.Required(ATTR_MESSAGE_INDEX): vol.Coerce(int),
+                vol.Required(ATTR_FILENAME): str,
+            },
+            "async_download_message",
+        ),
+    ):
+        service.async_register_platform_entity_service(
+            hass,
+            DOMAIN,
+            name,
+            entity_domain=SENSOR_DOMAIN,
+            schema=schema,
+            func=func,
+        )
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

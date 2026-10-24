@@ -59,7 +59,7 @@ class FritzBoxTamSwitch(FritzBoxPhoneEntity, SwitchEntity):
         await self._async_set_enable(False)
 
     async def _async_set_enable(self, enable: bool) -> None:
-        await self.hass.async_add_executor_job(
+        await self._async_box_call(
             self.coordinator.client.set_tam_enable, self._tam_index, enable
         )
         await self.coordinator.async_request_refresh()
