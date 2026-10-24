@@ -1169,7 +1169,12 @@ class FritzboxPhoneCard extends HTMLElement {
     const allTypes = ["fb-out", "fb-in", "fb-miss", ...(tamContext ? ["fb-ab"] : [])];
     if (!this._ui.filters) this._ui.filters = new Set(allTypes);
     const activeTypes = this._ui.filters;
-    if (tamContext) activeTypes.add("fb-ab");
+    // The AB filter appears once an answering machine is known; switch it on
+    // only that first time so the user can still turn it off.
+    if (tamContext && !this._ui.abFilterSeen) {
+      this._ui.abFilterSeen = true;
+      activeTypes.add("fb-ab");
+    }
 
     const list = document.createElement("div");
     list.className = "fb-list";
@@ -1530,7 +1535,12 @@ class FritzboxPhoneCard extends HTMLElement {
       // The recording is streamed from the box by the integration, behind
       // Home Assistant's login. A plain <audio> element cannot send the
       // auth header, so it gets a short-lived signed URL instead.
-      if (!player.src || !player._signedAt || Date.now() - player._signedAt > SIGN_REUSE_MS) {
+      if (
+        !player.src ||
+        !player._signedAt ||
+        player._path !== message.recording_path ||
+        Date.now() - player._signedAt > SIGN_REUSE_MS
+      ) {
         const signed = await this._hass.callWS({
           type: "auth/sign_path",
           path: message.recording_path,
@@ -1538,6 +1548,7 @@ class FritzboxPhoneCard extends HTMLElement {
         });
         player.src = signed.path;
         player._signedAt = Date.now();
+        player._path = message.recording_path;
       }
       await player.play();
       if (this._config.mark_read_on_play !== false && message.new) {

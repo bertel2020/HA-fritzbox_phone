@@ -329,3 +329,25 @@ test("the elements are only defined once", () => {
   assert.doesNotThrow(() => window.eval(SOURCE));
   assert.equal(window.customCards.filter((c) => c.type === "fritzbox-phone-card").length, 1);
 });
+
+test("a player is signed again when the message behind it changed", async () => {
+  const window = load();
+  const first = makeHass({ "sensor.tam": state("sensor.tam", "1", { messages: [message(1)] }) });
+  const card = mount(window, { entity: "sensor.tam" }, first);
+  root(card).querySelector(".fb-play").click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const player = FakeAudio.instances[FakeAudio.instances.length - 1];
+  player.pause();
+
+  // The box renumbered its messages: same date and number, other index.
+  const moved = makeHass({
+    "sensor.tam": state("sensor.tam", "1", {
+      messages: [message(1, { recording_path: "/api/fritzbox_phone/recording/e1/0/5" })],
+    }),
+  });
+  card.hass = moved;
+  root(card).querySelector(".fb-play").click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const paths = moved.calls.filter((c) => c.ws).map((c) => c.ws.path);
+  assert.deepEqual(paths, ["/api/fritzbox_phone/recording/e1/0/5"]);
+});
