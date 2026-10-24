@@ -1,0 +1,51 @@
+blueprint:
+  name: FRITZ!Box - Warnung bei Spam-Anruf
+  description: >-
+    Löst aus, sobald ein eingehender Anruf klingelt, den PhoneBlock als Spam
+    einstuft. Die Warnung kommt erst, wenn die Spam-Prüfung fertig ist - der
+    Anruf wird davor schon angezeigt. In der Aktion stehen die Variablen
+    `number`, `name` und `confidence` (Spam-Wahrscheinlichkeit in %) zur
+    Verfügung. Setzt voraus, dass die PhoneBlock-Spamerkennung in den Optionen
+    der Integration aktiviert ist.
+  domain: automation
+  author: bertel2020
+  source_url: https://github.com/bertel2020/HA-fritzbox_phone/blob/main/blueprints/automation/fritzbox_phone/spam_call_alert.yaml
+  input:
+    action_on_spam:
+      name: Aktion
+      description: Was bei einem Spam-Anruf passieren soll.
+      selector:
+        action: {}
+    min_confidence:
+      name: Mindest-Wahrscheinlichkeit
+      description: Nur auslösen, wenn PhoneBlock mindestens so sicher ist (in %).
+      default: 50
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: "%"
+
+mode: single
+
+variables:
+  min_confidence: !input min_confidence
+
+triggers:
+  - trigger: event
+    event_type: fritzbox_phone_call
+    event_data:
+      call_state: ringing
+      is_spam: true
+
+conditions:
+  - condition: template
+    value_template: >-
+      {{ (trigger.event.data.spam_confidence | default(100)) >= min_confidence }}
+
+actions:
+  - variables:
+      number: "{{ trigger.event.data.number }}"
+      name: "{{ trigger.event.data.name or trigger.event.data.reverse_name or '' }}"
+      confidence: "{{ trigger.event.data.spam_confidence }}"
+  - sequence: !input action_on_spam

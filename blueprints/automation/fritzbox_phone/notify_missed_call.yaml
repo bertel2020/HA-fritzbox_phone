@@ -1,0 +1,54 @@
+blueprint:
+  name: FRITZ!Box - Benachrichtigung bei verpasstem Anruf
+  description: >-
+    Löst bei jedem neuen verpassten Anruf eine eigene Aktion aus, z. B. eine
+    Push-Benachrichtigung. In der Aktion stehen die Variablen `caller`
+    (Name oder Nummer), `place` (Ort/Land, kann leer sein) und `is_spam`
+    (PhoneBlock-Einstufung) zur Verfügung.
+  domain: automation
+  author: bertel2020
+  source_url: https://github.com/bertel2020/HA-fritzbox_phone/blob/main/blueprints/automation/fritzbox_phone/notify_missed_call.yaml
+  input:
+    notify:
+      name: Aktion
+      description: >-
+        Was bei einem verpassten Anruf passieren soll. Beispiel für eine
+        Push-Benachrichtigung: Aktion `notify.mobile_app_mein_handy` mit der
+        Nachricht `Verpasster Anruf von {{ caller }} {{ place }}`.
+      selector:
+        action: {}
+    ignore_spam:
+      name: Spam-Anrufe ignorieren
+      description: Keine Aktion, wenn PhoneBlock die Nummer als Spam einstuft.
+      default: true
+      selector:
+        boolean: {}
+
+mode: queued
+max_exceeded: silent
+
+variables:
+  ignore_spam: !input ignore_spam
+
+triggers:
+  - trigger: event
+    event_type: fritzbox_phone_missed_call
+
+conditions:
+  - condition: template
+    value_template: "{{ trigger.event.data.added | default([]) | length > 0 }}"
+
+actions:
+  - repeat:
+      for_each: "{{ trigger.event.data.added }}"
+      sequence:
+        - if:
+            - condition: template
+              value_template: "{{ not (ignore_spam and repeat.item.is_spam) }}"
+          then:
+            - variables:
+                caller: >-
+                  {{ repeat.item.name or repeat.item.reverse_name or repeat.item.number or 'Unbekannt' }}
+                place: "{{ '(' ~ repeat.item.area_name ~ ')' if repeat.item.area_name else '' }}"
+                is_spam: "{{ repeat.item.is_spam }}"
+            - sequence: !input notify
