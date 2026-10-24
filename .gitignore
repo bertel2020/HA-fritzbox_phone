@@ -39,3 +39,6 @@ htmlcov/
 # Home Assistant test config
 config/
 *.log
+
+# Card tests
+node_modules/

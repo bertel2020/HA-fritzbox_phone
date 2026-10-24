@@ -321,6 +321,7 @@ class FritzBoxTamSensor(FritzBoxPhoneEntity, SensorEntity):
         if tam is None:
             return {}
         return {
+            "tam_index": self._tam_index,
             "enabled": tam.enabled,
             "running": tam.running,
             "capacity_minutes_remaining": tam.capacity_minutes,
