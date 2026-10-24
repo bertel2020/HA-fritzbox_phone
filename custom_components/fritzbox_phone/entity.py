@@ -14,7 +14,7 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import CONF_USE_TLS, DOMAIN
 from .coordinator import FritzBoxPhoneCoordinator
 
 
@@ -31,12 +31,18 @@ class FritzBoxPhoneEntity(CoordinatorEntity[FritzBoxPhoneCoordinator]):
     def __init__(self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator)
         self._entry = entry
+        client = coordinator.client
+        scheme = "https" if entry.data.get(CONF_USE_TLS) else "http"
         self._attr_device_info = DeviceInfo(
+            # Kept as the entry id (not the serial number) so existing
+            # installations keep their device and its history.
             identifiers={(DOMAIN, entry.entry_id)},
             name=entry.title,
             manufacturer="AVM",
-            model="FRITZ!Box",
-            configuration_url=f"http://{entry.data[CONF_HOST]}",
+            model=client.model_name or "FRITZ!Box",
+            serial_number=client.serial_number,
+            sw_version=client.software_version,
+            configuration_url=f"{scheme}://{entry.data[CONF_HOST]}",
         )
 
     @callback

@@ -39,16 +39,35 @@ async def async_setup_entry(
         FritzBoxCallListSensor(coordinator, entry),
         FritzBoxMissedCallsSensor(coordinator, entry),
     ]
-    entities.extend(
-        FritzBoxPhonebookSensor(coordinator, entry, phonebook.id)
-        for phonebook in coordinator.data.phonebooks
-    )
-    entities.extend(
-        FritzBoxTamSensor(coordinator, entry, tam.index) for tam in coordinator.data.tams
-    )
     if (monitor := entry.runtime_data.call_monitor) is not None:
         entities.append(FritzBoxCallMonitorSensor(coordinator, entry, monitor))
     async_add_entities(entities)
+
+    # Phonebooks and answering machines are discovered, not fixed at setup:
+    # one that appears later (a new phonebook, a freshly configured
+    # answering machine) gets its entities without a reload. One that
+    # disappears stays as an unavailable entity, which the user can delete
+    # in the UI - removing it automatically could drop its history over a
+    # box that merely hiccuped.
+    known_phonebooks: set[int] = set()
+    known_tams: set[int] = set()
+
+    @callback
+    def _async_add_new_entities() -> None:
+        new: list[SensorEntity] = []
+        for phonebook in coordinator.data.phonebooks:
+            if phonebook.id not in known_phonebooks:
+                known_phonebooks.add(phonebook.id)
+                new.append(FritzBoxPhonebookSensor(coordinator, entry, phonebook.id))
+        for tam in coordinator.data.tams:
+            if tam.index not in known_tams:
+                known_tams.add(tam.index)
+                new.append(FritzBoxTamSensor(coordinator, entry, tam.index))
+        if new:
+            async_add_entities(new)
+
+    _async_add_new_entities()
+    entry.async_on_unload(coordinator.async_add_listener(_async_add_new_entities))
 
 
 def _call_to_dict(call: CallEntry) -> dict[str, Any]:
@@ -86,6 +105,10 @@ class FritzBoxCallListSensor(FritzBoxPhoneEntity, SensorEntity):
 
     _attr_icon = "mdi:phone-log"
     _attr_translation_key = "call_list"
+    # Whole lists in attributes outgrow the recorder's per-state size
+    # limit and would be dropped there anyway; the logbook events keep
+    # the history of what happened.
+    _unrecorded_attributes = frozenset({"calls"})
     _context_key = CONTEXT_KEY_CALL_LIST
 
     def __init__(self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry) -> None:
@@ -106,6 +129,7 @@ class FritzBoxMissedCallsSensor(FritzBoxPhoneEntity, SensorEntity):
 
     _attr_icon = "mdi:phone-missed"
     _attr_translation_key = "missed_calls"
+    _unrecorded_attributes = frozenset({"calls"})
     _context_key = CONTEXT_KEY_MISSED_CALLS
 
     def __init__(self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry) -> None:
@@ -129,6 +153,7 @@ class FritzBoxPhonebookSensor(FritzBoxPhoneEntity, SensorEntity):
     """Number of contacts in a single FRITZ!Box phonebook, plus the full list."""
 
     _attr_icon = "mdi:contacts"
+    _unrecorded_attributes = frozenset({"contacts"})
 
     def __init__(
         self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry, phonebook_id: int
@@ -184,6 +209,7 @@ class FritzBoxTamSensor(FritzBoxPhoneEntity, SensorEntity):
     """New-message count and message list of a single answering machine."""
 
     _attr_icon = "mdi:voicemail"
+    _unrecorded_attributes = frozenset({"messages"})
 
     def __init__(
         self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry, tam_index: int

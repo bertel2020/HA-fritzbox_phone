@@ -5,7 +5,7 @@ from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .coordinator import FritzBoxPhoneCoordinator
@@ -21,9 +21,17 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: FritzBoxPhoneConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     coordinator = entry.runtime_data.coordinator
-    async_add_entities(
-        FritzBoxTamSwitch(coordinator, entry, tam.index) for tam in coordinator.data.tams
-    )
+    known: set[int] = set()
+
+    @callback
+    def _async_add_new_entities() -> None:
+        new = [tam for tam in coordinator.data.tams if tam.index not in known]
+        known.update(tam.index for tam in new)
+        if new:
+            async_add_entities(FritzBoxTamSwitch(coordinator, entry, tam.index) for tam in new)
+
+    _async_add_new_entities()
+    entry.async_on_unload(coordinator.async_add_listener(_async_add_new_entities))
 
 
 class FritzBoxTamSwitch(FritzBoxPhoneEntity, SwitchEntity):

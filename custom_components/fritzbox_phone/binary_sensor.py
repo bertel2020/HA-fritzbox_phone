@@ -26,9 +26,20 @@ async def async_setup_entry(
     entities: list[BinarySensorEntity] = []
     if (monitor := entry.runtime_data.call_monitor) is not None:
         entities.append(FritzBoxRingingSensor(coordinator, entry, monitor))
-    if coordinator.data.tams:
-        entities.append(FritzBoxUnreadMessagesSensor(coordinator, entry))
     async_add_entities(entities)
+
+    # Only meaningful with an answering machine, which may show up later.
+    unread_added = False
+
+    @callback
+    def _async_add_unread_sensor() -> None:
+        nonlocal unread_added
+        if not unread_added and coordinator.data.tams:
+            unread_added = True
+            async_add_entities([FritzBoxUnreadMessagesSensor(coordinator, entry)])
+
+    _async_add_unread_sensor()
+    entry.async_on_unload(coordinator.async_add_listener(_async_add_unread_sensor))
 
 
 class FritzBoxRingingSensor(FritzBoxPhoneEntity, BinarySensorEntity):
