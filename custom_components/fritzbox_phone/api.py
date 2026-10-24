@@ -427,6 +427,18 @@ class FritzBoxPhoneClient:
             NewMessageIndex=message_index,
         )
 
+    def dial(self, number: str) -> None:
+        """Start a call from the box's dial help (Wählhilfe).
+
+        The dial help has to be enabled on the box (Telefonie > Telefoniegeräte);
+        the phone it rings first is the one chosen there.
+        """
+        self._call(VOIP_SERVICE, "X_AVM-DE_DialNumber", **{"NewX_AVM-DE_PhoneNumber": number})
+
+    def hangup(self) -> None:
+        """Cancel the call setup started by dial()."""
+        self._call(VOIP_SERVICE, "X_AVM-DE_DialHangup")
+
     def download(self, url: str) -> bytes:
         """Download a resource URL (e.g. a TAM recording) using the
         authenticated TR-064 session."""

@@ -532,6 +532,39 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         return await self.tellows.lookup(self.normalize_number(number))
 
 
+    async def async_lookup_number(self, number: str) -> dict[str, Any]:
+        """Everything this integration knows about a phone number."""
+        canonical = self.normalize_number(number)
+        name, vip = self.resolve_contact(number)
+        phoneblock, reverse = await asyncio.gather(
+            self.async_check_phoneblock(number), self.async_identify_caller(number)
+        )
+        return {
+            "number": canonical,
+            "contact": {"name": name, "vip": vip} if name else None,
+            "area_name": self.get_area_name(number),
+            "spam": (
+                {
+                    "is_spam": phoneblock.is_spam,
+                    "confidence": phoneblock.spam_confidence,
+                    "rating": phoneblock.rating,
+                    "location": phoneblock.location,
+                }
+                if phoneblock
+                else None
+            ),
+            "reverse_lookup": (
+                {
+                    "name": reverse.name,
+                    "category": reverse.category,
+                    "score": reverse.score,
+                    "is_spam": reverse.is_spam,
+                }
+                if reverse
+                else None
+            ),
+        }
+
     def get_area_name(self, number: str | None) -> str | None:
         """Offline country/area-code description for a number (e.g. "Berlin").
 

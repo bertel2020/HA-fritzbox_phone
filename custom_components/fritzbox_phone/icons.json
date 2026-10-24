@@ -21,6 +21,12 @@
       },
       "answering_machine": {
         "default": "mdi:voicemail"
+      },
+      "calls_today": {
+        "default": "mdi:phone-log"
+      },
+      "talk_time_today": {
+        "default": "mdi:timer-outline"
       }
     },
     "switch": {
@@ -57,6 +63,15 @@
     },
     "download_message": {
       "service": "mdi:download"
+    },
+    "dial": {
+      "service": "mdi:phone-outgoing"
+    },
+    "hangup": {
+      "service": "mdi:phone-hangup"
+    },
+    "lookup_number": {
+      "service": "mdi:magnify"
     }
   }
 }

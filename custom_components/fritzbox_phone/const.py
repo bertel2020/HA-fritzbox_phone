@@ -52,6 +52,11 @@ ATTR_MESSAGE_INDEX = "message_index"
 ATTR_READ = "read"
 ATTR_FILENAME = "filename"
 
+ATTR_NUMBER = "number"
+
+SERVICE_DIAL = "dial"
+SERVICE_HANGUP = "hangup"
+SERVICE_LOOKUP_NUMBER = "lookup_number"
 SERVICE_MARK_MESSAGE_READ = "mark_message_read"
 SERVICE_DELETE_MESSAGE = "delete_message"
 SERVICE_DOWNLOAD_MESSAGE = "download_message"

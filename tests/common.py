@@ -155,6 +155,12 @@ def build_client_class(box: FakeBox):
         def download(self, url: str) -> bytes:
             return b"RIFF"
 
+        def dial(self, number: str) -> None:
+            box.calls_log.append(("dial", number))
+
+        def hangup(self) -> None:
+            box.calls_log.append(("hangup",))
+
     return FakeClient
 
 

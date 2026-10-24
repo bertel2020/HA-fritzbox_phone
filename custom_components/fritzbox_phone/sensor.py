@@ -1,14 +1,16 @@
 """Sensor platform for the FRITZ!Box phone integration."""
 from __future__ import annotations
 
+from datetime import date, datetime
 import logging
 from typing import Any
 
-
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import UnitOfTime
 from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.util import dt as dt_util
 
 from .api import CallEntry, Phonebook, Tam
 from .callmonitor import FritzCallMonitor
@@ -17,6 +19,7 @@ from .const import (
     CONTEXT_KEY_MISSED_CALLS,
     CONTEXT_KEY_TAM,
     MISSED_CALL_TYPE,
+    OUTGOING_CALL_TYPE,
 )
 from .coordinator import FritzBoxPhoneCoordinator
 from .runtime import FritzBoxPhoneConfigEntry
@@ -38,6 +41,8 @@ async def async_setup_entry(
     entities: list[SensorEntity] = [
         FritzBoxCallListSensor(coordinator, entry),
         FritzBoxMissedCallsSensor(coordinator, entry),
+        FritzBoxCallsTodaySensor(coordinator, entry),
+        FritzBoxTalkTimeTodaySensor(coordinator, entry),
     ]
     if (monitor := entry.runtime_data.call_monitor) is not None:
         entities.append(FritzBoxCallMonitorSensor(coordinator, entry, monitor))
@@ -145,6 +150,79 @@ class FritzBoxMissedCallsSensor(FritzBoxPhoneEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         return {"calls": [_call_to_dict(call) for call in self._missed]}
+
+
+_AVM_DATE_FORMAT = "%d.%m.%y %H:%M"
+_TALK_TIME_CALL_TYPES = {1, 3}  # incoming and outgoing calls that were connected
+
+
+def _call_date(call: CallEntry) -> date | None:
+    """The day a call list entry belongs to (the box prints "07.09.26 16:10")."""
+    try:
+        return datetime.strptime(call.date or "", _AVM_DATE_FORMAT).date()
+    except ValueError:
+        return None
+
+
+def _call_minutes(call: CallEntry) -> int:
+    """The call list's duration is "h:mm" (minutes rounded up) - not m:ss."""
+    hours, _, minutes = (call.duration or "").partition(":")
+    try:
+        return int(hours) * 60 + int(minutes)
+    except ValueError:
+        return 0
+
+
+class _TodaySensor(FritzBoxPhoneEntity, SensorEntity):
+    """Statistics over the part of the call list that falls on today.
+
+    They can only be as complete as the call list window set in the
+    options (days / maximum number of entries).
+    """
+
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_{self._attr_translation_key}"
+
+    @property
+    def _today(self) -> list[CallEntry]:
+        today = dt_util.now().date()
+        return [call for call in self.coordinator.data.calls if _call_date(call) == today]
+
+
+class FritzBoxCallsTodaySensor(_TodaySensor):
+    """Number of calls today, split by direction in the attributes."""
+
+    _attr_translation_key = "calls_today"
+
+    @property
+    def native_value(self) -> int:
+        return len(self._today)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        calls = self._today
+        return {
+            "incoming": sum(1 for call in calls if call.type == 1),
+            "outgoing": sum(1 for call in calls if call.type == OUTGOING_CALL_TYPE),
+            "missed": sum(1 for call in calls if call.type == MISSED_CALL_TYPE),
+        }
+
+
+class FritzBoxTalkTimeTodaySensor(_TodaySensor):
+    """Minutes spent in connected calls today (each call rounded up by the box)."""
+
+    _attr_translation_key = "talk_time_today"
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_native_unit_of_measurement = UnitOfTime.MINUTES
+
+    @property
+    def native_value(self) -> int:
+        return sum(
+            _call_minutes(call) for call in self._today if call.type in _TALK_TIME_CALL_TYPES
+        )
 
 
 class FritzBoxPhonebookSensor(FritzBoxPhoneEntity, SensorEntity):

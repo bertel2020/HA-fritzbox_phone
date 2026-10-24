@@ -97,6 +97,12 @@
       },
       "answering_machine": {
         "name": "{name}"
+      },
+      "calls_today": {
+        "name": "Anrufe heute"
+      },
+      "talk_time_today": {
+        "name": "Gesprächszeit heute"
       }
     },
     "switch": {
@@ -167,6 +173,31 @@
           "description": "Zieldateiname, z. B. nachricht_3.mp3"
         }
       }
+    },
+    "dial": {
+      "name": "Nummer wählen",
+      "description": "Startet einen Anruf über die Wählhilfe der FRITZ!Box: Das dort gewählte Telefon klingelt zuerst, die Nummer wird nach dem Abheben gewählt. Die Wählhilfe muss an der FRITZ!Box aktiviert sein.",
+      "fields": {
+        "number": {
+          "name": "Rufnummer",
+          "description": "Die anzurufende Nummer."
+        }
+      }
+    },
+    "hangup": {
+      "name": "Wählvorgang abbrechen",
+      "description": "Bricht einen Anruf ab, der mit der Aktion „Nummer wählen“ gestartet und noch nicht angenommen wurde.",
+      "fields": {}
+    },
+    "lookup_number": {
+      "name": "Nummer nachschlagen",
+      "description": "Liefert, was zu einer Rufnummer bekannt ist: Telefonbuchkontakt, Ort, PhoneBlock-Spambewertung und Tellows-Rückwärtssuche (sofern aktiviert).",
+      "fields": {
+        "number": {
+          "name": "Rufnummer",
+          "description": "Die nachzuschlagende Nummer."
+        }
+      }
     }
   },
   "exceptions": {
@@ -175,6 +206,12 @@
     },
     "box_request_failed": {
       "message": "Die FRITZ!Box hat die Anfrage nicht ausgeführt: {error}"
+    },
+    "device_required": {
+      "message": "Es sind mehrere FRITZ!Boxen eingerichtet - bitte das Gerät auswählen."
+    },
+    "no_box": {
+      "message": "Es ist keine FRITZ!Box eingerichtet oder geladen."
     }
   }
 }

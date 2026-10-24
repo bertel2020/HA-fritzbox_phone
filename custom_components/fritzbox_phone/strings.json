@@ -97,6 +97,12 @@
       },
       "answering_machine": {
         "name": "{name}"
+      },
+      "calls_today": {
+        "name": "Calls today"
+      },
+      "talk_time_today": {
+        "name": "Talk time today"
       }
     },
     "switch": {
@@ -167,6 +173,31 @@
           "description": "Target file name, e.g. message_3.wav"
         }
       }
+    },
+    "dial": {
+      "name": "Dial a number",
+      "description": "Starts a call with the FRITZ!Box dial help: the phone chosen there rings first, and the number is dialed once you pick up. The dial help must be enabled on the box.",
+      "fields": {
+        "number": {
+          "name": "Phone number",
+          "description": "The number to call."
+        }
+      }
+    },
+    "hangup": {
+      "name": "Cancel dialing",
+      "description": "Cancels a call that was started with the dial action and has not been answered yet.",
+      "fields": {}
+    },
+    "lookup_number": {
+      "name": "Look up a number",
+      "description": "Returns what is known about a phone number: phonebook contact, area, PhoneBlock spam rating and Tellows reverse lookup (when enabled).",
+      "fields": {
+        "number": {
+          "name": "Phone number",
+          "description": "The number to look up."
+        }
+      }
     }
   },
   "exceptions": {
@@ -175,6 +206,12 @@
     },
     "box_request_failed": {
       "message": "The FRITZ!Box did not carry out the request: {error}"
+    },
+    "device_required": {
+      "message": "More than one FRITZ!Box is set up - please choose the device."
+    },
+    "no_box": {
+      "message": "No FRITZ!Box is set up or loaded."
     }
   }
 }
