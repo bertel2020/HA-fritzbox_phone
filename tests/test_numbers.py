@@ -5,7 +5,7 @@ import pytest
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.fritzbox_phone.numbers import normalize
+from custom_components.fritzbox_phone.phone_numbers import normalize
 
 from .common import FakeBox, get_coordinator, make_phonebook, setup_integration
 

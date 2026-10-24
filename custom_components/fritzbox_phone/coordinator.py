@@ -27,7 +27,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import CallEntry, FritzBoxPhoneClient, Phonebook, Tam, TamMessage, path_key
 from .callmonitor import normalize_number
 from .geocoding import describe_number
-from .numbers import normalize as normalize_phone_number
+from .phone_numbers import normalize as normalize_phone_number
 from .const import (
     CONF_CALL_LIST_DAYS,
     CONF_CALL_LIST_MAX,
