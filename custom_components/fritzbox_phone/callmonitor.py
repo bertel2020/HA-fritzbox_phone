@@ -30,7 +30,7 @@ from datetime import datetime, timedelta
 import logging
 import queue
 import re
-from threading import Event as ThreadingEvent, Thread, current_thread
+from threading import Event as ThreadingEvent, RLock, Thread, current_thread
 from typing import TYPE_CHECKING, Any
 
 from fritzconnection.core.fritzmonitor import FritzMonitor
@@ -186,6 +186,7 @@ class FritzCallMonitor:
         self._monitor: FritzMonitor | None = None
         self._reader: Thread | None = None
         self._stopped = ThreadingEvent()
+        self._conn_lock = RLock()
         self._retry_cancel: Callable[[], None] | None = None
         self._failures = 0
         self._tasks: set[asyncio.Task] = set()
@@ -262,9 +263,7 @@ class FritzCallMonitor:
                 self._retry_cancel = async_call_later(self.hass, delay, self._async_retry)
             return
         if self._stopped.is_set():
-            # Stopped (unload, shutdown) while the socket was still being
-            # opened: do not leave the connection behind.
-            await self.hass.async_add_executor_job(self._disconnect)
+            # _connect already dropped the socket; nothing is connected.
             return
         if self._failures:
             _LOGGER.info("Anrufmonitor: Verbindung zu %s:%s hergestellt", self._host, self._port)
@@ -278,28 +277,35 @@ class FritzCallMonitor:
 
     def _connect(self) -> None:
         """Blocking: open the socket and start the reader thread."""
-        self._disconnect()
-        monitor = FritzMonitor(address=self._host, port=self._port)
-        event_queue = monitor.start(
-            reconnect_tries=MONITOR_RECONNECT_TRIES, reconnect_delay=MONITOR_RECONNECT_DELAY
-        )
-        self._monitor = monitor
-        self._reader = Thread(
-            target=self._read_events,
-            args=(monitor, event_queue),
-            name="fritzbox_phone call monitor",
-            daemon=True,
-        )
-        self._reader.start()
+        with self._conn_lock:
+            self._disconnect()
+            monitor = FritzMonitor(address=self._host, port=self._port)
+            event_queue = monitor.start(
+                reconnect_tries=MONITOR_RECONNECT_TRIES, reconnect_delay=MONITOR_RECONNECT_DELAY
+            )
+            if self._stopped.is_set():
+                # Stopped while the socket was being opened (the stop request
+                # waited for this lock): do not leave a thread behind.
+                monitor.stop()
+                return
+            self._monitor = monitor
+            self._reader = Thread(
+                target=self._read_events,
+                args=(monitor, event_queue),
+                name="fritzbox_phone call monitor",
+                daemon=True,
+            )
+            self._reader.start()
 
     def _disconnect(self) -> None:
         """Blocking: stop the reader and close the socket."""
-        monitor, self._monitor = self._monitor, None
-        reader, self._reader = self._reader, None
-        if monitor is not None:
-            monitor.stop()
-        if reader is not None and reader is not current_thread():
-            reader.join(timeout=READER_POLL_SECONDS * 3)
+        with self._conn_lock:
+            monitor, self._monitor = self._monitor, None
+            reader, self._reader = self._reader, None
+            if monitor is not None:
+                monitor.stop()
+            if reader is not None and reader is not current_thread():
+                reader.join(timeout=READER_POLL_SECONDS * 3)
 
     # ------------------------------------------------------------------
     # Reader thread: read and parse only
