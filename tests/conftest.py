@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import queue
+import threading
 
 import pytest
 
@@ -17,6 +18,8 @@ class FakeMonitor:
 
     instances: list[FakeMonitor] = []
     fail_times = 0
+    # Set to a threading.Event to hold start() until the test releases it.
+    start_gate: threading.Event | None = None
 
     def __init__(self, address: str, port: int) -> None:
         self.address = address
@@ -26,6 +29,8 @@ class FakeMonitor:
         FakeMonitor.instances.append(self)
 
     def start(self, reconnect_tries: int = 0, reconnect_delay: float = 0) -> queue.Queue[str]:
+        if FakeMonitor.start_gate is not None:
+            FakeMonitor.start_gate.wait(5)
         if FakeMonitor.fail_times > 0:
             FakeMonitor.fail_times -= 1
             raise OSError("connection refused")
@@ -44,6 +49,7 @@ class FakeMonitor:
 def fake_monitor(monkeypatch):
     FakeMonitor.instances = []
     FakeMonitor.fail_times = 0
+    FakeMonitor.start_gate = None
     monkeypatch.setattr("custom_components.fritzbox_phone.callmonitor.FritzMonitor", FakeMonitor)
     monkeypatch.setattr("custom_components.fritzbox_phone.callmonitor.READER_POLL_SECONDS", 0.05)
     return FakeMonitor

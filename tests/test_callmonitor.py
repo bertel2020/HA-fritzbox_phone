@@ -265,3 +265,25 @@ async def test_unload_stops_the_monitor(hass: HomeAssistant, fake_monitor) -> No
     await hass.async_block_till_done()
     assert first.alive is False
     assert monitor.connected is False
+
+
+async def test_stopping_while_connecting_leaves_nothing_behind(
+    hass: HomeAssistant, fake_monitor
+) -> None:
+    import threading
+
+    gate = threading.Event()
+    fake_monitor.start_gate = gate
+    entry = await setup_integration(hass, FakeBox(), {CONF_ENABLE_CALLMONITOR: True})
+    monitor = entry.runtime_data.call_monitor
+    await wait_for(lambda: len(fake_monitor.instances) == 1)  # start() is blocked
+
+    stopping = hass.async_create_task(monitor.async_stop())
+    gate.set()  # the connection attempt now completes after the stop request
+    await stopping
+    await hass.async_block_till_done()
+    await wait_for(lambda: not fake_monitor.instances[0].alive)
+
+    assert monitor.connected is False
+    assert monitor._retry_cancel is None
+    assert monitor._reader is None or not monitor._reader.is_alive()

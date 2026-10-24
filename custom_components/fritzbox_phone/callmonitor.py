@@ -258,7 +258,13 @@ class FritzCallMonitor:
             if self.connected:
                 self.connected = False
                 self._notify()
-            self._retry_cancel = async_call_later(self.hass, delay, self._async_retry)
+            if not self._stopped.is_set():
+                self._retry_cancel = async_call_later(self.hass, delay, self._async_retry)
+            return
+        if self._stopped.is_set():
+            # Stopped (unload, shutdown) while the socket was still being
+            # opened: do not leave the connection behind.
+            await self.hass.async_add_executor_job(self._disconnect)
             return
         if self._failures:
             _LOGGER.info("Anrufmonitor: Verbindung zu %s:%s hergestellt", self._host, self._port)
