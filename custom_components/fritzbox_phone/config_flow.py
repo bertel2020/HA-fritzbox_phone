@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import ipaddress
 import logging
 from typing import Any
 from urllib.parse import urlparse
@@ -96,6 +97,15 @@ async def _try_validate(
         return None, "unknown"
 
 
+def _is_usable_ipv4(host: str) -> bool:
+    """A plain, routable IPv4 address (no hostnames, no IPv6/link-local)."""
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return address.version == 4 and not address.is_link_local
+
+
 def _serial_key(value: str | None) -> str:
     """A serial number compared without separators or case ("3C:A6.." == "3ca6..")."""
     return "".join(ch for ch in (value or "") if ch.isalnum()).lower()
@@ -129,20 +139,29 @@ class FritzBoxPhoneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_ssdp(self, discovery_info: SsdpServiceInfo) -> ConfigFlowResult:
         """A FRITZ!Box announced itself on the network."""
         host = urlparse(discovery_info.ssdp_location or "").hostname
-        if not host:
+        if not host or not _is_usable_ipv4(host):
+            # IPv6 / link-local announcements would make unusable URLs.
             return self.async_abort(reason="no_host")
 
         serial = discovery_info.upnp.get(ATTR_UPNP_SERIAL)
         for entry in self._async_current_entries():
             same_serial = serial and _serial_key(entry.unique_id) == _serial_key(serial)
             if same_serial or entry.data.get(CONF_HOST) == host:
-                # Known box; follow it if its address changed.
-                if same_serial and entry.data.get(CONF_HOST) != host:
+                # Known box; follow it if its IP changed. A configured
+                # hostname (e.g. fritz.box) is the user's choice: keep it.
+                if (
+                    same_serial
+                    and _is_usable_ipv4(entry.data.get(CONF_HOST, ""))
+                    and entry.data.get(CONF_HOST) != host
+                ):
                     self.hass.config_entries.async_update_entry(
                         entry, data={**entry.data, CONF_HOST: host}
                     )
                 return self.async_abort(reason="already_configured")
 
+        if serial:
+            await self.async_set_unique_id(_serial_key(serial))
+            self._abort_if_unique_id_configured()
         self._discovered_host = host
         name = discovery_info.upnp.get(ATTR_UPNP_FRIENDLY_NAME) or f"FRITZ!Box ({host})"
         self.context["title_placeholders"] = {"name": name}
