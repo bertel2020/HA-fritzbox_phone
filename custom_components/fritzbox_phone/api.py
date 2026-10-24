@@ -20,7 +20,7 @@ from xml.etree import ElementTree as ET
 import requests
 
 from fritzconnection import FritzConnection
-from fritzconnection.core.exceptions import FritzActionError, FritzServiceError
+from fritzconnection.core.exceptions import FritzActionError, FritzSecurityError, FritzServiceError
 from fritzconnection.core.utils import get_xml_root
 
 from .const import CALL_TYPE_NAMES, FAX_PORT, TAM_PORT, TAM_PORT_RANGE
@@ -32,7 +32,9 @@ _LOGGER = logging.getLogger(__name__)
 # (timeouts, authorization, internal errors) must reach the coordinator, which
 # keeps the last good data instead of mistaking a failed request for an empty
 # call list.
-UNSUPPORTED_ERRORS = (FritzServiceError, FritzActionError)
+# Also missing permissions (TR-064 error 606): a box user without the right
+# for a feature should lose the feature, not the whole integration.
+UNSUPPORTED_ERRORS = (FritzServiceError, FritzActionError, FritzSecurityError)
 
 ONTEL_SERVICE = "X_AVM-DE_OnTel1"
 TAM_SERVICE = "X_AVM-DE_TAM1"
@@ -196,7 +198,13 @@ class FritzBoxPhoneClient:
             use_tls=self._use_tls,
             timeout=self._timeout,
         )
-        info = self._call(DEVICEINFO_SERVICE, "GetInfo")
+        try:
+            info = self._call(DEVICEINFO_SERVICE, "GetInfo")
+        except FritzSecurityError as err:
+            # Wrong credentials are FritzAuthorizationError; this is a user
+            # without the right to read device info.
+            _LOGGER.debug("GetInfo not permitted: %s", err)
+            info = {}
         self.serial_number = info.get("NewSerialNumber") or None
         self.software_version = info.get("NewSoftwareVersion") or None
 
