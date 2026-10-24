@@ -33,16 +33,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 import logging
 import re
-import time
-import xml.etree.ElementTree as ET
 
-import requests
+import aiohttp
+from defusedxml import ElementTree as ET
+
+from .cache import LookupCache
 
 _LOGGER = logging.getLogger(__name__)
 
 API_URL = "https://www.tellows.de/basic/num/{number}"
-DEFAULT_CACHE_TTL = 6 * 3600  # seconds; caller ratings don't change minute to minute
 DEFAULT_SPAM_SCORE_THRESHOLD = 7  # Tellows scale is 1 (trustworthy) - 9 (dangerous)
+# The real answer is a few hundred bytes; anything far beyond that is not
+# the API talking.
+MAX_RESPONSE_BYTES = 64 * 1024
 
 _NUMBER_STRIP_RE = re.compile(r"[^\d+]")
 
@@ -71,60 +74,60 @@ class TellowsInfo:
 
 
 class TellowsClient:
-    """Thin client for Tellows' public /basic/num XML API. Blocking, use from an executor."""
+    """Thin async client for Tellows' public /basic/num XML API."""
 
     def __init__(
         self,
+        session: aiohttp.ClientSession,
         spam_score_threshold: int = DEFAULT_SPAM_SCORE_THRESHOLD,
         timeout: float = 8,
-        cache_ttl: float = DEFAULT_CACHE_TTL,
+        cache: LookupCache[TellowsInfo] | None = None,
     ) -> None:
+        self._session = session
         self._spam_score_threshold = spam_score_threshold
-        self._timeout = timeout
-        self._cache_ttl = cache_ttl
-        self._session = requests.Session()
-        self._cache: dict[str, tuple[float, TellowsInfo | None]] = {}
+        self._timeout = aiohttp.ClientTimeout(total=timeout)
+        self._cache: LookupCache[TellowsInfo] = cache or LookupCache()
 
-    def lookup(self, number: str | None) -> TellowsInfo | None:
+    async def lookup(self, number: str | None) -> TellowsInfo | None:
         """Look up a number on Tellows. Returns None on any failure."""
         normalized = normalize_number(number)
         if not normalized:
             return None
 
-        cached = self._cache.get(normalized)
-        now = time.monotonic()
-        if cached is not None and now - cached[0] < self._cache_ttl:
-            return cached[1]
+        hit, cached = self._cache.get(normalized)
+        if hit:
+            return cached
 
-        info = self._lookup_uncached(normalized)
-        self._cache[normalized] = (now, info)
-        return info
-
-    def _lookup_uncached(self, number: str) -> TellowsInfo | None:
         try:
-            response = self._session.get(
-                API_URL.format(number=number),
-                params={"xml": "1"},
-                timeout=self._timeout,
-            )
-            response.raise_for_status()
-            raw = response.text
+            info = await self._lookup_uncached(normalized)
         except Exception as err:  # noqa: BLE001 - best-effort side enrichment,
             # must never break call-list/coordinator updates; any failure
             # (network, Tellows outage, unexpected response) just skips
             # enrichment for this number.
             _LOGGER.debug("Tellows-Abfrage fehlgeschlagen: %s", err)
+            self._cache.set(normalized, None, failed=True)
             return None
+        self._cache.set(normalized, info)
+        return info
+
+    async def _lookup_uncached(self, number: str) -> TellowsInfo:
+        async with self._session.get(
+            API_URL.format(number=number), params={"xml": "1"}, timeout=self._timeout
+        ) as response:
+            response.raise_for_status()
+            body = await response.content.read(MAX_RESPONSE_BYTES + 1)
+        if len(body) > MAX_RESPONSE_BYTES:
+            raise ValueError("Tellows-Antwort ist ungewöhnlich groß")
+        try:
+            raw = body.decode("utf-8")
+        except UnicodeDecodeError:
+            raw = body.decode("latin-1")
 
         end = raw.find("</tellows>")
         if end == -1:
-            _LOGGER.debug("Tellows-Antwort hat kein <tellows>-Element: %r", raw[:200])
-            return None
-        try:
-            root = ET.fromstring(raw[: end + len("</tellows>")])
-        except ET.ParseError as err:
-            _LOGGER.debug("Tellows-Antwort nicht parsbar: %s", err)
-            return None
+            raise ValueError("Tellows-Antwort hat kein <tellows>-Element")
+        # defusedxml refuses entity-expansion and external-entity tricks.
+        root = ET.fromstring(raw[: end + len("</tellows>")])
 
         score_text = root.findtext("score")
         try:

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import timedelta
+import asyncio
 import logging
 import time
 from pathlib import Path
@@ -20,6 +21,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST
 from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import CallEntry, FritzBoxPhoneClient, Phonebook, Tam, TamMessage
@@ -65,6 +67,13 @@ _LOGGER = logging.getLogger(__name__)
 # logbook render) an unbounded list in that case.
 MAX_EVENT_ENTRIES = 10
 
+# Online lookups run concurrently, but politely.
+MAX_PARALLEL_LOOKUPS = 5
+# Seconds a poll waits for them. Whatever is still outstanding finishes in
+# the background and is picked up from the cache by the next poll.
+ENRICHMENT_BUDGET = 20
+FIRST_ENRICHMENT_BUDGET = 5
+
 
 @dataclass
 class FritzBoxPhoneData:
@@ -81,6 +90,9 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
     ) -> None:
         self.client = client
         self.entry = entry
+        # Needed by the lookup clients below, which run before the base
+        # class has stored it.
+        self.hass = hass
         self.phoneblock = self._build_phoneblock_client()
         self.tellows = self._build_tellows_client()
         self._own_area_code: str | None = None
@@ -165,6 +177,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             return None
         threshold = options.get(CONF_PHONEBLOCK_THRESHOLD, DEFAULT_PHONEBLOCK_THRESHOLD)
         return PhoneBlockClient(
+            session=async_get_clientsession(self.hass),
             username=username,
             password=password,
             country_prefix=self._country_prefix(),
@@ -176,7 +189,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         if not options.get(CONF_REVERSE_LOOKUP_ENABLED, DEFAULT_REVERSE_LOOKUP_ENABLED):
             return None
         # No account/credentials needed - Tellows' /basic/num API is public.
-        return TellowsClient()
+        return TellowsClient(session=async_get_clientsession(self.hass))
 
     async def _async_update_data(self) -> FritzBoxPhoneData:
         try:
@@ -195,6 +208,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             # detection below would report every call as removed and then
             # as new again.
             raise UpdateFailed(f"{type(err).__name__}: {err}") from err
+        await self._async_enrich_online(data)
         # Fire before returning: the coordinator notifies its entities the
         # moment this returns, and they need the Contexts to already be
         # parked when they write their new state.
@@ -350,12 +364,6 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         tams = self.client.get_tams()
         self._enrich_calls_with_area_info(calls)
         self._enrich_tam_messages_with_area_info(tams)
-        if self.phoneblock is not None:
-            self._enrich_calls_with_phoneblock(calls)
-            self._enrich_tam_messages_with_phoneblock(tams)
-        if self.tellows is not None:
-            self._enrich_calls_with_tellows(calls)
-            self._enrich_tam_messages_with_tellows(tams)
         return FritzBoxPhoneData(
             phonebooks=self._get_phonebooks(),
             calls=calls,
@@ -419,66 +427,91 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             for message in tam.messages:
                 message.area_name = describe_number(message.number, region, area_code)
 
-    def _enrich_calls_with_phoneblock(self, calls: list[CallEntry]) -> None:
-        for call in calls:
+    # ------------------------------------------------------------------
+    # Online enrichment (PhoneBlock spam check, Tellows reverse lookup)
+    # ------------------------------------------------------------------
+
+    def _enrichment_targets(self, data: FritzBoxPhoneData) -> list[tuple[CallEntry | TamMessage, str]]:
+        """Entries worth an online lookup, with their canonical number."""
+        targets: list[tuple[CallEntry | TamMessage, str]] = []
+        for call in data.calls:
             if call.name or call.type == OUTGOING_CALL_TYPE:
                 # Already resolved locally, or a number we called ourselves -
-                # no point spam-checking either.
+                # no point looking up either.
                 continue
-            self._apply_phoneblock_info(call, call.caller_number or call.caller)
-
-    def _enrich_tam_messages_with_phoneblock(self, tams: list[Tam]) -> None:
-        for tam in tams:
+            if number := self.normalize_number(call.caller_number or call.caller):
+                targets.append((call, number))
+        for tam in data.tams:
             for message in tam.messages:
                 if message.name:
                     continue
-                self._apply_phoneblock_info(message, message.number)
+                if number := self.normalize_number(message.number):
+                    targets.append((message, number))
+        return targets
 
-    def _apply_phoneblock_info(self, target: CallEntry | TamMessage, number: str | None) -> None:
-        if not number:
+    async def _async_enrich_online(self, data: FritzBoxPhoneData) -> None:
+        if self.phoneblock is None and self.tellows is None:
             return
-        info = self.phoneblock.check(self.normalize_number(number))
-        if info is None:
+        targets = self._enrichment_targets(data)
+        if not targets:
             return
-        target.spam_confidence = info.spam_confidence
-        target.spam_rating = info.rating
-        target.spam_location = info.location
-        target.is_spam = info.is_spam
+        # The very first refresh blocks Home Assistant's setup of the entry,
+        # so it gets a much smaller budget than a regular poll. Lookups that
+        # miss the budget keep running in the background and land in the
+        # cache, so the next poll picks them up.
+        budget = FIRST_ENRICHMENT_BUDGET if self.data is None else ENRICHMENT_BUDGET
+        results = await self._async_lookup_many({number for _, number in targets}, budget)
+        for target, number in targets:
+            phoneblock_info, tellows_info = results.get(number, (None, None))
+            if phoneblock_info is not None:
+                target.spam_confidence = phoneblock_info.spam_confidence
+                target.spam_rating = phoneblock_info.rating
+                target.spam_location = phoneblock_info.location
+                target.is_spam = phoneblock_info.is_spam
+            if tellows_info is not None and tellows_info.name:
+                target.reverse_name = tellows_info.name
+                target.reverse_category = tellows_info.category
 
-    def check_phoneblock(self, number: str | None) -> PhoneBlockInfo | None:
-        """Look up a number's PhoneBlock spam rating, if enabled. Blocking."""
+    async def _async_lookup_many(
+        self, numbers: set[str], budget: float
+    ) -> dict[str, tuple[PhoneBlockInfo | None, TellowsInfo | None]]:
+        semaphore = asyncio.Semaphore(MAX_PARALLEL_LOOKUPS)
+
+        async def lookup(number: str):
+            async with semaphore:
+                return number, (
+                    await self.async_check_phoneblock(number),
+                    await self.async_identify_caller(number),
+                )
+
+        tasks = [
+            self.entry.async_create_background_task(
+                self.hass, lookup(number), f"{DOMAIN} lookup {number}"
+            )
+            for number in numbers
+        ]
+        done, _pending = await asyncio.wait(tasks, timeout=budget)
+        results: dict[str, tuple[PhoneBlockInfo | None, TellowsInfo | None]] = {}
+        for task in done:
+            if task.cancelled() or task.exception() is not None:
+                continue
+            number, outcome = task.result()
+            results[number] = outcome
+        return results
+
+    async def async_check_phoneblock(self, number: str | None) -> PhoneBlockInfo | None:
+        """Look up a number's PhoneBlock spam rating, if enabled."""
         if self.phoneblock is None or not number:
             return None
-        return self.phoneblock.check(self.normalize_number(number))
+        return await self.phoneblock.check(self.normalize_number(number))
 
-    def _enrich_calls_with_tellows(self, calls: list[CallEntry]) -> None:
-        for call in calls:
-            if call.name or call.type == OUTGOING_CALL_TYPE:
-                continue
-            self._apply_tellows_info(call, call.caller_number or call.caller)
-
-    def _enrich_tam_messages_with_tellows(self, tams: list[Tam]) -> None:
-        for tam in tams:
-            for message in tam.messages:
-                if message.name:
-                    continue
-                self._apply_tellows_info(message, message.number)
-
-    def _apply_tellows_info(self, target: CallEntry | TamMessage, number: str | None) -> None:
-        if not number:
-            return
-        info = self.tellows.lookup(self.normalize_number(number))
-        if info is None or not info.name:
-            return
-        target.reverse_name = info.name
-        target.reverse_category = info.category
-
-    def identify_caller(self, number: str | None) -> TellowsInfo | None:
+    async def async_identify_caller(self, number: str | None) -> TellowsInfo | None:
         """Look up a number via Tellows, if the online reverse-lookup is
-        enabled. Blocking."""
+        enabled."""
         if self.tellows is None or not number:
             return None
-        return self.tellows.lookup(self.normalize_number(number))
+        return await self.tellows.lookup(self.normalize_number(number))
+
 
     def get_area_name(self, number: str | None) -> str | None:
         """Offline country/area-code description for a number (e.g. "Berlin").

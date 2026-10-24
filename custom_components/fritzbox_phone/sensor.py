@@ -1,6 +1,7 @@
 """Sensor platform for the FRITZ!Box phone integration."""
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta
 import logging
 from typing import Any
@@ -391,6 +392,13 @@ class FritzBoxCallMonitorSensor(FritzBoxPhoneEntity, SensorEntity):
         resolved = self._resolve_event(state, attributes)
         self.hass.loop.call_soon_threadsafe(self._async_apply_event, state, resolved)
 
+    def _run_on_loop(self, coro, timeout: float = 12):
+        """Run a lookup on the event loop and wait for it on this thread."""
+        try:
+            return asyncio.run_coroutine_threadsafe(coro, self.hass.loop).result(timeout)
+        except Exception:  # noqa: BLE001 - lookups are best effort
+            return None
+
     def _resolve_event(self, state: str, attributes: dict[str, Any]) -> dict[str, Any]:
         """Enrich a raw CallMonitor event with caller ID, area and spam
         info. Blocking, runs on the CallMonitor reader thread."""
@@ -404,13 +412,13 @@ class FritzBoxCallMonitorSensor(FritzBoxPhoneEntity, SensorEntity):
             if not name:
                 # Unknown caller and not (yet) ringing/answered enough to
                 # matter for outgoing/connected legs - worth a spam check.
-                info = self.coordinator.check_phoneblock(resolved["from"])
+                info = self._run_on_loop(self.coordinator.async_check_phoneblock(resolved["from"]))
                 if info is not None:
                     resolved["is_spam"] = info.is_spam
                     resolved["spam_confidence"] = info.spam_confidence
                     resolved["spam_rating"] = info.rating
                     resolved["spam_location"] = info.location
-                reverse = self.coordinator.identify_caller(resolved["from"])
+                reverse = self._run_on_loop(self.coordinator.async_identify_caller(resolved["from"]))
                 if reverse is not None and reverse.name:
                     resolved["reverse_name"] = reverse.name
                     resolved["reverse_category"] = reverse.category
