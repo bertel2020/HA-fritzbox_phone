@@ -310,14 +310,39 @@ function findMatchingTamMessage(call, messages, claimed) {
   return best;
 }
 
+// Everything shown in the card that originates from the call itself (caller
+// name/number, device, third-party lookups) is attacker-controlled - a SIP
+// display name is chosen by the caller - so it is only ever inserted as
+// text, never parsed as HTML.
+function textSpan(text) {
+  const span = document.createElement("span");
+  span.textContent = String(text);
+  return span;
+}
+
 function metaLine(parts) {
   const meta = document.createElement("div");
   meta.className = "fb-meta";
-  meta.innerHTML = parts
-    .filter(Boolean)
-    .map((part) => `<span>${part}</span>`)
-    .join("<span>·</span>");
+  parts.filter(Boolean).forEach((part, index) => {
+    if (index > 0) meta.appendChild(textSpan("·"));
+    meta.appendChild(textSpan(part));
+  });
   return meta;
+}
+
+function emptyNotice(...nodes) {
+  const box = document.createElement("div");
+  box.className = "fb-empty";
+  nodes.forEach((node) =>
+    box.appendChild(typeof node === "string" ? document.createTextNode(node) : node)
+  );
+  return box;
+}
+
+function codeSpan(text) {
+  const code = document.createElement("code");
+  code.textContent = text;
+  return code;
 }
 
 const CALL_TYPE_LABELS = {
@@ -428,7 +453,14 @@ function messageDetails(message) {
 function buildDetails(items) {
   const box = document.createElement("div");
   box.className = "fb-details";
-  box.innerHTML = items.map(([label, value]) => `<div><b>${label}:</b> ${value}</div>`).join("");
+  for (const [label, value] of items) {
+    const line = document.createElement("div");
+    const labelEl = document.createElement("b");
+    labelEl.textContent = `${label}:`;
+    line.appendChild(labelEl);
+    line.appendChild(document.createTextNode(` ${value}`));
+    box.appendChild(line);
+  }
   return box;
 }
 
@@ -571,7 +603,7 @@ class FritzboxPhoneCard extends HTMLElement {
     content.className = "fb-content";
 
     if (!stateObj) {
-      content.innerHTML = `<div class="fb-empty">Entität <code>${entityId}</code> nicht gefunden.</div>`;
+      content.appendChild(emptyNotice("Entität ", codeSpan(entityId), " nicht gefunden."));
     } else if (Array.isArray(attrs.calls)) {
       content.appendChild(this._buildCallsList(attrs.calls, tamContext));
     } else if (isMessages) {
@@ -579,8 +611,15 @@ class FritzboxPhoneCard extends HTMLElement {
     } else if (isCallMonitor) {
       content.appendChild(this._buildCallMonitor(stateObj));
     } else {
-      content.innerHTML =
-        '<div class="fb-empty">Diese Entität liefert weder <code>calls</code>, <code>messages</code> noch einen Anrufmonitor-Status - falsche Entität ausgewählt?</div>';
+      content.appendChild(
+        emptyNotice(
+          "Diese Entität liefert weder ",
+          codeSpan("calls"),
+          ", ",
+          codeSpan("messages"),
+          " noch einen Anrufmonitor-Status - falsche Entität ausgewählt?"
+        )
+      );
     }
 
     card.appendChild(content);
@@ -843,7 +882,8 @@ class FritzboxPhoneCard extends HTMLElement {
       chip.type = "button";
       chip.className = `fb-legend-item ${t.cls}`;
       chip.setAttribute("aria-pressed", "true");
-      chip.innerHTML = `<i></i>${t.label}`;
+      chip.appendChild(document.createElement("i"));
+      chip.appendChild(document.createTextNode(t.label));
       chip.addEventListener("click", () => {
         const active = chip.classList.toggle("inactive");
         chip.setAttribute("aria-pressed", String(!active));
