@@ -24,15 +24,19 @@ from .const import (
     CONTEXT_KEY_TAM,
     DEFAULT_CALLMONITOR_PORT,
     DEFAULT_ENABLE_CALLMONITOR,
-    DOMAIN,
     EVENT_CALL,
     MISSED_CALL_TYPE,
 )
 from .coordinator import FritzBoxPhoneCoordinator
+from .runtime import FritzBoxPhoneConfigEntry
 from .entity import FritzBoxPhoneEntity
 from .views import recording_path
 
 _LOGGER = logging.getLogger(__name__)
+
+# All state comes from the coordinator (or the call monitor's own socket), so
+# entities never need to be throttled against each other.
+PARALLEL_UPDATES = 0
 
 
 def _format_call_duration(raw: str | None) -> str | None:
@@ -75,9 +79,9 @@ def _seconds_between(earlier: str, later: str) -> int | None:
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant, entry: FritzBoxPhoneConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    coordinator: FritzBoxPhoneCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data.coordinator
 
     entities: list[SensorEntity] = [
         FritzBoxCallListSensor(coordinator, entry),

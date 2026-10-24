@@ -8,15 +8,19 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
 from .coordinator import FritzBoxPhoneCoordinator
+from .runtime import FritzBoxPhoneConfigEntry
 from .entity import FritzBoxPhoneEntity
 
 
+# Switching an answering machine is a write to the box: one at a time.
+PARALLEL_UPDATES = 1
+
+
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant, entry: FritzBoxPhoneConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    coordinator: FritzBoxPhoneCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data.coordinator
     async_add_entities(
         FritzBoxTamSwitch(coordinator, entry, tam.index) for tam in coordinator.data.tams
     )

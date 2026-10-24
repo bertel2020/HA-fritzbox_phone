@@ -177,7 +177,7 @@ async def setup_integration(
 
 
 def get_coordinator(hass: HomeAssistant, entry: MockConfigEntry):
-    return hass.data[DOMAIN][entry.entry_id]
+    return entry.runtime_data.coordinator
 
 
 def entity_id(hass: HomeAssistant, entry: MockConfigEntry, suffix: str, domain: str = "sensor"):

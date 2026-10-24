@@ -12,7 +12,6 @@ from fritzconnection.core.exceptions import (
 import requests
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
@@ -34,6 +33,7 @@ from .const import (
     SERVICE_MARK_MESSAGE_READ,
 )
 from .coordinator import FritzBoxPhoneCoordinator
+from .runtime import FritzBoxPhoneConfigEntry, FritzBoxPhoneRuntimeData
 from .views import FritzBoxRecordingView
 
 _LOGGER = logging.getLogger(__name__)
@@ -83,7 +83,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: FritzBoxPhoneConfigEntry) -> bool:
     """Set up FRITZ!Box phone from a config entry."""
     client = FritzBoxPhoneClient(
         host=entry.data[CONF_HOST],
@@ -108,7 +108,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await _async_register_frontend_resource(hass)
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+    entry.runtime_data = FritzBoxPhoneRuntimeData(coordinator=coordinator)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
@@ -132,14 +132,11 @@ async def _async_register_frontend_resource(hass: HomeAssistant) -> None:
     domain_data[_FRONTEND_REGISTERED_KEY] = True
 
 
-async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+async def _async_update_listener(hass: HomeAssistant, entry: FritzBoxPhoneConfigEntry) -> None:
     """Reload the entry when its options change."""
     await hass.config_entries.async_reload(entry.entry_id)
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: FritzBoxPhoneConfigEntry) -> bool:
     """Unload a config entry."""
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
-    return unload_ok
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

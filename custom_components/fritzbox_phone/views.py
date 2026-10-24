@@ -17,6 +17,7 @@ from fritzconnection.core.exceptions import FritzConnectionException
 import requests
 
 from homeassistant.components.http import HomeAssistantView
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN, RECORDING_URL_TEMPLATE, RECORDING_URL_PATTERN
@@ -52,9 +53,13 @@ class FritzBoxRecordingView(HomeAssistantView):
     ) -> web.Response:
         hass: HomeAssistant = request.app["hass"]
         entry = hass.config_entries.async_get_entry(entry_id)
-        coordinator = hass.data.get(DOMAIN, {}).get(entry_id)
-        if entry is None or entry.domain != DOMAIN or coordinator is None:
+        if (
+            entry is None
+            or entry.domain != DOMAIN
+            or entry.state is not ConfigEntryState.LOADED
+        ):
             return web.Response(status=HTTPStatus.NOT_FOUND)
+        coordinator = entry.runtime_data.coordinator
         if not (tam_index.isdigit() and message_index.isdigit()):
             return web.Response(status=HTTPStatus.BAD_REQUEST)
 
