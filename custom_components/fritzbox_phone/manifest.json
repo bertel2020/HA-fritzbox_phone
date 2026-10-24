@@ -1,13 +1,29 @@
 {
   "domain": "fritzbox_phone",
   "name": "FRITZ!Box Telefon",
-  "codeowners": ["@bertel2020"],
+  "codeowners": [
+    "@bertel2020"
+  ],
   "config_flow": true,
-  "dependencies": ["http"],
+  "dependencies": [
+    "http"
+  ],
   "documentation": "https://github.com/bertel2020/HA-fritzbox_phone",
   "integration_type": "hub",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/bertel2020/HA-fritzbox_phone/issues",
-  "requirements": ["fritzconnection>=1.13.0", "phonenumbers>=8.13.0", "defusedxml>=0.7.1"],
+  "loggers": [
+    "fritzconnection"
+  ],
+  "requirements": [
+    "fritzconnection>=1.13.0",
+    "phonenumbers>=8.13.0",
+    "defusedxml>=0.7.1"
+  ],
+  "ssdp": [
+    {
+      "st": "urn:schemas-upnp-org:device:fritzbox:1"
+    }
+  ],
   "version": "1.15.1"
 }

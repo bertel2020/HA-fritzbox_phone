@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 import logging
 from typing import Any
+from urllib.parse import urlparse
 
 from fritzconnection.core.exceptions import (
     FritzAuthorizationError,
@@ -18,6 +19,11 @@ from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import selector
+from homeassistant.helpers.service_info.ssdp import (
+    ATTR_UPNP_FRIENDLY_NAME,
+    ATTR_UPNP_SERIAL,
+    SsdpServiceInfo,
+)
 
 from .api import FritzBoxPhoneClient
 from .const import (
@@ -90,10 +96,17 @@ async def _try_validate(
         return None, "unknown"
 
 
+def _serial_key(value: str | None) -> str:
+    """A serial number compared without separators or case ("3C:A6.." == "3ca6..")."""
+    return "".join(ch for ch in (value or "") if ch.isalnum()).lower()
+
+
 class FritzBoxPhoneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for FRITZ!Box phone."""
 
     VERSION = 1
+
+    _discovered_host: str | None = None
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
@@ -110,6 +123,56 @@ class FritzBoxPhoneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=self.add_suggested_values_to_schema(STEP_USER_DATA_SCHEMA, user_input),
+            errors=errors,
+        )
+
+    async def async_step_ssdp(self, discovery_info: SsdpServiceInfo) -> ConfigFlowResult:
+        """A FRITZ!Box announced itself on the network."""
+        host = urlparse(discovery_info.ssdp_location or "").hostname
+        if not host:
+            return self.async_abort(reason="no_host")
+
+        serial = discovery_info.upnp.get(ATTR_UPNP_SERIAL)
+        for entry in self._async_current_entries():
+            same_serial = serial and _serial_key(entry.unique_id) == _serial_key(serial)
+            if same_serial or entry.data.get(CONF_HOST) == host:
+                # Known box; follow it if its address changed.
+                if same_serial and entry.data.get(CONF_HOST) != host:
+                    self.hass.config_entries.async_update_entry(
+                        entry, data={**entry.data, CONF_HOST: host}
+                    )
+                return self.async_abort(reason="already_configured")
+
+        self._discovered_host = host
+        name = discovery_info.upnp.get(ATTR_UPNP_FRIENDLY_NAME) or f"FRITZ!Box ({host})"
+        self.context["title_placeholders"] = {"name": name}
+        return await self.async_step_discovery_confirm()
+
+    async def async_step_discovery_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Ask for the credentials of a discovered box."""
+        errors: dict[str, str] = {}
+        host = self._discovered_host
+        if user_input is not None and host:
+            data = {CONF_HOST: host, CONF_USE_TLS: False, **user_input}
+            info, error = await _try_validate(self.hass, data)
+            if error:
+                errors["base"] = error
+            else:
+                await self.async_set_unique_id(str(info["serial"] or host))
+                self._abort_if_unique_id_configured(updates={CONF_HOST: host})
+                return self.async_create_entry(title=info["title"], data=data)
+
+        return self.async_show_form(
+            step_id="discovery_confirm",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_USERNAME): str,
+                    vol.Required(CONF_PASSWORD): _PASSWORD_SELECTOR,
+                }
+            ),
+            description_placeholders={"host": host or ""},
             errors=errors,
         )
 

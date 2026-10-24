@@ -30,6 +30,14 @@
           "use_tls": "Use an encrypted connection (TLS)",
           "port": "Port (optional, defaults depend on the TLS setting)"
         }
+      },
+      "discovery_confirm": {
+        "title": "Set up the FRITZ!Box {name}",
+        "description": "A FRITZ!Box was found at {host}. Enter the credentials of a FRITZ!Box user with the telephony permission.",
+        "data": {
+          "username": "Username",
+          "password": "Password"
+        }
       }
     },
     "error": {
@@ -41,7 +49,8 @@
       "already_configured": "This FRITZ!Box is already configured.",
       "reauth_successful": "Signing in worked.",
       "reconfigure_successful": "The connection was updated.",
-      "wrong_device": "A different FRITZ!Box answers under these details than the one originally set up."
+      "wrong_device": "A different FRITZ!Box answers under these details than the one originally set up.",
+      "no_host": "The address of this FRITZ!Box could not be determined."
     }
   },
   "options": {

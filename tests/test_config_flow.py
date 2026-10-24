@@ -175,3 +175,54 @@ async def test_reconfigure_changes_host(hass: HomeAssistant) -> None:
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reconfigure_successful"
     assert entry.data[CONF_HOST] == "192.168.178.1"
+
+
+def _ssdp(host="192.168.178.1", serial="3C:A6:2F:00:11:22"):
+    from homeassistant.helpers.service_info.ssdp import SsdpServiceInfo
+
+    return SsdpServiceInfo(
+        ssdp_usn="uuid:abc::urn:schemas-upnp-org:device:fritzbox:1",
+        ssdp_st="urn:schemas-upnp-org:device:fritzbox:1",
+        ssdp_location=f"http://{host}:49000/tr64desc.xml",
+        upnp={"serialNumber": serial, "friendlyName": "FRITZ!Box 7590"},
+    )
+
+
+async def test_ssdp_discovery_asks_for_credentials(hass: HomeAssistant) -> None:
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_SSDP}, data=_ssdp()
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "discovery_confirm"
+    assert result["description_placeholders"]["host"] == "192.168.178.1"
+
+    with patch(CLIENT, _client()):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_USERNAME: "user", CONF_PASSWORD: "secret"}
+        )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_HOST] == "192.168.178.1"
+    assert result["result"].unique_id == "ABC123"
+
+
+async def test_ssdp_ignores_a_box_that_is_already_set_up(hass: HomeAssistant) -> None:
+    MockConfigEntry(
+        domain=DOMAIN, unique_id="3CA62F001122", data={**USER_INPUT, CONF_HOST: "fritz.box"}
+    ).add_to_hass(hass)
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_SSDP}, data=_ssdp()
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+
+
+async def test_ssdp_follows_a_changed_address(hass: HomeAssistant) -> None:
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id="3CA62F001122", data={**USER_INPUT, CONF_HOST: "192.168.178.5"}
+    )
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_SSDP}, data=_ssdp()
+    )
+    assert result["reason"] == "already_configured"
+    assert entry.data[CONF_HOST] == "192.168.178.1"

@@ -45,7 +45,7 @@ def normalize_e164(number: str | None, country_prefix: str) -> str | None:
     international format before hashing, so a differently-formatted local
     number would hash to something PhoneBlock never sees as blocked even if
     the number itself is known to them. The coordinator already hands in
-    canonical numbers (see numbers.py); this only catches the leftovers.
+    canonical numbers (see phone_numbers.py); this only catches the leftovers.
     """
     digits = _NUMBER_STRIP_RE.sub("", number or "")
     if not digits:
