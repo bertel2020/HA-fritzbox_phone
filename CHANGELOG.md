@@ -2,6 +2,13 @@
 
 Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
+## Unveröffentlicht
+
+### Geändert
+
+- Karte: Bei ausgehenden Anrufen heißt der Knopf „Erneut anrufen" statt
+  „Zurückrufen" (englisch „Call again").
+
 ## 2.0.1 – 2026-10-25
 
 ### Behoben

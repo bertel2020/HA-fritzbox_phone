@@ -97,6 +97,7 @@ const TEXTS = {
     err_delete: "Fehler beim Löschen: {error}",
     no_recording: "Zu dieser Nachricht gibt es keine Aufnahme.",
     callback: "Zurückrufen",
+    redial: "Erneut anrufen",
     dial_started: "Wählhilfe gestartet - das Telefon klingelt gleich.",
     dial_failed: "Anruf konnte nicht gestartet werden: {error}",
     search: "Kontakte durchsuchen",
@@ -194,6 +195,7 @@ const TEXTS = {
     err_delete: "Could not delete: {error}",
     no_recording: "This message has no recording.",
     callback: "Call back",
+    redial: "Call again",
     dial_started: "Dial help started - your phone is about to ring.",
     dial_failed: "Could not start the call: {error}",
     search: "Search contacts",
@@ -981,14 +983,15 @@ class FritzboxPhoneCard extends HTMLElement {
   }
 
   // "Call back" - rings the phone chosen in the box's dial help first.
-  _buildDialButton(number, entityId) {
+  // labelKey: "callback" for someone who called, "redial" for a number we called.
+  _buildDialButton(number, entityId, labelKey = "callback") {
     const t = this._t;
     const button = document.createElement("button");
     button.type = "button";
     button.className = "fb-link-btn";
     button.appendChild(haIcon("mdi:phone-outgoing"));
-    button.appendChild(textSpan(t("callback")));
-    button.setAttribute("aria-label", `${t("callback")}: ${number}`);
+    button.appendChild(textSpan(t(labelKey)));
+    button.setAttribute("aria-label", `${t(labelKey)}: ${number}`);
     button.addEventListener("click", async (event) => {
       event.stopPropagation();
       button.disabled = true;
@@ -1282,7 +1285,9 @@ class FritzboxPhoneCard extends HTMLElement {
     const details = buildDetails(callDetails(t, call, tamMessage));
     const number = dialableNumber(callNumber(call));
     if (this._config.show_dial !== false && number && !call.is_fax) {
-      details.appendChild(this._buildDialButton(number, entityId));
+      details.appendChild(
+        this._buildDialButton(number, entityId, call.type === "outgoing" ? "redial" : "callback")
+      );
     }
     row.appendChild(details);
     return row;
