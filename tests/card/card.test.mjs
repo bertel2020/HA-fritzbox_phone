@@ -258,6 +258,20 @@ test("call back dials through the integration, targeted at the box", async () =>
   assert.equal(notices.length, 1);
 });
 
+test("the button says call back for callers and call again for outgoing calls", () => {
+  const window = load();
+  const calls = [call("1"), call("2", { type: "outgoing", called_number: "0301111", caller_number: "075271" })];
+  const card = mount(
+    window,
+    { entity: "sensor.calls" },
+    makeHass({ "sensor.calls": state("sensor.calls", "2", { calls }) }),
+  );
+  const label = (type) =>
+    root(card).querySelector(`.fb-row[data-type="${type}"] .fb-link-btn`).textContent.trim();
+  assert.equal(label("fb-in"), "Call back");
+  assert.equal(label("fb-out"), "Call again");
+});
+
 test("no call back button for a caller without a dialable number", () => {
   const window = load();
   const hass = makeHass({
