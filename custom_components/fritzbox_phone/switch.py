@@ -5,27 +5,39 @@ from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
 from .coordinator import FritzBoxPhoneCoordinator
+from .runtime import FritzBoxPhoneConfigEntry
 from .entity import FritzBoxPhoneEntity
 
 
+# Switching an answering machine is a write to the box: one at a time.
+PARALLEL_UPDATES = 1
+
+
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+    hass: HomeAssistant, entry: FritzBoxPhoneConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    coordinator: FritzBoxPhoneCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities(
-        FritzBoxTamSwitch(coordinator, entry, tam.index) for tam in coordinator.data.tams
-    )
+    coordinator = entry.runtime_data.coordinator
+    known: set[int] = set()
+
+    @callback
+    def _async_add_new_entities() -> None:
+        new = [tam for tam in coordinator.data.tams if tam.index not in known]
+        known.update(tam.index for tam in new)
+        if new:
+            async_add_entities(FritzBoxTamSwitch(coordinator, entry, tam.index) for tam in new)
+
+    _async_add_new_entities()
+    entry.async_on_unload(coordinator.async_add_listener(_async_add_new_entities))
 
 
 class FritzBoxTamSwitch(FritzBoxPhoneEntity, SwitchEntity):
     """Enables/disables a FRITZ!Box answering machine (X_AVM-DE_TAM SetEnable)."""
 
-    _attr_icon = "mdi:voicemail"
+    _attr_translation_key = "tam_enabled"
 
     def __init__(
         self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry, tam_index: int
@@ -43,9 +55,9 @@ class FritzBoxTamSwitch(FritzBoxPhoneEntity, SwitchEntity):
         return super().available and self._tam is not None
 
     @property
-    def name(self) -> str:
+    def translation_placeholders(self) -> dict[str, str]:
         tam = self._tam
-        return f"{tam.name if tam else self._tam_index} aktiv"
+        return {"name": tam.name if tam else str(self._tam_index)}
 
     @property
     def is_on(self) -> bool | None:
@@ -59,7 +71,7 @@ class FritzBoxTamSwitch(FritzBoxPhoneEntity, SwitchEntity):
         await self._async_set_enable(False)
 
     async def _async_set_enable(self, enable: bool) -> None:
-        await self.hass.async_add_executor_job(
+        await self._async_box_call(
             self.coordinator.client.set_tam_enable, self._tam_index, enable
         )
         await self.coordinator.async_request_refresh()

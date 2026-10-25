@@ -1,0 +1,11 @@
+{
+  "name": "fritzbox-phone-card-tests",
+  "private": true,
+  "description": "DOM tests for custom_components/fritzbox_phone/www/fritzbox-phone-card.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "jsdom": "^27.0.0"
+  }
+}

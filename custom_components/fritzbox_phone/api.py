@@ -12,18 +12,29 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import logging
-from urllib.parse import parse_qs, urlparse
+import threading
+from typing import Any
+from urllib.parse import parse_qs, parse_qsl, urlparse
 from xml.etree import ElementTree as ET
 
 import requests
 
 from fritzconnection import FritzConnection
-from fritzconnection.core.exceptions import FritzConnectionException
+from fritzconnection.core.exceptions import FritzActionError, FritzSecurityError, FritzServiceError
 from fritzconnection.core.utils import get_xml_root
 
 from .const import CALL_TYPE_NAMES, FAX_PORT, TAM_PORT, TAM_PORT_RANGE
 
 _LOGGER = logging.getLogger(__name__)
+
+# A box/firmware that simply lacks a feature answers with one of these. They
+# are the only errors treated as "feature not available" - everything else
+# (timeouts, authorization, internal errors) must reach the coordinator, which
+# keeps the last good data instead of mistaking a failed request for an empty
+# call list.
+# Also missing permissions (TR-064 error 606): a box user without the right
+# for a feature should lose the feature, not the whole integration.
+UNSUPPORTED_ERRORS = (FritzServiceError, FritzActionError, FritzSecurityError)
 
 ONTEL_SERVICE = "X_AVM-DE_OnTel1"
 TAM_SERVICE = "X_AVM-DE_TAM1"
@@ -80,6 +91,11 @@ class CallEntry:
     area_name: str | None = None
     reverse_name: str | None = None
     reverse_category: str | None = None
+    # Raw download path of the recording (without session id) and, once the
+    # coordinator has matched it to an answering machine message, which one.
+    path: str | None = None
+    tam_index: int | None = None
+    tam_message_index: int | None = None
 
 
 @dataclass
@@ -101,6 +117,7 @@ class TamMessage:
     area_name: str | None = None
     reverse_name: str | None = None
     reverse_category: str | None = None
+    path: str | None = None
 
 
 @dataclass
@@ -111,6 +128,24 @@ class Tam:
     running: bool
     capacity_minutes: int | None
     messages: list[TamMessage] = field(default_factory=list)
+
+
+def path_key(path: str | None) -> tuple[str, tuple[tuple[str, str], ...]] | None:
+    """Comparable form of a download path: the same file spelled with
+    different session ids or parameter order compares equal."""
+    if not path:
+        return None
+    parsed = urlparse(path)
+    params = tuple(sorted((k, v) for k, v in parse_qsl(parsed.query) if k != "sid"))
+    return parsed.path, params
+
+
+def _to_int(value: str | None, default: int = 0) -> int:
+    """int() for XML text fields the box occasionally leaves empty."""
+    try:
+        return int((value or "").strip())
+    except ValueError:
+        return default
 
 
 class FritzBoxPhoneClient:
@@ -132,9 +167,29 @@ class FritzBoxPhoneClient:
         self._use_tls = use_tls
         self._timeout = timeout
         self.fc: FritzConnection | None = None
+        self.serial_number: str | None = None
+        self.software_version: str | None = None
+        # One requests.Session serves the poll, the entity services and
+        # the recording download, each on its own executor thread.
+        self._lock = threading.RLock()
+
+    def _call(self, service: str, action: str, **arguments: Any) -> dict[str, Any]:
+        with self._lock:
+            return self.fc.call_action(service, action, **arguments)
+
+    def _xml(self, url: str) -> ET.Element:
+        with self._lock:
+            return get_xml_root(url, timeout=self._timeout, session=self.fc.session)
 
     def connect(self) -> None:
-        """Open the TR-064 connection. Blocking."""
+        """Open the TR-064 connection and verify the credentials. Blocking.
+
+        Opening the connection alone only reads the public device
+        description, so a wrong password would go unnoticed until the
+        first action. GetInfo needs authentication, which makes it a cheap
+        credential check; FritzAuthorizationError / FritzSecurityError
+        propagate to the caller.
+        """
         self.fc = FritzConnection(
             address=self._host,
             port=self._port,
@@ -143,14 +198,15 @@ class FritzBoxPhoneClient:
             use_tls=self._use_tls,
             timeout=self._timeout,
         )
-
-    @property
-    def serial_number(self) -> str | None:
         try:
-            info = self.fc.call_action(DEVICEINFO_SERVICE, "GetInfo")
-        except FritzConnectionException:
-            return None
-        return info.get("NewSerialNumber")
+            info = self._call(DEVICEINFO_SERVICE, "GetInfo")
+        except FritzSecurityError as err:
+            # Wrong credentials are FritzAuthorizationError; this is a user
+            # without the right to read device info.
+            _LOGGER.debug("GetInfo not permitted: %s", err)
+            info = {}
+        self.serial_number = info.get("NewSerialNumber") or None
+        self.software_version = info.get("NewSoftwareVersion") or None
 
     @property
     def model_name(self) -> str:
@@ -166,8 +222,8 @@ class FritzBoxPhoneClient:
         returns None in that case.
         """
         try:
-            result = self.fc.call_action(VOIP_SERVICE, "X_AVM-DE_GetVoIPCommonAreaCode")
-        except FritzConnectionException as err:
+            result = self._call(VOIP_SERVICE, "X_AVM-DE_GetVoIPCommonAreaCode")
+        except UNSUPPORTED_ERRORS as err:
             _LOGGER.debug("X_AVM-DE_GetVoIPCommonAreaCode failed: %s", err)
             return None
         prefix = result.get("NewX_AVM-DE_OKZPrefix") or ""
@@ -181,19 +237,18 @@ class FritzBoxPhoneClient:
 
     def get_phonebooks(self) -> list[Phonebook]:
         try:
-            result = self.fc.call_action(ONTEL_SERVICE, "GetPhonebookList")
-        except FritzConnectionException as err:
-            _LOGGER.debug("GetPhonebookList failed: %s", err)
+            result = self._call(ONTEL_SERVICE, "GetPhonebookList")
+        except UNSUPPORTED_ERRORS as err:
+            _LOGGER.debug("GetPhonebookList unavailable: %s", err)
             return []
         raw_ids = (result.get("NewPhonebookList") or "").strip()
         phonebooks: list[Phonebook] = []
         for id_str in raw_ids.split(","):
-            if not id_str:
+            id_str = id_str.strip()
+            if not id_str.isdigit():
                 continue
             pb_id = int(id_str)
-            info = self.fc.call_action(
-                ONTEL_SERVICE, "GetPhonebook", NewPhonebookId=pb_id
-            )
+            info = self._call(ONTEL_SERVICE, "GetPhonebook", NewPhonebookId=pb_id)
             url = info.get("NewPhonebookURL")
             name = info.get("NewPhonebookName") or f"Telefonbuch {pb_id}"
             contacts = self._download_phonebook(url) if url else []
@@ -202,7 +257,7 @@ class FritzBoxPhoneClient:
 
     def _download_phonebook(self, url: str) -> list[PhonebookContact]:
         sid = self._extract_sid(url)
-        root = get_xml_root(url, timeout=self._timeout, session=self.fc.session)
+        root = self._xml(url)
         contacts: list[PhonebookContact] = []
         for contact_el in root.iter("contact"):
             person = contact_el.find("person")
@@ -239,9 +294,9 @@ class FritzBoxPhoneClient:
 
     def get_call_list(self, days: int, max_entries: int) -> list[CallEntry]:
         try:
-            result = self.fc.call_action(ONTEL_SERVICE, "GetCallList")
-        except FritzConnectionException as err:
-            _LOGGER.debug("GetCallList failed: %s", err)
+            result = self._call(ONTEL_SERVICE, "GetCallList")
+        except UNSUPPORTED_ERRORS as err:
+            _LOGGER.debug("GetCallList unavailable: %s", err)
             return []
         url = result.get("NewCallListURL")
         if not url:
@@ -251,10 +306,10 @@ class FritzBoxPhoneClient:
         if max_entries:
             url += f"&max={max_entries}"
         sid = self._extract_sid(url)
-        root = get_xml_root(url, timeout=self._timeout, session=self.fc.session)
+        root = self._xml(url)
         entries: list[CallEntry] = []
         for call_el in root.iter("Call"):
-            call_type = int(call_el.findtext("Type", default="0") or 0)
+            call_type = _to_int(call_el.findtext("Type"))
             port = call_el.findtext("Port")
             path = call_el.findtext("Path")
             entries.append(
@@ -275,6 +330,7 @@ class FritzBoxPhoneClient:
                     is_fax=port == str(FAX_PORT),
                     is_tam=self._is_tam_port(port),
                     recording_url=self._absolute_url(path, sid) if path else None,
+                    path=path or None,
                 )
             )
         return entries
@@ -295,8 +351,8 @@ class FritzBoxPhoneClient:
 
     def get_tams(self) -> list[Tam]:
         try:
-            result = self.fc.call_action(TAM_SERVICE, "GetList")
-        except FritzConnectionException as err:
+            result = self._call(TAM_SERVICE, "GetList")
+        except UNSUPPORTED_ERRORS as err:
             # box/firmware without answering machine support
             _LOGGER.debug("X_AVM-DE_TAM GetList unavailable: %s", err)
             return []
@@ -313,7 +369,7 @@ class FritzBoxPhoneClient:
             if not name:
                 # unconfigured TAM slot
                 continue
-            index = int(item.findtext("Index", default="0"))
+            index = _to_int(item.findtext("Index"))
             tam = Tam(
                 index=index,
                 name=name,
@@ -327,15 +383,15 @@ class FritzBoxPhoneClient:
 
     def get_tam_messages(self, index: int) -> list[TamMessage]:
         try:
-            result = self.fc.call_action(TAM_SERVICE, "GetMessageList", NewIndex=index)
-        except FritzConnectionException as err:
-            _LOGGER.debug("GetMessageList(%s) failed: %s", index, err)
+            result = self._call(TAM_SERVICE, "GetMessageList", NewIndex=index)
+        except UNSUPPORTED_ERRORS as err:
+            _LOGGER.debug("GetMessageList(%s) unavailable: %s", index, err)
             return []
         url = result.get("NewURL")
         if not url:
             return []
         sid = self._extract_sid(url)
-        root = get_xml_root(url, timeout=self._timeout, session=self.fc.session)
+        root = self._xml(url)
         messages: list[TamMessage] = []
         for msg_el in root.iter("Message"):
             # AVM's XML inverts the usual meaning: New=0 -> unread/new,
@@ -344,8 +400,8 @@ class FritzBoxPhoneClient:
             path = msg_el.findtext("Path")
             messages.append(
                 TamMessage(
-                    index=int(msg_el.findtext("Index", default="0")),
-                    tam=int(msg_el.findtext("Tam", default=str(index))),
+                    index=_to_int(msg_el.findtext("Index")),
+                    tam=_to_int(msg_el.findtext("Tam"), default=index),
                     name=msg_el.findtext("Name") or None,
                     number=msg_el.findtext("Number") or None,
                     called=msg_el.findtext("Called") or None,
@@ -354,17 +410,16 @@ class FritzBoxPhoneClient:
                     new=is_new,
                     inbook=msg_el.findtext("Inbook") == "1",
                     download_url=self._absolute_url(path, sid) if path else None,
+                    path=path or None,
                 )
             )
         return messages
 
     def set_tam_enable(self, index: int, enable: bool) -> None:
-        self.fc.call_action(
-            TAM_SERVICE, "SetEnable", NewIndex=index, NewEnable=int(enable)
-        )
+        self._call(TAM_SERVICE, "SetEnable", NewIndex=index, NewEnable=int(enable))
 
     def mark_message(self, index: int, message_index: int, read: bool = True) -> None:
-        self.fc.call_action(
+        self._call(
             TAM_SERVICE,
             "MarkMessage",
             NewIndex=index,
@@ -373,18 +428,31 @@ class FritzBoxPhoneClient:
         )
 
     def delete_message(self, index: int, message_index: int) -> None:
-        self.fc.call_action(
+        self._call(
             TAM_SERVICE,
             "DeleteMessage",
             NewIndex=index,
             NewMessageIndex=message_index,
         )
 
+    def dial(self, number: str) -> None:
+        """Start a call from the box's dial help (Wählhilfe).
+
+        The dial help has to be enabled on the box (Telefonie > Telefoniegeräte);
+        the phone it rings first is the one chosen there.
+        """
+        self._call(VOIP_SERVICE, "X_AVM-DE_DialNumber", **{"NewX_AVM-DE_PhoneNumber": number})
+
+    def hangup(self) -> None:
+        """Cancel the call setup started by dial()."""
+        self._call(VOIP_SERVICE, "X_AVM-DE_DialHangup")
+
     def download(self, url: str) -> bytes:
         """Download a resource URL (e.g. a TAM recording) using the
         authenticated TR-064 session."""
         try:
-            response = self.fc.session.get(url, timeout=30)
+            with self._lock:
+                response = self.fc.session.get(url, timeout=30)
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
             status = err.response.status_code if err.response is not None else "?"

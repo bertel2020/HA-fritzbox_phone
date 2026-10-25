@@ -52,3 +52,30 @@ download_message:
       example: nachricht_3.mp3
       selector:
         text:
+
+dial:
+  target:
+    entity:
+      integration: fritzbox_phone
+  fields:
+    number:
+      required: true
+      example: "030 123456"
+      selector:
+        text:
+
+hangup:
+  target:
+    entity:
+      integration: fritzbox_phone
+
+lookup_number:
+  target:
+    entity:
+      integration: fritzbox_phone
+  fields:
+    number:
+      required: true
+      example: "+49 30 123456"
+      selector:
+        text:

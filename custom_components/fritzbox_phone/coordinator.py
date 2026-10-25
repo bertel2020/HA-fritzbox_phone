@@ -3,20 +3,31 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import timedelta
+import asyncio
 import logging
+import time
 from pathlib import Path
 from typing import Any
+from xml.etree import ElementTree as ET
 
-from fritzconnection.core.exceptions import FritzConnectionException
+from fritzconnection.core.exceptions import (
+    FritzAuthorizationError,
+    FritzConnectionException,
+    FritzSecurityError,
+)
 import phonenumbers
+import requests
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST
 from homeassistant.core import Context, HomeAssistant, callback
+from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import CallEntry, FritzBoxPhoneClient, Phonebook, Tam, TamMessage
+from .api import CallEntry, FritzBoxPhoneClient, Phonebook, Tam, TamMessage, path_key
 from .callmonitor import normalize_number
 from .geocoding import describe_number
+from .phone_numbers import normalize as normalize_phone_number
 from .const import (
     CONF_CALL_LIST_DAYS,
     CONF_CALL_LIST_MAX,
@@ -43,6 +54,7 @@ from .const import (
     EVENT_TAM_MESSAGE,
     MISSED_CALL_TYPE,
     OUTGOING_CALL_TYPE,
+    PHONEBOOK_REFRESH_INTERVAL,
 )
 from .phoneblock import PhoneBlockClient, PhoneBlockInfo
 from .tellows import TellowsClient, TellowsInfo
@@ -54,6 +66,13 @@ _LOGGER = logging.getLogger(__name__)
 # can pile them up, and the recorder should not have to store (nor the
 # logbook render) an unbounded list in that case.
 MAX_EVENT_ENTRIES = 10
+
+# Online lookups run concurrently, but politely.
+MAX_PARALLEL_LOOKUPS = 5
+# Seconds a poll waits for them. Whatever is still outstanding finishes in
+# the background and is picked up from the cache by the next poll.
+ENRICHMENT_BUDGET = 20
+FIRST_ENRICHMENT_BUDGET = 5
 
 
 @dataclass
@@ -71,10 +90,19 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
     ) -> None:
         self.client = client
         self.entry = entry
+        # Needed by the lookup clients below, which run before the base
+        # class has stored it.
+        self.hass = hass
         self.phoneblock = self._build_phoneblock_client()
         self.tellows = self._build_tellows_client()
         self._own_area_code: str | None = None
         self._own_area_code_fetched = False
+        # Phonebooks are re-downloaded only every PHONEBOOK_REFRESH_INTERVAL
+        # seconds; the number -> contact indexes are rebuilt with them.
+        self._phonebooks: list[Phonebook] | None = None
+        self._phonebooks_fetched = 0.0
+        self._contacts_by_number: dict[str, tuple[str, bool]] = {}
+        self._contacts_by_digits: dict[str, tuple[str, bool]] = {}
         # Change detection for the logbook events. `None` means "no poll
         # yet": the first cycle only records the baseline, otherwise every
         # restart would report the whole call list as brand new.
@@ -90,10 +118,25 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             update_interval=timedelta(seconds=scan_interval),
         )
 
+    def _prefixes(self) -> list[str]:
+        raw = self.entry.options.get(CONF_PREFIXES, "")
+        return [p.strip() for p in raw.split(",") if p.strip()]
+
     def _country_prefix(self) -> str:
-        prefixes_raw = self.entry.options.get(CONF_PREFIXES, "")
-        prefixes = [p.strip() for p in prefixes_raw.split(",") if p.strip()]
-        return prefixes[0] if prefixes else DEFAULT_COUNTRY_PREFIX
+        """Dial prefix of the country the box is in (e.g. "+49").
+
+        The optional `prefixes` setting wins; without it the country
+        configured in Home Assistant decides.
+        """
+        prefixes = self._prefixes()
+        if prefixes:
+            return prefixes[0]
+        country = self.hass.config.country
+        if country:
+            code = phonenumbers.country_code_for_region(country)
+            if code:
+                return f"+{code}"
+        return DEFAULT_COUNTRY_PREFIX
 
     def _region_code(self) -> str:
         """ISO region code (e.g. "DE") derived from the configured country
@@ -103,6 +146,12 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             return phonenumbers.region_code_for_country_code(int(digits)) or "DE"
         except (ValueError, TypeError):
             return "DE"
+
+    def normalize_number(self, number: str | None) -> str | None:
+        """Canonical (E.164) form of a number as the box reports it."""
+        return normalize_phone_number(
+            number, self._region_code(), self._country_prefix(), self._get_own_area_code()
+        )
 
     def _get_own_area_code(self) -> str | None:
         """The box's own configured area code, fetched once and cached
@@ -128,6 +177,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             return None
         threshold = options.get(CONF_PHONEBLOCK_THRESHOLD, DEFAULT_PHONEBLOCK_THRESHOLD)
         return PhoneBlockClient(
+            session=async_get_clientsession(self.hass),
             username=username,
             password=password,
             country_prefix=self._country_prefix(),
@@ -139,13 +189,26 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         if not options.get(CONF_REVERSE_LOOKUP_ENABLED, DEFAULT_REVERSE_LOOKUP_ENABLED):
             return None
         # No account/credentials needed - Tellows' /basic/num API is public.
-        return TellowsClient()
+        return TellowsClient(session=async_get_clientsession(self.hass))
 
     async def _async_update_data(self) -> FritzBoxPhoneData:
         try:
             data = await self.hass.async_add_executor_job(self._update)
-        except FritzConnectionException as err:
-            raise UpdateFailed(str(err)) from err
+        except (FritzAuthorizationError, FritzSecurityError) as err:
+            raise ConfigEntryAuthFailed(str(err)) from err
+        except (
+            FritzConnectionException,
+            requests.RequestException,
+            ET.ParseError,
+            ValueError,
+            OSError,
+        ) as err:
+            # Keeping the previous data (UpdateFailed) matters: a failed
+            # poll must never look like an empty call list, or the change
+            # detection below would report every call as removed and then
+            # as new again.
+            raise UpdateFailed(f"{type(err).__name__}: {err}") from err
+        await self._async_enrich_online(data)
         # Fire before returning: the coordinator notifies its entities the
         # moment this returns, and they need the Contexts to already be
         # parked when they write their new state.
@@ -301,17 +364,62 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         tams = self.client.get_tams()
         self._enrich_calls_with_area_info(calls)
         self._enrich_tam_messages_with_area_info(tams)
-        if self.phoneblock is not None:
-            self._enrich_calls_with_phoneblock(calls)
-            self._enrich_tam_messages_with_phoneblock(tams)
-        if self.tellows is not None:
-            self._enrich_calls_with_tellows(calls)
-            self._enrich_tam_messages_with_tellows(tams)
+        self._link_calls_to_messages(calls, tams)
         return FritzBoxPhoneData(
-            phonebooks=self.client.get_phonebooks(),
+            phonebooks=self._get_phonebooks(),
             calls=calls,
             tams=tams,
         )
+
+    @staticmethod
+    def _link_calls_to_messages(calls: list[CallEntry], tams: list[Tam]) -> None:
+        """Tell each answering-machine call which message holds its recording.
+
+        The call list and the message list share no id, but both point at
+        the same recording file, so matching on that path is exact - unlike
+        guessing from number and time.
+        """
+        by_path = {
+            key: (tam.index, message.index)
+            for tam in tams
+            for message in tam.messages
+            if (key := path_key(message.path))
+        }
+        for call in calls:
+            if (key := path_key(call.path)) and key in by_path:
+                call.tam_index, call.tam_message_index = by_path[key]
+
+    def _get_phonebooks(self) -> list[Phonebook]:
+        age = time.monotonic() - self._phonebooks_fetched
+        if self._phonebooks is not None and age < PHONEBOOK_REFRESH_INTERVAL:
+            return self._phonebooks
+        try:
+            phonebooks = self.client.get_phonebooks()
+        except Exception as err:  # noqa: BLE001
+            if self._phonebooks is None:
+                raise
+            # Contacts are secondary data: keep serving the copy we have
+            # rather than failing the whole poll, and retry next time.
+            _LOGGER.debug("Telefonbuch-Aktualisierung fehlgeschlagen: %s", err)
+            return self._phonebooks
+        self._phonebooks = phonebooks
+        self._phonebooks_fetched = time.monotonic()
+        self._index_contacts(phonebooks)
+        return phonebooks
+
+    def _index_contacts(self, phonebooks: list[Phonebook]) -> None:
+        by_number: dict[str, tuple[str, bool]] = {}
+        by_digits: dict[str, tuple[str, bool]] = {}
+        for phonebook in phonebooks:
+            for contact in phonebook.contacts:
+                for entry_number in contact.numbers:
+                    value = (contact.name, contact.vip)
+                    if canonical := self.normalize_number(entry_number.number):
+                        by_number.setdefault(canonical, value)
+                    if digits := normalize_number(entry_number.number):
+                        by_digits.setdefault(digits, value)
+        self._contacts_by_number = by_number
+        self._contacts_by_digits = by_digits
 
     def _call_counterpart_number(self, call: CallEntry) -> str | None:
         """The "other side" number for a call, direction-aware."""
@@ -338,66 +446,124 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             for message in tam.messages:
                 message.area_name = describe_number(message.number, region, area_code)
 
-    def _enrich_calls_with_phoneblock(self, calls: list[CallEntry]) -> None:
-        for call in calls:
+    # ------------------------------------------------------------------
+    # Online enrichment (PhoneBlock spam check, Tellows reverse lookup)
+    # ------------------------------------------------------------------
+
+    def _enrichment_targets(self, data: FritzBoxPhoneData) -> list[tuple[CallEntry | TamMessage, str]]:
+        """Entries worth an online lookup, with their canonical number."""
+        targets: list[tuple[CallEntry | TamMessage, str]] = []
+        for call in data.calls:
             if call.name or call.type == OUTGOING_CALL_TYPE:
                 # Already resolved locally, or a number we called ourselves -
-                # no point spam-checking either.
+                # no point looking up either.
                 continue
-            self._apply_phoneblock_info(call, call.caller_number or call.caller)
-
-    def _enrich_tam_messages_with_phoneblock(self, tams: list[Tam]) -> None:
-        for tam in tams:
+            if number := self.normalize_number(call.caller_number or call.caller):
+                targets.append((call, number))
+        for tam in data.tams:
             for message in tam.messages:
                 if message.name:
                     continue
-                self._apply_phoneblock_info(message, message.number)
+                if number := self.normalize_number(message.number):
+                    targets.append((message, number))
+        return targets
 
-    def _apply_phoneblock_info(self, target: CallEntry | TamMessage, number: str | None) -> None:
-        if not number:
+    async def _async_enrich_online(self, data: FritzBoxPhoneData) -> None:
+        if self.phoneblock is None and self.tellows is None:
             return
-        info = self.phoneblock.check(number)
-        if info is None:
+        targets = self._enrichment_targets(data)
+        if not targets:
             return
-        target.spam_confidence = info.spam_confidence
-        target.spam_rating = info.rating
-        target.spam_location = info.location
-        target.is_spam = info.is_spam
+        # The very first refresh blocks Home Assistant's setup of the entry,
+        # so it gets a much smaller budget than a regular poll. Lookups that
+        # miss the budget keep running in the background and land in the
+        # cache, so the next poll picks them up.
+        budget = FIRST_ENRICHMENT_BUDGET if self.data is None else ENRICHMENT_BUDGET
+        results = await self._async_lookup_many({number for _, number in targets}, budget)
+        for target, number in targets:
+            phoneblock_info, tellows_info = results.get(number, (None, None))
+            if phoneblock_info is not None:
+                target.spam_confidence = phoneblock_info.spam_confidence
+                target.spam_rating = phoneblock_info.rating
+                target.spam_location = phoneblock_info.location
+                target.is_spam = phoneblock_info.is_spam
+            if tellows_info is not None and tellows_info.name:
+                target.reverse_name = tellows_info.name
+                target.reverse_category = tellows_info.category
 
-    def check_phoneblock(self, number: str | None) -> PhoneBlockInfo | None:
-        """Look up a number's PhoneBlock spam rating, if enabled. Blocking."""
+    async def _async_lookup_many(
+        self, numbers: set[str], budget: float
+    ) -> dict[str, tuple[PhoneBlockInfo | None, TellowsInfo | None]]:
+        semaphore = asyncio.Semaphore(MAX_PARALLEL_LOOKUPS)
+
+        async def lookup(number: str):
+            async with semaphore:
+                return number, (
+                    await self.async_check_phoneblock(number),
+                    await self.async_identify_caller(number),
+                )
+
+        tasks = [
+            self.entry.async_create_background_task(
+                self.hass, lookup(number), f"{DOMAIN} lookup {number}"
+            )
+            for number in numbers
+        ]
+        done, _pending = await asyncio.wait(tasks, timeout=budget)
+        results: dict[str, tuple[PhoneBlockInfo | None, TellowsInfo | None]] = {}
+        for task in done:
+            if task.cancelled() or task.exception() is not None:
+                continue
+            number, outcome = task.result()
+            results[number] = outcome
+        return results
+
+    async def async_check_phoneblock(self, number: str | None) -> PhoneBlockInfo | None:
+        """Look up a number's PhoneBlock spam rating, if enabled."""
         if self.phoneblock is None or not number:
             return None
-        return self.phoneblock.check(number)
+        return await self.phoneblock.check(self.normalize_number(number))
 
-    def _enrich_calls_with_tellows(self, calls: list[CallEntry]) -> None:
-        for call in calls:
-            if call.name or call.type == OUTGOING_CALL_TYPE:
-                continue
-            self._apply_tellows_info(call, call.caller_number or call.caller)
-
-    def _enrich_tam_messages_with_tellows(self, tams: list[Tam]) -> None:
-        for tam in tams:
-            for message in tam.messages:
-                if message.name:
-                    continue
-                self._apply_tellows_info(message, message.number)
-
-    def _apply_tellows_info(self, target: CallEntry | TamMessage, number: str | None) -> None:
-        if not number:
-            return
-        info = self.tellows.lookup(number)
-        if info is None or not info.name:
-            return
-        target.reverse_name = info.name
-        target.reverse_category = info.category
-
-    def identify_caller(self, number: str | None) -> TellowsInfo | None:
+    async def async_identify_caller(self, number: str | None) -> TellowsInfo | None:
         """Look up a number via Tellows, if the online reverse-lookup is
-        enabled. Blocking."""
+        enabled."""
         if self.tellows is None or not number:
             return None
-        return self.tellows.lookup(number)
+        return await self.tellows.lookup(self.normalize_number(number))
+
+
+    async def async_lookup_number(self, number: str) -> dict[str, Any]:
+        """Everything this integration knows about a phone number."""
+        canonical = self.normalize_number(number)
+        name, vip = self.resolve_contact(number)
+        phoneblock, reverse = await asyncio.gather(
+            self.async_check_phoneblock(number), self.async_identify_caller(number)
+        )
+        return {
+            "number": canonical,
+            "contact": {"name": name, "vip": vip} if name else None,
+            "area_name": self.get_area_name(number),
+            "spam": (
+                {
+                    "is_spam": phoneblock.is_spam,
+                    "confidence": phoneblock.spam_confidence,
+                    "rating": phoneblock.rating,
+                    "location": phoneblock.location,
+                }
+                if phoneblock
+                else None
+            ),
+            "reverse_lookup": (
+                {
+                    "name": reverse.name,
+                    "category": reverse.category,
+                    "score": reverse.score,
+                    "is_spam": reverse.is_spam,
+                }
+                if reverse
+                else None
+            ),
+        }
 
     def get_area_name(self, number: str | None) -> str | None:
         """Offline country/area-code description for a number (e.g. "Berlin").
@@ -413,43 +579,34 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
     def resolve_contact(self, number: str) -> tuple[str | None, bool]:
         """Look up a phone number in the currently loaded phonebooks.
 
-        Returns (name, vip) or (None, False) if unknown. Also tries the
-        configured `prefixes` (e.g. "+49") to bridge local vs.
-        internationalized number formats, same as HA core's
-        fritzbox_callmonitor integration.
+        Returns (name, vip) or (None, False) if unknown. The number is
+        compared in canonical (E.164) form, so national, international and
+        local-area spellings of the same number all match. The plain-digit
+        comparison with the configured `prefixes` (e.g. "+49") stays as a
+        fallback for numbers libphonenumber cannot interpret.
         """
-        target = normalize_number(number)
-        if not target:
+        if not normalize_number(number):
             return None, False
-        candidates: dict[str, tuple[str, bool]] = {}
-        for phonebook in self.data.phonebooks:
-            for contact in phonebook.contacts:
-                for pb_number in contact.numbers:
-                    candidates[normalize_number(pb_number.number)] = (
-                        contact.name,
-                        contact.vip,
-                    )
-        if target in candidates:
-            return candidates[target]
-        prefixes_raw = self.entry.options.get(CONF_PREFIXES, "")
-        prefixes = [p.strip() for p in prefixes_raw.split(",") if p.strip()]
-        for prefix in prefixes:
-            if prefix + target in candidates:
-                return candidates[prefix + target]
-            if prefix + target.lstrip("0") in candidates:
-                return candidates[prefix + target.lstrip("0")]
+        canonical = self.normalize_number(number)
+        if canonical and canonical in self._contacts_by_number:
+            return self._contacts_by_number[canonical]
+        target = normalize_number(number)
+        if target in self._contacts_by_digits:
+            return self._contacts_by_digits[target]
+        for prefix in self._prefixes():
+            for candidate in (prefix + target, prefix + target.lstrip("0")):
+                if candidate in self._contacts_by_digits:
+                    return self._contacts_by_digits[candidate]
         return None, False
 
-    def download_message(self, tam_index: int, message_index: int, filename: str) -> str:
-        """Download a TAM recording into config/www/fritzbox_tam/<filename>.
+    def fetch_recording(self, tam_index: int, message_index: int) -> bytes:
+        """The audio of one answering machine message. Blocking.
 
-        Runs blocking I/O, must be called from an executor thread.
+        The message list is fetched fresh instead of using the last polled
+        data: AVM's download URLs embed a session-bound token that can
+        expire well within the polling interval, so a URL that was valid at
+        the last poll may already 404 by the time somebody presses play.
         """
-        # Fetch the message list fresh instead of using the coordinator's
-        # last-polled data: AVM's download URLs embed a session-bound token
-        # that can expire well within the polling interval, so a URL that
-        # was valid at the last poll may already 404 by the time the user
-        # clicks play.
         messages = self.client.get_tam_messages(tam_index)
         message = next((m for m in messages if m.index == message_index), None)
         if message is None or not message.download_url:
@@ -457,10 +614,37 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
                 f"Nachricht {message_index} auf Anrufbeantworter {tam_index} "
                 "wurde nicht gefunden oder hat keine Aufnahme"
             )
-        # Prevent path traversal via a maliciously crafted service call.
-        safe_filename = Path(filename).name
+        return self.client.download(message.download_url)
+
+    def download_message(self, tam_index: int, message_index: int, filename: str) -> str:
+        """Download a TAM recording into config/www/fritzbox_tam/<filename>.
+
+        Runs blocking I/O, must be called from an executor thread.
+        """
+        safe_filename = validate_recording_filename(filename)
+        audio = self.fetch_recording(tam_index, message_index)
         dest_dir = Path(self.hass.config.path("www", "fritzbox_tam"))
         dest_dir.mkdir(parents=True, exist_ok=True)
         dest_path = dest_dir / safe_filename
-        dest_path.write_bytes(self.client.download(message.download_url))
+        dest_path.write_bytes(audio)
         return str(dest_path)
+
+
+ALLOWED_RECORDING_SUFFIXES = (".wav", ".mp3", ".ogg")
+
+
+def validate_recording_filename(filename: str) -> str:
+    """A bare file name with an audio extension, or ValueError.
+
+    The name arrives from a service call and ends up in a folder that Home
+    Assistant serves without authentication, so anything that is not
+    plainly an audio file name is refused.
+    """
+    name = Path(str(filename)).name
+    if name != filename or name in ("", ".", "..") or name.startswith("."):
+        raise ValueError(f"Ungültiger Dateiname: {filename!r}")
+    if Path(name).suffix.lower() not in ALLOWED_RECORDING_SUFFIXES:
+        raise ValueError(
+            "Dateiname muss auf " + ", ".join(ALLOWED_RECORDING_SUFFIXES) + " enden"
+        )
+    return name

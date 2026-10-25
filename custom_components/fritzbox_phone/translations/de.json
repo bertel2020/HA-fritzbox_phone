@@ -11,6 +11,33 @@
           "use_tls": "Verschlüsselte Verbindung (TLS) verwenden",
           "port": "Port (optional, Standard je nach TLS-Einstellung)"
         }
+      },
+      "reauth_confirm": {
+        "title": "FRITZ!Box neu anmelden",
+        "description": "Die FRITZ!Box {host} hat die gespeicherten Zugangsdaten abgelehnt. Bitte neue Zugangsdaten eingeben.",
+        "data": {
+          "username": "Benutzername",
+          "password": "Kennwort"
+        }
+      },
+      "reconfigure": {
+        "title": "FRITZ!Box-Verbindung ändern",
+        "description": "Host, Port, Verschlüsselung oder Zugangsdaten anpassen. Es muss dieselbe FRITZ!Box bleiben.",
+        "data": {
+          "host": "Hostname oder IP-Adresse",
+          "username": "Benutzername",
+          "password": "Kennwort",
+          "use_tls": "Verschlüsselte Verbindung (TLS) verwenden",
+          "port": "Port (optional, Standard je nach TLS-Einstellung)"
+        }
+      },
+      "discovery_confirm": {
+        "title": "FRITZ!Box {name} einrichten",
+        "description": "Unter {host} wurde eine FRITZ!Box gefunden. Zugangsdaten eines FRITZ!Box-Benutzers mit Telefonie-Berechtigung eingeben.",
+        "data": {
+          "username": "Benutzername",
+          "password": "Kennwort"
+        }
       }
     },
     "error": {
@@ -19,7 +46,11 @@
       "unknown": "Unerwarteter Fehler."
     },
     "abort": {
-      "already_configured": "Diese FRITZ!Box ist bereits konfiguriert."
+      "already_configured": "Diese FRITZ!Box ist bereits konfiguriert.",
+      "reauth_successful": "Die Anmeldung war erfolgreich.",
+      "reconfigure_successful": "Die Verbindung wurde aktualisiert.",
+      "wrong_device": "Unter diesen Angaben antwortet eine andere FRITZ!Box als die ursprünglich eingerichtete.",
+      "no_host": "Die Adresse dieser FRITZ!Box konnte nicht ermittelt werden."
     }
   },
   "options": {
@@ -31,10 +62,10 @@
           "call_list_max": "Maximale Anzahl Anrufe",
           "enable_call_monitor": "Anrufmonitor (Echtzeit-Anrufstatus) aktivieren",
           "callmonitor_port": "Anrufmonitor-Port",
-          "prefixes": "Vorwahl-Präfixe für Rufnummernabgleich (z. B. +49), kommagetrennt",
+          "prefixes": "Länder-Präfixe für den Rufnummernabgleich (z. B. +49), kommagetrennt; leer = Land von Home Assistant",
           "phoneblock_enabled": "PhoneBlock-Spamerkennung aktivieren (kostenloser Account auf phoneblock.net nötig)",
           "phoneblock_username": "PhoneBlock-Benutzername",
-          "phoneblock_password": "PhoneBlock-Kennwort",
+          "phoneblock_password": "PhoneBlock-Kennwort (leer lassen = unverändert)",
           "phoneblock_spam_threshold": "Spam-Schwellwert (%, ab dieser Spam-Wahrscheinlichkeit gilt eine Nummer als Spam)",
           "reverse_lookup_enabled": "Online-Rückwärtssuche über Tellows aktivieren (sendet unbekannte Rufnummern im Klartext an tellows.de, kein Account nötig)"
         }
@@ -59,6 +90,47 @@
           "ringing": "Klingelt",
           "dialing": "Wählt",
           "talking": "Gespräch"
+        }
+      },
+      "phonebook": {
+        "name": "{name}"
+      },
+      "answering_machine": {
+        "name": "{name}"
+      },
+      "calls_today": {
+        "name": "Anrufe heute"
+      },
+      "talk_time_today": {
+        "name": "Gesprächszeit heute"
+      }
+    },
+    "switch": {
+      "tam_enabled": {
+        "name": "{name} aktiv"
+      }
+    },
+    "binary_sensor": {
+      "ringing": {
+        "name": "Klingelt"
+      },
+      "unread_messages": {
+        "name": "Ungelesene Nachrichten"
+      }
+    },
+    "event": {
+      "call": {
+        "name": "Anruf",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "ringing": "Klingelt",
+              "dialing": "Wählt",
+              "talking": "Gespräch",
+              "ended": "Beendet",
+              "updated": "Näher bestimmt"
+            }
+          }
         }
       }
     }
@@ -90,7 +162,7 @@
     },
     "download_message": {
       "name": "Nachricht herunterladen",
-      "description": "Lädt die Audio-Aufnahme einer Anrufbeantworter-Nachricht nach config/www/fritzbox_tam/ herunter.",
+      "description": "Veraltet: speichert die Aufnahme als Datei unter config/www/fritzbox_tam/. Diese Dateien sind ohne Anmeldung abrufbar - die Karte spielt Aufnahmen stattdessen angemeldet direkt von der FRITZ!Box ab. Nur Dateinamen mit Endung .wav, .mp3 oder .ogg sind erlaubt.",
       "fields": {
         "message_index": {
           "name": "Nachrichtenindex",
@@ -101,6 +173,45 @@
           "description": "Zieldateiname, z. B. nachricht_3.mp3"
         }
       }
+    },
+    "dial": {
+      "name": "Nummer wählen",
+      "description": "Startet einen Anruf über die Wählhilfe der FRITZ!Box: Das dort gewählte Telefon klingelt zuerst, die Nummer wird nach dem Abheben gewählt. Die Wählhilfe muss an der FRITZ!Box aktiviert sein.",
+      "fields": {
+        "number": {
+          "name": "Rufnummer",
+          "description": "Die anzurufende Nummer."
+        }
+      }
+    },
+    "hangup": {
+      "name": "Wählvorgang abbrechen",
+      "description": "Bricht einen Anruf ab, der mit der Aktion „Nummer wählen“ gestartet und noch nicht angenommen wurde.",
+      "fields": {}
+    },
+    "lookup_number": {
+      "name": "Nummer nachschlagen",
+      "description": "Liefert, was zu einer Rufnummer bekannt ist: Telefonbuchkontakt, Ort, PhoneBlock-Spambewertung und Tellows-Rückwärtssuche (sofern aktiviert).",
+      "fields": {
+        "number": {
+          "name": "Rufnummer",
+          "description": "Die nachzuschlagende Nummer."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "not_answering_machine": {
+      "message": "Dieser Dienst funktioniert nur mit den Sensoren eines Anrufbeantworters."
+    },
+    "box_request_failed": {
+      "message": "Die FRITZ!Box hat die Anfrage nicht ausgeführt: {error}"
+    },
+    "device_required": {
+      "message": "Es sind mehrere FRITZ!Boxen eingerichtet - bitte das Gerät auswählen."
+    },
+    "no_box": {
+      "message": "Es ist keine FRITZ!Box eingerichtet oder geladen."
     }
   }
 }

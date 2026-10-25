@@ -127,7 +127,11 @@ def _describe_call(event: Event) -> dict[str, str]:
     party = _party(data)
     spam = _spam_suffix(data)
 
-    if state == CALLMONITOR_STATE_RINGING:
+    if data.get("enriched"):
+        # Follow-up to a ringing/dialing/talking line: the online lookups
+        # came back after the call was already announced.
+        message = f"Anrufer näher bestimmt: {party}{spam}"
+    elif state == CALLMONITOR_STATE_RINGING:
         message = f"Eingehender Anruf von {party}{spam}"
     elif state == CALLMONITOR_STATE_DIALING:
         message = f"Ausgehender Anruf an {party}"

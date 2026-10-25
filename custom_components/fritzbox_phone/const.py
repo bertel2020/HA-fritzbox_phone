@@ -25,6 +25,9 @@ DEFAULT_CALLMONITOR_PORT = 1012
 DEFAULT_PHONEBLOCK_ENABLED = False
 DEFAULT_PHONEBLOCK_THRESHOLD = 50
 DEFAULT_COUNTRY_PREFIX = "+49"
+# The phonebooks change rarely and downloading them (plus their images)
+# every poll is the most expensive part of an update.
+PHONEBOOK_REFRESH_INTERVAL = 900  # seconds
 DEFAULT_REVERSE_LOOKUP_ENABLED = False
 
 # X_AVM-DE_OnTel CallList "Type" values (TR-064_Contact_SCPD.pdf, table 70)
@@ -49,9 +52,18 @@ ATTR_MESSAGE_INDEX = "message_index"
 ATTR_READ = "read"
 ATTR_FILENAME = "filename"
 
+ATTR_NUMBER = "number"
+
+SERVICE_DIAL = "dial"
+SERVICE_HANGUP = "hangup"
+SERVICE_LOOKUP_NUMBER = "lookup_number"
 SERVICE_MARK_MESSAGE_READ = "mark_message_read"
 SERVICE_DELETE_MESSAGE = "delete_message"
 SERVICE_DOWNLOAD_MESSAGE = "download_message"
+
+# Authenticated delivery of answering machine recordings (views.py).
+RECORDING_URL_TEMPLATE = "/api/fritzbox_phone/recording/{entry_id}/{tam_index}/{message_index}"
+RECORDING_URL_PATTERN = "/api/fritzbox_phone/recording/{entry_id}/{tam_index}/{message_index}"
 
 # Lovelace card frontend resource, served from the integration's www/ folder.
 CARD_JS_FILENAME = "fritzbox-phone-card.js"

@@ -1,17 +1,30 @@
 """Config flow for the FRITZ!Box phone integration."""
 from __future__ import annotations
 
+from collections.abc import Mapping
+import ipaddress
 import logging
 from typing import Any
+from urllib.parse import urlparse
 
-from fritzconnection.core.exceptions import FritzAuthorizationError, FritzConnectionException
+from fritzconnection.core.exceptions import (
+    FritzAuthorizationError,
+    FritzConnectionException,
+    FritzSecurityError,
+)
+import requests
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
+from homeassistant.helpers.service_info.ssdp import (
+    ATTR_UPNP_FRIENDLY_NAME,
+    ATTR_UPNP_SERIAL,
+    SsdpServiceInfo,
+)
 
 from .api import FritzBoxPhoneClient
 from .const import (
@@ -40,18 +53,22 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+_PASSWORD_SELECTOR = selector.TextSelector(
+    selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
+)
+
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_HOST, default="fritz.box"): str,
         vol.Required(CONF_USERNAME): str,
-        vol.Required(CONF_PASSWORD): str,
+        vol.Required(CONF_PASSWORD): _PASSWORD_SELECTOR,
         vol.Optional(CONF_USE_TLS, default=False): bool,
         vol.Optional(CONF_PORT): int,
     }
 )
 
 
-async def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
+async def _validate_input(hass: HomeAssistant, data: Mapping[str, Any]) -> dict[str, Any]:
     """Try to connect and authenticate against the FRITZ!Box. Blocking calls
     are run in an executor. Raises on failure."""
     client = FritzBoxPhoneClient(
@@ -61,13 +78,37 @@ async def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str
         password=data[CONF_PASSWORD],
         use_tls=data.get(CONF_USE_TLS, False),
     )
+    await hass.async_add_executor_job(client.connect)
+    return {"title": f"FRITZ!Box ({data[CONF_HOST]})", "serial": client.serial_number}
 
-    def _connect_and_check() -> str | None:
-        client.connect()
-        return client.serial_number
 
-    serial = await hass.async_add_executor_job(_connect_and_check)
-    return {"title": f"FRITZ!Box ({data[CONF_HOST]})", "serial": serial}
+async def _try_validate(
+    hass: HomeAssistant, data: Mapping[str, Any]
+) -> tuple[dict[str, Any] | None, str | None]:
+    """_validate_input, with the failure mapped to a form error key."""
+    try:
+        return await _validate_input(hass, data), None
+    except (FritzAuthorizationError, FritzSecurityError):
+        return None, "invalid_auth"
+    except (FritzConnectionException, requests.RequestException, OSError):
+        return None, "cannot_connect"
+    except Exception:  # noqa: BLE001
+        _LOGGER.exception("Unerwarteter Fehler beim Verbindungstest")
+        return None, "unknown"
+
+
+def _is_usable_ipv4(host: str) -> bool:
+    """A plain, routable IPv4 address (no hostnames, no IPv6/link-local)."""
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return address.version == 4 and not address.is_link_local
+
+
+def _serial_key(value: str | None) -> str:
+    """A serial number compared without separators or case ("3C:A6.." == "3ca6..")."""
+    return "".join(ch for ch in (value or "") if ch.isalnum()).lower()
 
 
 class FritzBoxPhoneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -75,18 +116,14 @@ class FritzBoxPhoneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    _discovered_host: str | None = None
+
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
-            try:
-                info = await _validate_input(self.hass, user_input)
-            except FritzAuthorizationError:
-                errors["base"] = "invalid_auth"
-            except (FritzConnectionException, OSError):
-                errors["base"] = "cannot_connect"
-            except Exception:  # noqa: BLE001
-                _LOGGER.exception("Unerwarteter Fehler beim Verbindungstest")
-                errors["base"] = "unknown"
+            info, error = await _try_validate(self.hass, user_input)
+            if error:
+                errors["base"] = error
             else:
                 unique_id = info["serial"] or user_input[CONF_HOST]
                 await self.async_set_unique_id(str(unique_id))
@@ -94,7 +131,124 @@ class FritzBoxPhoneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return self.async_create_entry(title=info["title"], data=user_input)
 
         return self.async_show_form(
-            step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
+            step_id="user",
+            data_schema=self.add_suggested_values_to_schema(STEP_USER_DATA_SCHEMA, user_input),
+            errors=errors,
+        )
+
+    async def async_step_ssdp(self, discovery_info: SsdpServiceInfo) -> ConfigFlowResult:
+        """A FRITZ!Box announced itself on the network."""
+        host = urlparse(discovery_info.ssdp_location or "").hostname
+        if not host or not _is_usable_ipv4(host):
+            # IPv6 / link-local announcements would make unusable URLs.
+            return self.async_abort(reason="no_host")
+
+        serial = discovery_info.upnp.get(ATTR_UPNP_SERIAL)
+        for entry in self._async_current_entries():
+            same_serial = serial and _serial_key(entry.unique_id) == _serial_key(serial)
+            if same_serial or entry.data.get(CONF_HOST) == host:
+                # Known box; follow it if its IP changed. A configured
+                # hostname (e.g. fritz.box) is the user's choice: keep it.
+                if (
+                    same_serial
+                    and _is_usable_ipv4(entry.data.get(CONF_HOST, ""))
+                    and entry.data.get(CONF_HOST) != host
+                ):
+                    self.hass.config_entries.async_update_entry(
+                        entry, data={**entry.data, CONF_HOST: host}
+                    )
+                return self.async_abort(reason="already_configured")
+
+        if serial:
+            await self.async_set_unique_id(_serial_key(serial))
+            self._abort_if_unique_id_configured()
+        self._discovered_host = host
+        name = discovery_info.upnp.get(ATTR_UPNP_FRIENDLY_NAME) or f"FRITZ!Box ({host})"
+        self.context["title_placeholders"] = {"name": name}
+        return await self.async_step_discovery_confirm()
+
+    async def async_step_discovery_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Ask for the credentials of a discovered box."""
+        errors: dict[str, str] = {}
+        host = self._discovered_host
+        if user_input is not None and host:
+            data = {CONF_HOST: host, CONF_USE_TLS: False, **user_input}
+            info, error = await _try_validate(self.hass, data)
+            if error:
+                errors["base"] = error
+            else:
+                await self.async_set_unique_id(str(info["serial"] or host))
+                self._abort_if_unique_id_configured(updates={CONF_HOST: host})
+                return self.async_create_entry(title=info["title"], data=data)
+
+        return self.async_show_form(
+            step_id="discovery_confirm",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_USERNAME): str,
+                    vol.Required(CONF_PASSWORD): _PASSWORD_SELECTOR,
+                }
+            ),
+            description_placeholders={"host": host or ""},
+            errors=errors,
+        )
+
+    async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult:
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Ask for new credentials after the box rejected the stored ones."""
+        entry = self._get_reauth_entry()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            data = {**entry.data, **user_input}
+            info, error = await _try_validate(self.hass, data)
+            if error:
+                errors["base"] = error
+            elif entry.unique_id and info["serial"] and info["serial"] != entry.unique_id:
+                return self.async_abort(reason="wrong_device")
+            else:
+                return self.async_update_reload_and_abort(entry, data=data)
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_USERNAME, default=entry.data[CONF_USERNAME]): str,
+                    vol.Required(CONF_PASSWORD): _PASSWORD_SELECTOR,
+                }
+            ),
+            description_placeholders={"host": entry.data[CONF_HOST]},
+            errors=errors,
+        )
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Change host, port, TLS or credentials of an existing entry."""
+        entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            data = {**entry.data, **user_input}
+            if not user_input.get(CONF_PORT):
+                data.pop(CONF_PORT, None)
+            info, error = await _try_validate(self.hass, data)
+            if error:
+                errors["base"] = error
+            elif entry.unique_id and info["serial"] and info["serial"] != entry.unique_id:
+                return self.async_abort(reason="wrong_device")
+            else:
+                return self.async_update_reload_and_abort(entry, data=data)
+
+        suggested = user_input or dict(entry.data)
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=self.add_suggested_values_to_schema(STEP_USER_DATA_SCHEMA, suggested),
+            errors=errors,
         )
 
     @staticmethod
@@ -107,11 +261,17 @@ class FritzBoxPhoneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class FritzBoxPhoneOptionsFlow(config_entries.OptionsFlow):
     """Options for polling interval, call list scope and PhoneBlock spam-check."""
 
-    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         options = self.config_entry.options
 
         if user_input is not None:
+            # The stored PhoneBlock password is never sent back to the
+            # browser (so the field is empty on every visit); leaving it
+            # empty therefore means "keep the current one".
+            user_input = dict(user_input)
+            if not user_input.get(CONF_PHONEBLOCK_PASSWORD):
+                user_input[CONF_PHONEBLOCK_PASSWORD] = options.get(CONF_PHONEBLOCK_PASSWORD, "")
             if user_input.get(CONF_PHONEBLOCK_ENABLED) and not (
                 user_input.get(CONF_PHONEBLOCK_USERNAME)
                 and user_input.get(CONF_PHONEBLOCK_PASSWORD)
@@ -154,12 +314,7 @@ class FritzBoxPhoneOptionsFlow(config_entries.OptionsFlow):
                     CONF_PHONEBLOCK_USERNAME,
                     default=options.get(CONF_PHONEBLOCK_USERNAME, ""),
                 ): str,
-                vol.Optional(
-                    CONF_PHONEBLOCK_PASSWORD,
-                    default=options.get(CONF_PHONEBLOCK_PASSWORD, ""),
-                ): selector.TextSelector(
-                    selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
-                ),
+                vol.Optional(CONF_PHONEBLOCK_PASSWORD): _PASSWORD_SELECTOR,
                 vol.Optional(
                     CONF_PHONEBLOCK_THRESHOLD,
                     default=options.get(CONF_PHONEBLOCK_THRESHOLD, DEFAULT_PHONEBLOCK_THRESHOLD),
