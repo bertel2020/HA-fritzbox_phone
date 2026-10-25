@@ -42,6 +42,26 @@ async def test_dial_and_hangup(hass: HomeAssistant) -> None:
     assert box.calls_log == [("dial", "030 123456"), ("hangup",)]
 
 
+async def test_dial_accepts_entity_and_area_targets(hass: HomeAssistant) -> None:
+    from homeassistant.helpers import area_registry as ar
+
+    box = FakeBox()
+    entry = await _setup(hass, box)
+    sensor = entity_id(hass, entry, "call_list")
+    await hass.services.async_call(DOMAIN, "dial", {"number": "1", "entity_id": sensor}, blocking=True)
+
+    area = ar.async_get(hass).async_create("Flur")
+    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    dr.async_get(hass).async_update_device(device.id, area_id=area.id)
+    await hass.services.async_call(DOMAIN, "dial", {"number": "2", "area_id": area.id}, blocking=True)
+    assert box.calls_log == [("dial", "1"), ("dial", "2")]
+
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN, "dial", {"number": "3", "entity_id": "sensor.nope"}, blocking=True
+        )
+
+
 @pytest.mark.parametrize("number", ["", "abc", "030; rm -rf /", "1" * 40, "<b>1</b>"])
 async def test_dial_rejects_what_is_not_a_phone_number(hass: HomeAssistant, number) -> None:
     box = FakeBox()

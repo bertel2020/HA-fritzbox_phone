@@ -57,6 +57,8 @@ dial:
   target:
     device:
       integration: fritzbox_phone
+    entity:
+      integration: fritzbox_phone
   fields:
     number:
       required: true
@@ -68,10 +70,14 @@ hangup:
   target:
     device:
       integration: fritzbox_phone
+    entity:
+      integration: fritzbox_phone
 
 lookup_number:
   target:
     device:
+      integration: fritzbox_phone
+    entity:
       integration: fritzbox_phone
   fields:
     number:

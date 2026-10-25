@@ -9,10 +9,10 @@ import requests
 import voluptuous as vol
 
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
-from homeassistant.const import ATTR_DEVICE_ID
+from homeassistant.const import ATTR_AREA_ID, ATTR_DEVICE_ID, ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-from homeassistant.helpers import config_validation as cv, device_registry as dr, service
+from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_registry as er, service
 
 from .const import (
     ATTR_FILENAME,
@@ -34,7 +34,12 @@ from .runtime import FritzBoxPhoneConfigEntry
 # else goes to the box.
 _DIAL_NUMBER = re.compile(r"^[0-9+*#()\-/ ]{1,32}$")
 
-_DEVICE_FIELD = {vol.Optional(ATTR_DEVICE_ID): vol.All(cv.ensure_list, [cv.string])}
+# The service target: devices, entities or areas (floors and labels are not
+# resolved - nothing here is bound to them).
+_DEVICE_FIELD = {
+    vol.Optional(key): vol.All(cv.ensure_list, [cv.string])
+    for key in (ATTR_DEVICE_ID, ATTR_ENTITY_ID, ATTR_AREA_ID)
+}
 
 
 def _number(value: Any) -> str:
@@ -47,13 +52,21 @@ def _number(value: Any) -> str:
 def _coordinators(hass: HomeAssistant, call: ServiceCall) -> list[FritzBoxPhoneCoordinator]:
     """The boxes a device-targeted service call is meant for."""
     entries: list[FritzBoxPhoneConfigEntry] = hass.config_entries.async_loaded_entries(DOMAIN)
-    if device_ids := call.data.get(ATTR_DEVICE_ID):
+    if any(call.data.get(key) for key in (ATTR_DEVICE_ID, ATTR_ENTITY_ID, ATTR_AREA_ID)):
         registry = dr.async_get(hass)
+        entity_registry = er.async_get(hass)
         wanted: set[str] = set()
-        for device_id in device_ids:
+        for device_id in call.data.get(ATTR_DEVICE_ID, []):
             if (device := registry.async_get(device_id)) is None:
                 raise ServiceValidationError(f"Unbekanntes Gerät: {device_id}")
             wanted |= device.config_entries
+        for entity_id in call.data.get(ATTR_ENTITY_ID, []):
+            if (entity := entity_registry.async_get(entity_id)) is None or not entity.config_entry_id:
+                raise ServiceValidationError(f"Unbekannte Entität: {entity_id}")
+            wanted.add(entity.config_entry_id)
+        for area_id in call.data.get(ATTR_AREA_ID, []):
+            for device in dr.async_entries_for_area(registry, area_id):
+                wanted |= device.config_entries
         entries = [entry for entry in entries if entry.entry_id in wanted]
     elif len(entries) > 1:
         raise ServiceValidationError(
