@@ -55,8 +55,6 @@ download_message:
 
 dial:
   target:
-    device:
-      integration: fritzbox_phone
     entity:
       integration: fritzbox_phone
   fields:
@@ -68,15 +66,11 @@ dial:
 
 hangup:
   target:
-    device:
-      integration: fritzbox_phone
     entity:
       integration: fritzbox_phone
 
 lookup_number:
   target:
-    device:
-      integration: fritzbox_phone
     entity:
       integration: fritzbox_phone
   fields:
