@@ -64,6 +64,7 @@ MONITOR_RECONNECT_DELAY = 120
 # How often the reader thread wakes up to see whether it should stop or
 # whether FritzMonitor has given up for good.
 READER_POLL_SECONDS = 1
+STOP_TIMEOUT = 10  # seconds to wait for FritzMonitor.stop()
 
 # Which of several simultaneous calls the entity shows.
 _PHASE_PRIORITY = {
@@ -304,7 +305,14 @@ class FritzCallMonitor:
             monitor, self._monitor = self._monitor, None
             reader, self._reader = self._reader, None
             if monitor is not None:
-                monitor.stop()
+                # FritzMonitor.stop() joins its thread without a timeout and
+                # can take minutes while the box is unreachable; do not let
+                # that hold up an unload or the shutdown.
+                stopper = Thread(target=monitor.stop, name="fritzbox_phone monitor stop", daemon=True)
+                stopper.start()
+                stopper.join(timeout=STOP_TIMEOUT)
+                if stopper.is_alive():
+                    _LOGGER.debug("Anrufmonitor: Stoppen dauert, läuft im Hintergrund weiter")
             if reader is not None and reader is not current_thread():
                 reader.join(timeout=READER_POLL_SECONDS * 3)
 

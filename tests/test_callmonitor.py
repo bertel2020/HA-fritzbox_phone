@@ -328,3 +328,19 @@ async def test_lookup_result_is_not_applied_to_a_reused_connection_id(
     await monitor._async_enrich("0", "0301")  # the old call's lookup finishes now
     assert "is_spam" not in monitor.attributes
     assert "reverse_name" not in monitor.attributes
+
+
+async def test_stop_does_not_wait_for_a_stuck_monitor(hass: HomeAssistant, fake_monitor) -> None:
+    import threading
+
+    from custom_components.fritzbox_phone import callmonitor
+
+    entry, monitor = await setup_monitor(hass)
+    release = threading.Event()
+    fake_monitor.instances[-1].stop = lambda: release.wait(5)  # FritzMonitor.stop() hangs
+    callmonitor.STOP_TIMEOUT = 0.2
+    try:
+        await asyncio.wait_for(monitor.async_stop(), 3)
+    finally:
+        callmonitor.STOP_TIMEOUT = 10
+        release.set()
