@@ -50,7 +50,8 @@
       "reauth_successful": "Signing in worked.",
       "reconfigure_successful": "The connection was updated.",
       "wrong_device": "A different FRITZ!Box answers under these details than the one originally set up.",
-      "no_host": "The address of this FRITZ!Box could not be determined."
+      "no_host": "The address of this FRITZ!Box could not be determined.",
+      "no_telephony": "This device (for example a repeater) has no telephone function."
     }
   },
   "options": {

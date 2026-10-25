@@ -2,6 +2,14 @@
 
 Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
+## Unveröffentlicht
+
+### Behoben
+
+- Die automatische Erkennung bot auch FRITZ!-Repeater, Powerline-Adapter und
+  andere Geräte ohne Telefonteil als „FRITZ!Box Telefon" an. Solche Geräte
+  werden jetzt übergangen (am Namen und an den TR-064-Diensten erkannt).
+
 ## 2.0.0 – 2026-10-25
 
 > **Update-Hinweis:** Diese Version braucht Home Assistant 2025.10 oder neuer

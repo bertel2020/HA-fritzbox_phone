@@ -188,7 +188,15 @@ def _ssdp(host="192.168.178.1", serial="3C:A6:2F:00:11:22"):
     )
 
 
-async def test_ssdp_discovery_asks_for_credentials(hass: HomeAssistant) -> None:
+TR64_DESC = (
+    "<root><device><serviceList><service>"
+    "<serviceType>urn:dslforum-org:service:X_AVM-DE_OnTel:1</serviceType>"
+    "</service></serviceList></device></root>"
+)
+
+
+async def test_ssdp_discovery_asks_for_credentials(hass: HomeAssistant, aioclient_mock) -> None:
+    aioclient_mock.get("http://192.168.178.1:49000/tr64desc.xml", text=TR64_DESC)
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_SSDP}, data=_ssdp()
     )
@@ -226,3 +234,37 @@ async def test_ssdp_follows_a_changed_address(hass: HomeAssistant) -> None:
     )
     assert result["reason"] == "already_configured"
     assert entry.data[CONF_HOST] == "192.168.178.1"
+
+
+async def test_ssdp_ignores_a_repeater_by_its_name(hass: HomeAssistant, aioclient_mock) -> None:
+    info = _ssdp()
+    info.upnp["friendlyName"] = "fritz-repeater1200ax"
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_SSDP}, data=info
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "no_telephony"
+    assert aioclient_mock.call_count == 0
+
+
+async def test_ssdp_ignores_a_device_without_telephone_services(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    aioclient_mock.get(
+        "http://192.168.178.1:49000/tr64desc.xml",
+        text="<root><serviceType>urn:dslforum-org:service:WLANConfiguration:1</serviceType></root>",
+    )
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_SSDP}, data=_ssdp()
+    )
+    assert result["reason"] == "no_telephony"
+
+
+async def test_ssdp_offers_the_box_when_its_description_cannot_be_read(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    aioclient_mock.get("http://192.168.178.1:49000/tr64desc.xml", status=500)
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_SSDP}, data=_ssdp()
+    )
+    assert result["step_id"] == "discovery_confirm"
