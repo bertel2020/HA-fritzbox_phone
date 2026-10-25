@@ -1,4 +1,6 @@
-# FRITZ!Box Telefon für Home Assistant
+# FRITZ!Box Telefon für Home Assistant – Anleitung
+
+[← Zurück zur Übersicht](../README.md)
 
 Benutzerdefinierte Home-Assistant-Integration für **Telefonbuch**, **Anrufliste**,
 **Anrufbeantworter** und **Echtzeit-Anrufstatus** einer FRITZ!Box – über
@@ -11,8 +13,8 @@ Grundlage sind die [AVM-Schnittstellenbeschreibungen](https://fritz.com/pages/sc
 für TR-064 (`X_AVM-DE_OnTel`, `X_AVM-DE_TAM`, `X_VoIP`).
 
 Aktuelle Integrationsversion: **2.0.0** (siehe
-`custom_components/fritzbox_phone/manifest.json` und den
-[Änderungsverlauf](CHANGELOG.md)).
+[`manifest.json`](../custom_components/fritzbox_phone/manifest.json) und den
+[Änderungsverlauf](../CHANGELOG.md)).
 
 ## Inhalt
 
@@ -34,7 +36,7 @@ Aktuelle Integrationsversion: **2.0.0** (siehe
 - [Markenhinweis](#markenhinweis)
 - [Hinweise](#hinweise)
 - [Fehlerbehebung](#fehlerbehebung)
-- [Änderungsverlauf](CHANGELOG.md)
+- [Änderungsverlauf](../CHANGELOG.md)
 
 ## Voraussetzungen auf der FRITZ!Box
 
@@ -365,6 +367,11 @@ der Nachrichtenindex wirklich passen.
 
 ## Dashboard-Karte: fritzbox-phone-card
 
+<p align="center">
+  <img src="../screenshots/calls-light.png" alt="Anrufliste" width="48%">
+  <img src="../screenshots/messages-light.png" alt="Anrufbeantworter" width="48%">
+</p>
+
 Die Integration bringt eine eigene, native Lovelace-Karte als JS-Ressource
 mit (`www/fritzbox-phone-card.js`, wird beim Setup automatisch unter
 `/fritzbox_phone_static/fritzbox-phone-card.js` bereitgestellt). Sie
@@ -626,5 +633,5 @@ Die GitHub-Action `Tests` führt beides bei jedem Push aus, `Hassfest` und
 
 Copyright © 2026 bertel2020
 
-Der Quellcode steht unter der [MIT-Lizenz](LICENSE). Ausgenommen sind die im
+Der Quellcode steht unter der [MIT-Lizenz](../LICENSE). Ausgenommen sind die im
 [Markenhinweis](#markenhinweis) genannten Marken und Markenabbildungen.
