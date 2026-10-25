@@ -12,6 +12,7 @@ from fritzconnection.core.exceptions import (
     FritzConnectionException,
     FritzSecurityError,
 )
+import aiohttp
 import requests
 import voluptuous as vol
 
@@ -20,8 +21,10 @@ from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import selector
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.service_info.ssdp import (
     ATTR_UPNP_FRIENDLY_NAME,
+    ATTR_UPNP_MODEL_NAME,
     ATTR_UPNP_SERIAL,
     SsdpServiceInfo,
 )
@@ -106,6 +109,40 @@ def _is_usable_ipv4(host: str) -> bool:
     return address.version == 4 and not address.is_link_local
 
 
+# FRITZ!OS devices without a telephone part (repeaters, Powerline, DVB-C)
+# announce themselves exactly like a FRITZ!Box.
+_NO_TELEPHONY_NAMES = ("repeater", "powerline", "dvb")
+_TELEPHONY_SERVICES = ("X_AVM-DE_OnTel", "X_AVM-DE_TAM", "X_VoIP")
+
+
+async def _has_telephony(hass: HomeAssistant, info: SsdpServiceInfo) -> bool:
+    """Whether the announcing device has a telephone part.
+
+    The model gives a first answer; otherwise the public TR-064
+    description (no login needed) lists the services. If it cannot be read,
+    the device is offered - a wrong offer costs a click, a wrong rejection
+    hides a real box.
+    """
+    names = " ".join(
+        str(info.upnp.get(key) or "")
+        for key in (ATTR_UPNP_FRIENDLY_NAME, ATTR_UPNP_MODEL_NAME)
+    ).lower()
+    if any(word in names for word in _NO_TELEPHONY_NAMES):
+        return False
+    if not info.ssdp_location:
+        return True
+    try:
+        async with async_get_clientsession(hass).get(
+            info.ssdp_location, timeout=aiohttp.ClientTimeout(total=5)
+        ) as response:
+            if response.status != 200:
+                return True
+            text = (await response.content.read(1_000_000)).decode("utf-8", errors="replace")
+    except (aiohttp.ClientError, TimeoutError, OSError):
+        return True
+    return any(service in text for service in _TELEPHONY_SERVICES)
+
+
 def _serial_key(value: str | None) -> str:
     """A serial number compared without separators or case ("3C:A6.." == "3ca6..")."""
     return "".join(ch for ch in (value or "") if ch.isalnum()).lower()
@@ -159,6 +196,8 @@ class FritzBoxPhoneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 return self.async_abort(reason="already_configured")
 
+        if not await _has_telephony(self.hass, discovery_info):
+            return self.async_abort(reason="no_telephony")
         if serial:
             await self.async_set_unique_id(_serial_key(serial))
             self._abort_if_unique_id_configured()

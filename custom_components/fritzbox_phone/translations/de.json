@@ -50,7 +50,8 @@
       "reauth_successful": "Die Anmeldung war erfolgreich.",
       "reconfigure_successful": "Die Verbindung wurde aktualisiert.",
       "wrong_device": "Unter diesen Angaben antwortet eine andere FRITZ!Box als die ursprünglich eingerichtete.",
-      "no_host": "Die Adresse dieser FRITZ!Box konnte nicht ermittelt werden."
+      "no_host": "Die Adresse dieser FRITZ!Box konnte nicht ermittelt werden.",
+      "no_telephony": "Dieses Gerät (zum Beispiel ein Repeater) hat keine Telefonfunktion."
     }
   },
   "options": {
