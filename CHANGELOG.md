@@ -2,7 +2,11 @@
 
 Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
-## Unveröffentlicht
+## 2.0.0 – 2026-10-25
+
+> **Update-Hinweis:** Diese Version braucht Home Assistant 2025.10 oder neuer
+> und entfernt die Attribute `recording_url`, `download_url` und `image_url`.
+> Details unter „Hinweise zum Update".
 
 ### Sicherheit
 

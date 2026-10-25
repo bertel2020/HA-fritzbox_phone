@@ -10,7 +10,7 @@ Dienste PhoneBlock und Tellows bauen Internetverbindungen auf. Technische
 Grundlage sind die [AVM-Schnittstellenbeschreibungen](https://fritz.com/pages/schnittstellen)
 für TR-064 (`X_AVM-DE_OnTel`, `X_AVM-DE_TAM`, `X_VoIP`).
 
-Aktuelle Integrationsversion: **1.15.1** (siehe
+Aktuelle Integrationsversion: **2.0.0** (siehe
 `custom_components/fritzbox_phone/manifest.json` und den
 [Änderungsverlauf](CHANGELOG.md)).
 
