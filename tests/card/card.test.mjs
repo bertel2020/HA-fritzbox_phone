@@ -351,3 +351,20 @@ test("a player is signed again when the message behind it changed", async () => 
   const paths = moved.calls.filter((c) => c.ws).map((c) => c.ws.path);
   assert.deepEqual(paths, ["/api/fritzbox_phone/recording/e1/0/5"]);
 });
+
+test("players and opened rows of vanished messages are dropped", async () => {
+  const window = load();
+  const both = [message(1), message(2, { number: "030999" })];
+  const card = mount(
+    window,
+    { entity: "sensor.tam" },
+    makeHass({ "sensor.tam": state("sensor.tam", "2", { messages: both }) }),
+  );
+  root(card).querySelector(".fb-row .fb-main").click();
+  assert.equal(card._players.size, 2);
+  assert.equal(card._ui.expanded.size, 1);
+
+  card.hass = makeHass({ "sensor.tam": state("sensor.tam", "1", { messages: [both[1]] }) });
+  assert.equal(card._players.size, 1);
+  assert.equal(card._ui.expanded.size, 0);
+});

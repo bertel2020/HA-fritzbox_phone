@@ -1346,8 +1346,24 @@ class FritzboxPhoneCard extends HTMLElement {
     return `${entityId}|msg|${message.date}|${message.number}`;
   }
 
+  // Players and opened rows of messages that are gone would pile up for as
+  // long as the card stays open.
+  _pruneMessageState(messages, entityId) {
+    const prefix = `${entityId}|msg|`;
+    const current = new Set(messages.map((m) => this._messageKey(entityId, m)));
+    for (const [key, player] of [...this._players]) {
+      if (key.startsWith(prefix) && !current.has(key) && player.paused) {
+        this._players.delete(key);
+      }
+    }
+    for (const key of [...this._ui.expanded]) {
+      if (key.startsWith(prefix) && !current.has(key)) this._ui.expanded.delete(key);
+    }
+  }
+
   _buildMessagesList(messages, entityId) {
     const t = this._t;
+    this._pruneMessageState(messages, entityId);
     const rows = messages.slice(0, this._config.rows);
     const list = document.createElement("div");
     list.className = "fb-list";
