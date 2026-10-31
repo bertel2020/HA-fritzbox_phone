@@ -1222,12 +1222,45 @@ class FritzboxPhoneCard extends HTMLElement {
 
     // Each matched TAM message can only be linked to one call row.
     const claimedMessages = tamContext ? new Set() : null;
+    const entries = [];
     for (const call of calls) {
       const tamMessage = this._messageForCall(call, tamContext, claimedMessages);
-      list.appendChild(
-        this._buildCallRow(call, entityId, tamMessage ? tamContext.entityId : null, tamMessage)
-      );
+      const dt = parseAvmDate(call.date);
+      entries.push({
+        time: dt ? dt.getTime() : null,
+        el: this._buildCallRow(call, entityId, tamMessage ? tamContext.entityId : null, tamMessage),
+      });
     }
+    // Messages without a matching call-list entry (older than the loaded
+    // list, unmatched number) would otherwise be unreachable from the card.
+    if (tamContext) {
+      for (const message of tamContext.messages) {
+        if (claimedMessages.has(message.index)) continue;
+        const dt = parseAvmDate(message.date);
+        const time = dt ? dt.getTime() : null;
+        const el = this._buildCallRow(
+          {
+            type: "incoming",
+            date: message.date,
+            duration: message.duration,
+            name: message.name,
+            reverse_name: message.reverse_name,
+            caller: message.number,
+            caller_number: message.number,
+            is_answering_machine: true,
+            is_spam: message.is_spam,
+          },
+          entityId,
+          tamContext.entityId,
+          message
+        );
+        // Calls are newest first: slot the message before the first older entry.
+        const at = entries.findIndex((e) => time != null && e.time != null && e.time < time);
+        if (at === -1) entries.push({ time, el });
+        else entries.splice(at, 0, { time, el });
+      }
+    }
+    for (const entry of entries) list.appendChild(entry.el);
 
     const filterEmpty = emptyNotice(t("no_filter_match"));
     filterEmpty.classList.add("fb-filter-empty");
