@@ -241,7 +241,15 @@ function makeTranslator(hass) {
 }
 
 const STYLE_CSS = `
-  :host { display: block; }
+  :host {
+    display: block;
+    /* Theme status colors are often pastel; mixing in the text color keeps
+       them recognizable but readable on both light and dark backgrounds. */
+    --fb-c-out: color-mix(in srgb, var(--success-color, #2e9e5b) 62%, var(--primary-text-color, #000));
+    --fb-c-in: color-mix(in srgb, var(--info-color, #2f80ed) 62%, var(--primary-text-color, #000));
+    --fb-c-miss: color-mix(in srgb, var(--error-color, #d93a3a) 70%, var(--primary-text-color, #000));
+    --fb-c-ab: color-mix(in srgb, var(--warning-color, #d9901a) 55%, var(--primary-text-color, #000));
+  }
   ha-card { overflow: hidden; }
   .fb-header {
     display: flex; align-items: baseline; justify-content: space-between;
@@ -251,8 +259,8 @@ const STYLE_CSS = `
     margin: 0; font-size: 18px; font-weight: 500; letter-spacing: -0.012em;
   }
   .fb-pill {
-    font-size: 11.5px; font-weight: 600; color: var(--warning-color, #c98a1f);
-    background: color-mix(in srgb, var(--warning-color, #c98a1f) 16%, transparent);
+    font-size: 11.5px; font-weight: 600; color: var(--fb-c-ab);
+    background: color-mix(in srgb, var(--warning-color, #c98a1f) 20%, transparent);
     padding: 3px 9px; border-radius: 999px; white-space: nowrap;
   }
   .fb-content { padding: 0 16px 16px; }
@@ -263,15 +271,15 @@ const STYLE_CSS = `
   .fb-legend { display: flex; gap: 14px; flex-wrap: wrap; margin: 0 0 8px; }
   .fb-legend-item {
     display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 12px;
-    color: var(--secondary-text-color); background: none; border: none; cursor: pointer;
+    color: var(--primary-text-color); background: none; border: none; cursor: pointer;
     padding: 3px 6px; margin: -3px -6px; border-radius: 6px; -webkit-tap-highlight-color: transparent;
   }
   .fb-legend-item:hover { background: var(--secondary-background-color); }
-  .fb-legend-item i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: currentColor; }
-  .fb-legend-item.fb-out { color: var(--success-color, #3ddc84); }
-  .fb-legend-item.fb-in { color: var(--info-color, #4f9dff); }
-  .fb-legend-item.fb-miss { color: var(--error-color, #f2585a); }
-  .fb-legend-item.fb-ab { color: var(--warning-color, #e0ac4c); }
+  .fb-legend-item i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: currentColor; }
+  .fb-legend-item.fb-out i { color: var(--fb-c-out); }
+  .fb-legend-item.fb-in i { color: var(--fb-c-in); }
+  .fb-legend-item.fb-miss i { color: var(--fb-c-miss); }
+  .fb-legend-item.fb-ab i { color: var(--fb-c-ab); }
   .fb-legend-item.inactive { opacity: .4; }
   .fb-row.fb-limit-hidden { display: none; }
 
@@ -291,16 +299,16 @@ const STYLE_CSS = `
     color: var(--secondary-text-color); position: relative; flex-shrink: 0;
   }
   .fb-icon ha-icon { --mdc-icon-size: 15px; }
-  .fb-icon.fb-out { color: var(--success-color, #3ddc84); }
-  .fb-icon.fb-in { color: var(--info-color, #4f9dff); }
-  .fb-icon.fb-miss { color: var(--error-color, #f2585a); }
+  .fb-icon.fb-out { color: var(--fb-c-out); }
+  .fb-icon.fb-in { color: var(--fb-c-in); }
+  .fb-icon.fb-miss { color: var(--fb-c-miss); }
   .fb-row.is-new .fb-icon { color: var(--primary-color); }
   .fb-row.is-new .fb-icon::after {
     content: ""; position: absolute; top: -1px; right: -1px; width: 8px; height: 8px;
-    border-radius: 50%; background: var(--warning-color, #e0ac4c);
+    border-radius: 50%; background: var(--fb-c-ab);
     border: 2px solid var(--card-background-color, #fff);
   }
-  .fb-icon.fb-ab { color: var(--warning-color, #e0ac4c); }
+  .fb-icon.fb-ab { color: var(--fb-c-ab); }
 
   .fb-main { min-width: 0; }
   .fb-name-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
@@ -379,6 +387,8 @@ const STYLE_CSS = `
     justify-content: center; background: var(--secondary-background-color);
     color: var(--secondary-text-color); flex-shrink: 0;
   }
+  .fb-cm-idle { padding: 0 2px; }
+  .fb-cm-idle .fb-cm-icon { width: 36px; height: 36px; }
   .fb-cm-icon ha-icon { --mdc-icon-size: 22px; }
   .fb-cm-icon.fb-cm-ringing { color: var(--error-color, #f2585a); animation: fb-cm-pulse 1.1s ease-in-out infinite; }
   .fb-cm-icon.fb-cm-dialing { color: var(--info-color, #4f9dff); }
@@ -1212,12 +1222,45 @@ class FritzboxPhoneCard extends HTMLElement {
 
     // Each matched TAM message can only be linked to one call row.
     const claimedMessages = tamContext ? new Set() : null;
+    const entries = [];
     for (const call of calls) {
       const tamMessage = this._messageForCall(call, tamContext, claimedMessages);
-      list.appendChild(
-        this._buildCallRow(call, entityId, tamMessage ? tamContext.entityId : null, tamMessage)
-      );
+      const dt = parseAvmDate(call.date);
+      entries.push({
+        time: dt ? dt.getTime() : null,
+        el: this._buildCallRow(call, entityId, tamMessage ? tamContext.entityId : null, tamMessage),
+      });
     }
+    // Messages without a matching call-list entry (older than the loaded
+    // list, unmatched number) would otherwise be unreachable from the card.
+    if (tamContext) {
+      for (const message of tamContext.messages) {
+        if (claimedMessages.has(message.index)) continue;
+        const dt = parseAvmDate(message.date);
+        const time = dt ? dt.getTime() : null;
+        const el = this._buildCallRow(
+          {
+            type: "incoming",
+            date: message.date,
+            duration: message.duration,
+            name: message.name,
+            reverse_name: message.reverse_name,
+            caller: message.number,
+            caller_number: message.number,
+            is_answering_machine: true,
+            is_spam: message.is_spam,
+          },
+          entityId,
+          tamContext.entityId,
+          message
+        );
+        // Calls are newest first: slot the message before the first older entry.
+        const at = entries.findIndex((e) => time != null && e.time != null && e.time < time);
+        if (at === -1) entries.push({ time, el });
+        else entries.splice(at, 0, { time, el });
+      }
+    }
+    for (const entry of entries) list.appendChild(entry.el);
 
     const filterEmpty = emptyNotice(t("no_filter_match"));
     filterEmpty.classList.add("fb-filter-empty");
