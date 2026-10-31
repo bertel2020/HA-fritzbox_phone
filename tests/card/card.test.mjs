@@ -233,9 +233,12 @@ test("a call is linked to its message by the integration's index", () => {
     "sensor.tam": state("sensor.tam", "2", { tam_index: 0, messages }),
   });
   const card = mount(window, { entity: "sensor.calls", tam_entity: "sensor.tam" }, hass);
-  const row = root(card).querySelector(".fb-row");
+  const rows = [...root(card).querySelectorAll(".fb-row")];
   // message 2 is the exact match even though message 1 has the caller's number
-  assert.ok(row.dataset.key.includes("01.01.26 10:02|000"));
+  assert.ok(rows.some((r) => r.dataset.key.includes("01.01.26 10:02|000")));
+  // message 1 matches no call, so it gets its own row instead of vanishing
+  assert.equal(rows.length, 2);
+  assert.ok(rows.some((r) => r.dataset.key.includes("01.01.26 10:01|999")));
   assert.match(text(card), /2 new/);
 });
 
