@@ -2,6 +2,19 @@
 
 Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
+## 2.0.3 – 2026-10-31
+
+### Behoben
+
+- Karte: Anrufbeantworter-Nachrichten, die keinem Eintrag der Anrufliste
+  zugeordnet werden können, erscheinen jetzt als eigene AB-Zeile und sind damit
+  abspielbar, auch wenn „1 neu" angezeigt wird.
+
+### Geändert
+
+- Karte: Kräftigere Statusfarben und dunklerer Legendentext für bessere
+  Lesbarkeit; der Anrufmonitor belegt im Leerlauf weniger Platz.
+
 ## 2.0.2 – 2026-10-25
 
 ### Geändert
