@@ -10,6 +10,13 @@
           "password": "Kennwort",
           "use_tls": "Verschlüsselte Verbindung (TLS) verwenden",
           "port": "Port (optional, Standard je nach TLS-Einstellung)"
+        },
+        "data_description": {
+          "host": "Name oder IP-Adresse der FRITZ!Box im Heimnetz, z. B. fritz.box oder 192.168.178.1.",
+          "username": "FRITZ!Box-Benutzer mit Telefonie-Berechtigung.",
+          "password": "Kennwort dieses FRITZ!Box-Benutzers.",
+          "use_tls": "Verschlüsselt die Verbindung zur FRITZ!Box. Das Zertifikat wird nicht geprüft, da die Box es selbst signiert.",
+          "port": "Leer lassen für den Standard (49000 ohne TLS, 49443 mit TLS)."
         }
       },
       "reauth_confirm": {
@@ -18,6 +25,10 @@
         "data": {
           "username": "Benutzername",
           "password": "Kennwort"
+        },
+        "data_description": {
+          "username": "FRITZ!Box-Benutzer mit Telefonie-Berechtigung.",
+          "password": "Kennwort dieses FRITZ!Box-Benutzers."
         }
       },
       "reconfigure": {
@@ -29,6 +40,13 @@
           "password": "Kennwort",
           "use_tls": "Verschlüsselte Verbindung (TLS) verwenden",
           "port": "Port (optional, Standard je nach TLS-Einstellung)"
+        },
+        "data_description": {
+          "host": "Name oder IP-Adresse der FRITZ!Box im Heimnetz, z. B. fritz.box oder 192.168.178.1.",
+          "username": "FRITZ!Box-Benutzer mit Telefonie-Berechtigung.",
+          "password": "Kennwort dieses FRITZ!Box-Benutzers.",
+          "use_tls": "Verschlüsselt die Verbindung zur FRITZ!Box. Das Zertifikat wird nicht geprüft, da die Box es selbst signiert.",
+          "port": "Leer lassen für den Standard (49000 ohne TLS, 49443 mit TLS)."
         }
       },
       "discovery_confirm": {
@@ -37,6 +55,10 @@
         "data": {
           "username": "Benutzername",
           "password": "Kennwort"
+        },
+        "data_description": {
+          "username": "FRITZ!Box-Benutzer mit Telefonie-Berechtigung.",
+          "password": "Kennwort dieses FRITZ!Box-Benutzers."
         }
       }
     },
@@ -70,6 +92,20 @@
           "phoneblock_spam_threshold": "Spam-Schwellwert (%, ab dieser Spam-Wahrscheinlichkeit gilt eine Nummer als Spam)",
           "reverse_lookup_enabled": "Online-Rückwärtssuche über Tellows aktivieren (sendet unbekannte Rufnummern im Klartext an tellows.de, kein Account nötig)",
           "privacy_mode": "Namen und Rufnummern in der Dashboard-Karte verbergen, bis eine Zeile angetippt wird (für Wandtablets)"
+        },
+        "data_description": {
+          "scan_interval": "Wie oft Anrufliste, Anrufbeantworter und Telefonbücher von der FRITZ!Box gelesen werden.",
+          "call_list_days": "Ältere Anrufe werden nicht geladen.",
+          "call_list_max": "Obergrenze der Anrufe im Anruflisten-Sensor.",
+          "enable_call_monitor": "Der Anrufmonitor muss in der FRITZ!Box aktiviert sein (an einem angeschlossenen Telefon #96*5* wählen).",
+          "callmonitor_port": "TCP-Port des FRITZ!Box-Anrufmonitors, normalerweise 1012.",
+          "prefixes": "Damit dieselbe Nummer in verschiedenen Schreibweisen erkannt wird, z. B. 030 123456 und +49 30 123456.",
+          "phoneblock_enabled": "Fragt unbekannte Anrufer bei phoneblock.net ab. Es wird nur ein Hash der Nummer gesendet.",
+          "phoneblock_username": "Benutzername bei phoneblock.net.",
+          "phoneblock_password": "Leer lassen, um das gespeicherte Kennwort zu behalten.",
+          "phoneblock_spam_threshold": "Anrufer ab dieser Spam-Wahrscheinlichkeit werden als Spam markiert.",
+          "reverse_lookup_enabled": "Sendet unbekannte Nummern im Klartext an tellows.de, um Name und Bewertung zu finden.",
+          "privacy_mode": "Wirkt nur auf die Dashboard-Karte."
         }
       }
     },

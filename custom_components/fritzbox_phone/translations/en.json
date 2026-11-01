@@ -10,6 +10,13 @@
           "password": "Password",
           "use_tls": "Use an encrypted connection (TLS)",
           "port": "Port (optional, defaults depend on the TLS setting)"
+        },
+        "data_description": {
+          "host": "Name or IP address of the FRITZ!Box in your network, e.g. fritz.box or 192.168.178.1.",
+          "username": "FRITZ!Box user with the telephony permission.",
+          "password": "Password of that FRITZ!Box user.",
+          "use_tls": "Encrypt the connection to the FRITZ!Box. The certificate is not verified, as the box signs it itself.",
+          "port": "Leave empty to use the default (49000 without TLS, 49443 with TLS)."
         }
       },
       "reauth_confirm": {
@@ -18,6 +25,10 @@
         "data": {
           "username": "Username",
           "password": "Password"
+        },
+        "data_description": {
+          "username": "FRITZ!Box user with the telephony permission.",
+          "password": "Password of that FRITZ!Box user."
         }
       },
       "reconfigure": {
@@ -29,6 +40,13 @@
           "password": "Password",
           "use_tls": "Use an encrypted connection (TLS)",
           "port": "Port (optional, defaults depend on the TLS setting)"
+        },
+        "data_description": {
+          "host": "Name or IP address of the FRITZ!Box in your network, e.g. fritz.box or 192.168.178.1.",
+          "username": "FRITZ!Box user with the telephony permission.",
+          "password": "Password of that FRITZ!Box user.",
+          "use_tls": "Encrypt the connection to the FRITZ!Box. The certificate is not verified, as the box signs it itself.",
+          "port": "Leave empty to use the default (49000 without TLS, 49443 with TLS)."
         }
       },
       "discovery_confirm": {
@@ -37,6 +55,10 @@
         "data": {
           "username": "Username",
           "password": "Password"
+        },
+        "data_description": {
+          "username": "FRITZ!Box user with the telephony permission.",
+          "password": "Password of that FRITZ!Box user."
         }
       }
     },
@@ -70,6 +92,20 @@
           "phoneblock_spam_threshold": "Spam threshold (%, a number counts as spam from this spam probability)",
           "reverse_lookup_enabled": "Enable online reverse lookup via Tellows (sends unknown phone numbers in clear text to tellows.de, no account needed)",
           "privacy_mode": "Hide names and numbers in the dashboard card until a row is tapped (for wall tablets)"
+        },
+        "data_description": {
+          "scan_interval": "How often the call list, answering machine and phonebooks are read from the FRITZ!Box.",
+          "call_list_days": "Calls older than this are not loaded.",
+          "call_list_max": "Upper limit of calls kept in the call list sensor.",
+          "enable_call_monitor": "Needs the call monitor enabled on the FRITZ!Box (dial #96*5* on a connected phone).",
+          "callmonitor_port": "TCP port of the FRITZ!Box call monitor, normally 1012.",
+          "prefixes": "Used to recognise the same number written differently, e.g. 030 123456 and +49 30 123456.",
+          "phoneblock_enabled": "Looks up unknown callers on phoneblock.net. Only a hash of the number is sent.",
+          "phoneblock_username": "Account name on phoneblock.net.",
+          "phoneblock_password": "Leave empty to keep the stored password.",
+          "phoneblock_spam_threshold": "Callers at or above this spam probability are marked as spam.",
+          "reverse_lookup_enabled": "Sends unknown numbers in clear text to tellows.de to find a name and a rating.",
+          "privacy_mode": "Only affects the dashboard card."
         }
       }
     },
