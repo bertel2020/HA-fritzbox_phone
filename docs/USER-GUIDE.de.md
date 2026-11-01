@@ -21,6 +21,7 @@ Aktuelle Integrationsversion: **2.0.3** (siehe
 - [Voraussetzungen auf der FRITZ!Box](#voraussetzungen-auf-der-fritzbox)
 - [Installation](#installation)
 - [Update](#update)
+- [Integration entfernen](#integration-entfernen)
 - [Optionen](#optionen)
 - [Spam-Erkennung (PhoneBlock)](#spam-erkennung-phoneblock)
 - [Rückwärtssuche (Tellows)](#rückwärtssuche-tellows)
@@ -108,6 +109,27 @@ Anschließend Home Assistant neu starten. Falls sich die Dashboard-Karte
 geändert hat: Browser neu laden (die Karte wird mit der Version der
 Integration im Adresspfad geladen, ein Update holt also automatisch die
 neue Datei).
+
+## Integration entfernen
+
+1. In Home Assistant unter **Einstellungen → Geräte & Dienste** die Integration
+   „FRITZ!Box Telefon“ öffnen, beim Eintrag das Menü (⋮) wählen und
+   **Löschen** wählen. Entitäten, Geräte, Reparaturhinweise und die gespeicherten
+   Zugangsdaten werden dabei entfernt. Mehrere Boxen sind mehrere Einträge und
+   werden einzeln gelöscht.
+2. Eigene Automationen, Skripte und Dashboards, die Entitäten oder Aktionen der
+   Integration nutzen, anpassen oder löschen. Home Assistant zeigt sie danach
+   als fehlerhaft an.
+3. Bei einer HACS-Installation die Integration in HACS entfernen, bei einer
+   manuellen Installation den Ordner `custom_components/fritzbox_phone/`
+   löschen. Danach Home Assistant neu starten.
+
+Auf der FRITZ!Box bleibt nichts zurück, was die Integration angelegt hätte,
+außer dem, was du selbst über die Aktionen `block_number` und `add_contact`
+eingetragen hast (Rufsperren und Telefonbucheinträge). Den dafür angelegten
+FRITZ!Box-Benutzer kannst du unter **System → FRITZ!Box-Benutzer** löschen.
+Der CallMonitor lässt sich mit `#96*4*` von einem angeschlossenen Telefon
+wieder deaktivieren.
 
 ## Optionen
 
