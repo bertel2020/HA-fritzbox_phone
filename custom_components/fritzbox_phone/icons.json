@@ -28,6 +28,12 @@
       "talk_time_today": {
         "default": "mdi:timer-outline"
       },
+      "spam_calls_today": {
+        "default": "mdi:phone-alert"
+      },
+      "spam_calls_total": {
+        "default": "mdi:counter"
+      },
       "phoneblock_status": {
         "default": "mdi:shield-check",
         "state": {

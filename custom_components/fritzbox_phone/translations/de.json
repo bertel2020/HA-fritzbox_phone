@@ -106,6 +106,12 @@
       "talk_time_today": {
         "name": "Gesprächszeit heute"
       },
+      "spam_calls_today": {
+        "name": "Spam-Anrufe heute"
+      },
+      "spam_calls_total": {
+        "name": "Erkannte Spam-Anrufe"
+      },
       "phoneblock_status": {
         "name": "PhoneBlock",
         "state": {

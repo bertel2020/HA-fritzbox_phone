@@ -234,6 +234,8 @@ und Firmware). Namen und Symbole sind übersetzt (Deutsch/Englisch).
 | `sensor.*_verpasste_anrufe` | Anzahl verpasster Anrufe | `calls`: nur verpasste Anrufe |
 | `sensor.*_anrufe_heute` | Anrufe von heute | `incoming`, `outgoing`, `missed` |
 | `sensor.*_gespraechszeit_heute` | Minuten in angenommenen Gesprächen von heute | - (die Box rundet jeden Anruf auf die Minute auf) |
+| `sensor.*_spam_anrufe_heute` | Anrufe von heute, die PhoneBlock als Spam bewertet hat (nur bei eingeschaltetem PhoneBlock) | - |
+| `sensor.*_erkannte_spam_anrufe` | fortlaufender Zähler neu erkannter Spam-Anrufe für die Langzeitstatistik (nur bei eingeschaltetem PhoneBlock, übersteht Neustarts) | - |
 | `sensor.*_<anrufbeantworter>` (je TAM) | Anzahl neuer Nachrichten | `tam_index`, `messages`: Anrufer, Datum, Dauer, gelesen/neu, `has_recording`, `recording_path`, `area_name` (Ort/Land, offline), PhoneBlock-Spamfelder, `reverse_name`/`reverse_category` (Tellows, jeweils falls aktiviert) |
 | `switch.*_<anrufbeantworter>_aktiv` | an/aus | – |
 | `binary_sensor.*_ungelesene_nachrichten` | an, solange irgendein Anrufbeantworter ungehörte Nachrichten hat | `count` |

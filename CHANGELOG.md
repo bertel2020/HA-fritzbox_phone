@@ -6,6 +6,10 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Hinzugefügt
 
+- Sensoren „Spam-Anrufe heute“ und „Erkannte Spam-Anrufe“ (nur bei eingeschaltetem
+  PhoneBlock). Der zweite ist ein fortlaufender Zähler für die Langzeitstatistik
+  und bleibt über Neustarts erhalten: Er zählt, wie viele Anrufe neu als Spam
+  auftauchen, auch wenn sie längst aus der Anrufliste der Box verschwunden sind.
 - Aktionen `block_number` und `unblock_number`: tragen eine Rufnummer in die
   Rufsperre der FRITZ!Box ein oder entfernen sie (TR-064 `SetCallBarringEntry`
   und `DeleteCallBarringEntryUID`). Eine bereits gesperrte Nummer wird nicht

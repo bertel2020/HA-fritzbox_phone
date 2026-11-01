@@ -62,7 +62,7 @@ The integration talks to the FRITZ!Box locally (TR-064 and the CallMonitor on po
 - **Place and country**: the origin of a number is determined offline.
 - **Dial and hang up**: the services `dial` and `hangup`, plus a call-back button in the card.
 - **Call barring**: the services `block_number` and `unblock_number` add numbers to the box's call barring or remove them.
-- **Statistics**: calls today, missed calls and talk time as sensors.
+- **Statistics**: calls today, missed calls, talk time and (with PhoneBlock) spam calls as sensors.
 - **Blueprints**: notification for a missed call and a warning for spam calls.
 - **Easy setup**: the box is found automatically on the network; new credentials or a new address without setting up again; diagnostics to share when asking for help.
 

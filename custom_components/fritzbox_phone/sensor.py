@@ -5,7 +5,12 @@ from datetime import date, datetime
 import logging
 from typing import Any
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
+from homeassistant.components.sensor import (
+    RestoreSensor,
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import Context, HomeAssistant, callback
@@ -50,6 +55,8 @@ async def async_setup_entry(
     # Only the lookups that are switched on get a status sensor (a change of
     # the options reloads the entry).
     if coordinator.phoneblock is not None:
+        entities.append(FritzBoxSpamCallsTodaySensor(coordinator, entry))
+        entities.append(FritzBoxSpamCallsTotalSensor(coordinator, entry))
         entities.append(
             FritzBoxLookupStatusSensor(
                 coordinator, entry, "phoneblock_status", coordinator.phoneblock.health
@@ -241,6 +248,58 @@ class FritzBoxTalkTimeTodaySensor(_TodaySensor):
         return sum(
             _call_minutes(call) for call in self._today if call.type in _TALK_TIME_CALL_TYPES
         )
+
+
+class FritzBoxSpamCallsTodaySensor(_TodaySensor):
+    """Number of calls today that PhoneBlock rated as spam."""
+
+    _attr_translation_key = "spam_calls_today"
+
+    @property
+    def native_value(self) -> int:
+        return sum(1 for call in self._today if call.is_spam)
+
+
+class FritzBoxSpamCallsTotalSensor(FritzBoxPhoneEntity, RestoreSensor):
+    """Spam calls seen since the sensor exists - a counter for long-term statistics.
+
+    The call list only holds what the box still lists, so this adds up the
+    calls that newly turn up as spam. What is on the list when Home
+    Assistant starts is not counted again after a restart.
+    """
+
+    _attr_translation_key = "spam_calls_total"
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+
+    def __init__(self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_spam_calls_total"
+        self._total = 0
+        self._seen: set[str] | None = None
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        if (data := await self.async_get_last_sensor_data()) is not None:
+            try:
+                self._total = int(data.native_value)
+            except (TypeError, ValueError):
+                pass
+        self._count_new()
+
+    def _count_new(self) -> None:
+        spam = {call.id for call in self.coordinator.data.calls if call.is_spam}
+        if self._seen is not None:
+            self._total += len(spam - self._seen)
+        self._seen = spam
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        self._count_new()
+        super()._handle_coordinator_update()
+
+    @property
+    def native_value(self) -> int:
+        return self._total
 
 
 class FritzBoxPhonebookSensor(FritzBoxPhoneEntity, SensorEntity):

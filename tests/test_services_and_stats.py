@@ -8,6 +8,7 @@ import voluptuous as vol
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import async_capture_events
 
 from custom_components.fritzbox_phone.const import (
@@ -179,3 +180,48 @@ async def test_today_statistics(hass: HomeAssistant, freezer) -> None:
     talk = hass.states.get(entity_id(hass, entry, "talk_time_today"))
     assert talk.state == "72"  # 0:07 + 1:05, the missed call counts nothing
     assert talk.attributes["unit_of_measurement"] == "min"
+
+
+async def test_spam_statistics(hass: HomeAssistant, freezer, aioclient_mock) -> None:
+    freezer.move_to(datetime(2026, 10, 24, 12, 0))
+    aioclient_mock.get(PHONEBLOCK_URL, json={"spamConfidence": 90, "rating": "E_ADVERTISING"})
+    box = FakeBox(
+        calls=[
+            make_call("1", 1, date="24.10.26 09:00"),
+            make_call("2", 1, date="23.10.26 09:00", caller_number="040111"),
+        ]
+    )
+    entry = await _setup(
+        hass,
+        box,
+        {
+            CONF_PHONEBLOCK_ENABLED: True,
+            CONF_PHONEBLOCK_USERNAME: "user",
+            CONF_PHONEBLOCK_PASSWORD: "pw",
+        },
+    )
+
+    today = entity_id(hass, entry, "spam_calls_today")
+    total = entity_id(hass, entry, "spam_calls_total")
+    assert hass.states.get(today).state == "1"
+    # What the list held at the start is not counted as new.
+    assert hass.states.get(total).state == "0"
+    assert hass.states.get(total).attributes["state_class"] == "total_increasing"
+
+    box.calls.append(make_call("3", 1, date="24.10.26 11:00", caller_number="0899"))
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(today).state == "2"
+    assert hass.states.get(total).state == "1"
+
+    # The same calls on the next poll are not counted again.
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(total).state == "1"
+
+
+async def test_spam_statistics_need_phoneblock(hass: HomeAssistant) -> None:
+    entry = await _setup(hass, FakeBox())
+    registry = er.async_get(hass)
+    for suffix in ("spam_calls_today", "spam_calls_total"):
+        assert registry.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_{suffix}") is None
