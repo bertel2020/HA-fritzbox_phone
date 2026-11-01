@@ -87,6 +87,8 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Geändert
 
+- Karte: Im Telefonbuch heißt der Knopf „Anrufen“ statt „Zurückrufen“, die
+  Option `show_dial` „Anruf-Knöpfe anzeigen“.
 - Karte: Die Fortschrittsleiste ist ein Regler und per Tastatur bedienbar.
 - Karte: Esc schließt die Löschabfrage, und nach dem Löschen springt der Fokus
   auf die nächste Zeile.

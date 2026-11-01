@@ -516,7 +516,7 @@ Fehler als Home-Assistant-Hinweis statt als Dialog.
 | `show_legend` | an | Nur Anrufliste: farbige Legende (Ausgehend/Eingehend/Verpasst) über der Liste |
 | `tam_entity` | – (optional) | Nur Anrufliste: verknüpfter `sensor.*_<anrufbeantworter>` - Anrufe, die dorthin gingen, bekommen Play/Löschen direkt in ihrer Zeile |
 | `show_stats` | an | Nur Anrufliste: Zusammenfassung „Heute: x Anrufe, y verpasst" mit Umschalter auf 7 oder 30 Tage (dann mit einem Balken je Tag) |
-| `show_dial` | an | Anrufliste, Anrufbeantworter, Telefonbuch: „Zurückrufen"-Knöpfe (über `fritzbox_phone.dial`) |
+| `show_dial` | an | Anrufliste, Anrufbeantworter, Telefonbuch: „Zurückrufen"-Knöpfe, im Telefonbuch „Anrufen" (über `fritzbox_phone.dial`) |
 | `show_manage` | aus | Anrufliste, Anrufbeantworter: Knöpfe „Sperren" (mit Rückfrage, über `fritzbox_phone.block_number`) und „Ins Telefonbuch" (fragt nach dem Namen, über `fritzbox_phone.add_contact`; nur bei Anrufern ohne Namen) |
 | `tap_action` | `expand` | Anrufliste/Anrufbeantworter: Antippen einer Zeile klappt Details auf (`expand`) oder öffnet die Entität (`more-info`) |
 | `mark_read_on_play` | an | Nur Anrufbeantworter (auch als `tam_entity`): Nachricht beim Abspielen automatisch als gelesen markieren |

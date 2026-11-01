@@ -112,6 +112,7 @@ const TEXTS = {
     no_recording: "Zu dieser Nachricht gibt es keine Aufnahme.",
     callback: "Zurückrufen",
     redial: "Erneut anrufen",
+    call: "Anrufen",
     dial_started: "Wählhilfe gestartet - das Telefon klingelt gleich.",
     dial_failed: "Anruf konnte nicht gestartet werden: {error}",
     block: "Sperren",
@@ -135,7 +136,7 @@ const TEXTS = {
     e_rows: "Anzahl Zeilen",
     e_show_legend: "Filter-Legende anzeigen",
     e_show_stats: "Tageszusammenfassung anzeigen",
-    e_show_dial: "Rückruf-Knöpfe anzeigen",
+    e_show_dial: "Anruf-Knöpfe anzeigen",
     e_show_manage: "Knöpfe zum Sperren und Speichern anzeigen",
     e_tam_entity:
       "Verknüpfter Anrufbeantworter (optional) - zeigt dessen Nachrichten in derselben Karte",
@@ -236,6 +237,7 @@ const TEXTS = {
     no_recording: "This message has no recording.",
     callback: "Call back",
     redial: "Call again",
+    call: "Call",
     dial_started: "Dial help started - your phone is about to ring.",
     dial_failed: "Could not start the call: {error}",
     block: "Block",
@@ -259,7 +261,7 @@ const TEXTS = {
     e_rows: "Number of rows",
     e_show_legend: "Show filter legend",
     e_show_stats: "Show today's summary",
-    e_show_dial: "Show call back buttons",
+    e_show_dial: "Show call buttons",
     e_show_manage: "Show block and save-contact buttons",
     e_tam_entity:
       "Linked answering machine (optional) - shows its messages in the same card",
@@ -2211,7 +2213,7 @@ class FritzboxPhoneCard extends HTMLElement {
       line.appendChild(textSpan(entry.type ? `${entry.type}: ${entry.number}` : entry.number));
       const dialable = dialableNumber(entry.number);
       if (this._config.show_dial !== false && dialable) {
-        line.appendChild(this._buildDialButton(dialable, entityId));
+        line.appendChild(this._buildDialButton(dialable, entityId, "call"));
       }
       numbers.appendChild(line);
     }

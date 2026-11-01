@@ -631,6 +631,14 @@ test("known callers cannot be added again and outgoing calls cannot be blocked",
   assert.deepEqual(labels("fb-out"), ["Call again", "Add to phonebook"]);
 });
 
+test("the phonebook offers to call a contact, not to call back", () => {
+  const window = load();
+  const contacts = [{ name: "Anna", vip: false, numbers: [{ number: "030 123456", type: "home" }] }];
+  const hass = makeHass({ "sensor.book": state("sensor.book", "1", { contacts }) });
+  const card = mount(window, { entity: "sensor.book" }, hass);
+  assert.equal(root(card).querySelector(".fb-contact .fb-link-btn").textContent.trim(), "Call");
+});
+
 test("phonebook view searches by name and number", () => {
   const window = load();
   const contacts = [
