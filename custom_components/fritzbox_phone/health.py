@@ -40,6 +40,7 @@ class LookupHealth:
         self.consecutive_failures = 0
         self.last_success: datetime | None = None
         self.last_error: str | None = None
+        self._last_status: int | None = None
 
     @property
     def status(self) -> str:
@@ -47,20 +48,31 @@ class LookupHealth:
             return STATUS_ERROR
         return STATUS_OK if self.last_success else STATUS_UNKNOWN
 
+    @property
+    def credentials_rejected(self) -> bool:
+        """An outage whose last answer was "not allowed" (HTTP 401/403)."""
+        return (
+            self.consecutive_failures >= FAILURES_FOR_ERROR
+            and self._last_status in _AUTH_STATUSES
+        )
+
     def record_success(self) -> None:
         if self.consecutive_failures >= FAILURES_FOR_ERROR:
             _LOGGER.info("%s antwortet wieder", self.service)
         self.consecutive_failures = 0
         self.last_success = dt_util.utcnow()
+        self._last_status = None
 
     def record_failure(self, err: BaseException) -> None:
         self.consecutive_failures += 1
         self.last_error = describe_error(err)
+        status = getattr(err, "status", None)
+        self._last_status = status if isinstance(status, int) else None
         if self.consecutive_failures == FAILURES_FOR_ERROR:
             # Said once per outage; the details stay on debug level.
             hint = (
                 " Zugangsdaten in den Optionen prüfen."
-                if getattr(err, "status", None) in _AUTH_STATUSES
+                if self._last_status in _AUTH_STATUSES
                 else ""
             )
             _LOGGER.warning(

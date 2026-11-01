@@ -243,5 +243,11 @@
     "no_box": {
       "message": "Es ist keine FRITZ!Box eingerichtet oder geladen."
     }
+  },
+  "issues": {
+    "phoneblock_credentials_rejected": {
+      "title": "PhoneBlock lehnt die Anmeldung ab",
+      "description": "PhoneBlock hat Benutzername oder Kennwort mehrere Anfragen in Folge nicht akzeptiert, deshalb werden keine Spam-Bewertungen abgerufen. Öffne die Optionen der Integration (Einstellungen → Geräte & Dienste → FRITZ!Box Telefon → Konfigurieren) und prüfe Benutzername und Kennwort für PhoneBlock oder schalte die Spam-Erkennung aus."
+    }
   }
 }

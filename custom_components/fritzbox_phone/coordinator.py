@@ -21,6 +21,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST
 from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -213,11 +214,39 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             # as new again.
             raise UpdateFailed(f"{type(err).__name__}: {err}") from err
         await self._async_enrich_online(data)
+        self.async_update_repairs()
         # Fire before returning: the coordinator notifies its entities the
         # moment this returns, and they need the Contexts to already be
         # parked when they write their new state.
         self._async_report_changes(data)
         return data
+
+    @property
+    def _phoneblock_issue_id(self) -> str:
+        return f"phoneblock_credentials_{self.entry.entry_id}"
+
+    @callback
+    def async_update_repairs(self) -> None:
+        """Raise (or clear) the repair for rejected PhoneBlock credentials.
+
+        Only this case needs the user to act and cannot be noticed from the
+        results: a rejected login looks exactly like "no spam found".
+        """
+        if self.phoneblock is not None and self.phoneblock.health.credentials_rejected:
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                self._phoneblock_issue_id,
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="phoneblock_credentials_rejected",
+            )
+        else:
+            ir.async_delete_issue(self.hass, DOMAIN, self._phoneblock_issue_id)
+
+    @callback
+    def async_clear_repairs(self) -> None:
+        ir.async_delete_issue(self.hass, DOMAIN, self._phoneblock_issue_id)
 
     @callback
     def take_context(self, key: str) -> Context | None:

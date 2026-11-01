@@ -14,6 +14,10 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
   abgelehnten Zugangsdaten). Die Diagnosedaten enthalten zusätzlich den Status
   der Dienste, den letzten Fehler der Box-Abfrage und die Fehlversuche des
   Anrufmonitors – ohne Rufnummern.
+- Reparatur-Hinweis in Home Assistant, wenn PhoneBlock die Anmeldung mehrfach
+  in Folge ablehnt (HTTP 401/403). Er verschwindet, sobald eine Abfrage wieder
+  gelingt oder die Integration entladen wird. Ein bloßer Ausfall des Dienstes
+  löst ihn nicht aus.
 - Option „Namen und Rufnummern in der Dashboard-Karte verbergen“ (Standard: aus).
   Die Karte zeigt dann Punkte, bis eine Zeile angetippt wird; danach sind Name und
   Nummer 15 Sekunden lesbar. Gilt für Anrufliste, Anrufbeantworter und

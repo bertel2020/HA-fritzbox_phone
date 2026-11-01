@@ -4,6 +4,7 @@ from __future__ import annotations
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from custom_components.fritzbox_phone import cache as cache_module
@@ -228,3 +229,53 @@ async def test_status_sensor_shows_rejected_credentials(
     assert state.attributes["consecutive_failures"] == 3
     assert state.attributes["last_error"] == "ClientResponseError 401"
     assert "03012345" not in str(state.attributes)
+
+
+async def test_rejected_credentials_raise_a_repair_that_clears_again(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    aioclient_mock.get(PHONEBLOCK_URL, status=401)
+    box = FakeBox(calls=[make_call(str(i), caller_number=f"03012345{i}") for i in range(3)])
+    entry = await setup_integration(
+        hass,
+        box,
+        {
+            CONF_PHONEBLOCK_ENABLED: True,
+            CONF_PHONEBLOCK_USERNAME: "u",
+            CONF_PHONEBLOCK_PASSWORD: "wrong",
+        },
+    )
+    issue_id = f"phoneblock_credentials_{entry.entry_id}"
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_key == "phoneblock_credentials_rejected"
+    assert issue.is_fixable is False
+
+    coordinator = get_coordinator(hass, entry)
+    coordinator.phoneblock.health.record_success()
+    await coordinator.async_refresh()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+    # and it does not outlive the entry
+    coordinator.phoneblock.health.consecutive_failures = 3
+    coordinator.phoneblock.health._last_status = 401
+    coordinator.async_update_repairs()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+    await hass.config_entries.async_unload(entry.entry_id)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
+async def test_an_outage_is_not_a_credentials_repair(hass: HomeAssistant, aioclient_mock) -> None:
+    aioclient_mock.get(PHONEBLOCK_URL, status=503)
+    box = FakeBox(calls=[make_call(str(i), caller_number=f"03012345{i}") for i in range(3)])
+    entry = await setup_integration(
+        hass,
+        box,
+        {
+            CONF_PHONEBLOCK_ENABLED: True,
+            CONF_PHONEBLOCK_USERNAME: "u",
+            CONF_PHONEBLOCK_PASSWORD: "pw",
+        },
+    )
+    assert hass.states.get(entity_id(hass, entry, "phoneblock_status")).state == "error"
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"phoneblock_credentials_{entry.entry_id}") is None
