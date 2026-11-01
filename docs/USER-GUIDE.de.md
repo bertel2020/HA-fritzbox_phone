@@ -516,7 +516,7 @@ daraus berechnet).
 ## Blueprints
 
 Im Ordner [`blueprints/automation/fritzbox_phone/`](blueprints/automation/fritzbox_phone)
-liegen zwei fertige Automations-Vorlagen. Home Assistant lädt sie nicht
+liegen fünf fertige Automations-Vorlagen. Home Assistant lädt sie nicht
 selbst; die Dateien nach `<Konfiguration>/blueprints/automation/fritzbox_phone/`
 kopieren oder unter **Einstellungen → Automationen & Szenen → Blueprints →
 Blueprint importieren** die Adresse der Datei auf GitHub eintragen:
@@ -525,6 +525,9 @@ Blueprint importieren** die Adresse der Datei auf GitHub eintragen:
 |-----------|-------|
 | `notify_missed_call.yaml` | führt bei jedem neuen verpassten Anruf eine Aktion aus (z. B. Push-Nachricht); `caller`, `place`, `is_spam` stehen in der Aktion zur Verfügung; Spam lässt sich ausblenden |
 | `spam_call_alert.yaml` | warnt, sobald ein klingelnder Anruf von PhoneBlock als Spam eingestuft wurde (ab einstellbarer Wahrscheinlichkeit); `number`, `name`, `confidence` stehen zur Verfügung |
+| `notify_ringing.yaml` | führt beim Klingeln eine Aktion aus (einmal je Anruf, auch wenn Name oder Spam-Prüfung später ankommen) und pausiert auf Wunsch Mediaplayer; `caller`, `number`, `is_vip`, `is_spam` stehen zur Verfügung |
+| `vip_call.yaml` | führt eine Aktion aus, wenn ein als VIP markierter Kontakt anruft, z. B. eine Benachrichtigung, die „Nicht stören“ durchbricht; `caller`, `number` stehen zur Verfügung |
+| `notify_tam_message.yaml` | führt für jede neue Nachricht auf dem Anrufbeantworter eine Aktion aus; `caller`, `place`, `duration`, `tam_name`, `is_spam` stehen zur Verfügung; Spam lässt sich ausblenden |
 
 ## Datenschutz und Sicherheit
 

@@ -6,6 +6,9 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Hinzugefügt
 
+- Drei weitere Blueprints: „Aktion bei klingelndem Telefon“ (einmal je Anruf,
+  mit optionalem Pausieren von Mediaplayern), „Aktion bei Anruf eines
+  VIP-Kontakts“ und „Aktion bei neuer Nachricht auf dem Anrufbeantworter“.
 - Sensoren „Spam-Anrufe heute“ und „Erkannte Spam-Anrufe“ (nur bei eingeschaltetem
   PhoneBlock). Der zweite ist ein fortlaufender Zähler für die Langzeitstatistik
   und bleibt über Neustarts erhalten: Er zählt, wie viele Anrufe neu als Spam

@@ -1,0 +1,71 @@
+blueprint:
+  name: FRITZ!Box - Aktion bei klingelndem Telefon
+  description: >-
+    Löst aus, sobald ein eingehender Anruf klingelt, z. B. um Medien zu
+    pausieren, ein Licht blinken zu lassen oder den Anrufer anzusagen. Optional
+    werden Mediaplayer beim Klingeln pausiert. In der Aktion stehen die
+    Variablen `caller` (Name oder Nummer), `number`, `is_vip` und `is_spam` zur
+    Verfügung. Die Aktion läuft einmal je Anruf, auch wenn Name oder Spam-Prüfung
+    erst später ankommen.
+  domain: automation
+  author: bertel2020
+  source_url: https://github.com/bertel2020/HA-fritzbox_phone/blob/main/blueprints/automation/fritzbox_phone/notify_ringing.yaml
+  input:
+    action_on_ring:
+      name: Aktion
+      description: >-
+        Was beim Klingeln passieren soll. Beispiel: eine Ansage mit dem Text
+        `Anruf von {{ caller }}`.
+      default: []
+      selector:
+        action: {}
+    pause_players:
+      name: Mediaplayer pausieren
+      description: Diese Mediaplayer werden beim Klingeln pausiert.
+      default: []
+      selector:
+        entity:
+          domain: media_player
+          multiple: true
+    ignore_spam:
+      name: Spam ignorieren
+      description: Keine Aktion, wenn PhoneBlock die Nummer schon beim ersten Klingeln als Spam kennt.
+      default: false
+      selector:
+        boolean: {}
+
+mode: queued
+max_exceeded: silent
+
+variables:
+  ignore_spam: !input ignore_spam
+  pause_players: !input pause_players
+
+triggers:
+  - trigger: event
+    event_type: fritzbox_phone_call
+    event_data:
+      call_state: ringing
+
+conditions:
+  # The follow-up event with the lookup results repeats the ringing state.
+  - condition: template
+    value_template: "{{ not (trigger.event.data.enriched | default(false)) }}"
+  - condition: template
+    value_template: "{{ not (ignore_spam and trigger.event.data.is_spam | default(false)) }}"
+
+actions:
+  - variables:
+      number: "{{ trigger.event.data.number or '' }}"
+      caller: >-
+        {{ trigger.event.data.name or trigger.event.data.reverse_name or trigger.event.data.number or 'Unbekannt' }}
+      is_vip: "{{ trigger.event.data.vip | default(false) }}"
+      is_spam: "{{ trigger.event.data.is_spam | default(false) }}"
+  - if:
+      - condition: template
+        value_template: "{{ pause_players | length > 0 }}"
+    then:
+      - action: media_player.media_pause
+        target:
+          entity_id: "{{ pause_players }}"
+  - sequence: !input action_on_ring

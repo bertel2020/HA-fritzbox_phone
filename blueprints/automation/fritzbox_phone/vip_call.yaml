@@ -1,0 +1,36 @@
+blueprint:
+  name: FRITZ!Box - Aktion bei Anruf eines VIP-Kontakts
+  description: >-
+    Löst aus, sobald ein Kontakt klingelt, der im FRITZ!Box-Telefonbuch als
+    VIP markiert ist - z. B. für eine Benachrichtigung, die „Nicht stören“
+    durchbricht. In der Aktion stehen die Variablen `caller` (Name oder Nummer)
+    und `number` zur Verfügung.
+  domain: automation
+  author: bertel2020
+  source_url: https://github.com/bertel2020/HA-fritzbox_phone/blob/main/blueprints/automation/fritzbox_phone/vip_call.yaml
+  input:
+    action_on_vip:
+      name: Aktion
+      description: Was beim Anruf eines VIP-Kontakts passieren soll.
+      selector:
+        action: {}
+
+mode: queued
+max_exceeded: silent
+
+triggers:
+  - trigger: event
+    event_type: fritzbox_phone_call
+    event_data:
+      call_state: ringing
+      vip: true
+
+conditions:
+  - condition: template
+    value_template: "{{ not (trigger.event.data.enriched | default(false)) }}"
+
+actions:
+  - variables:
+      number: "{{ trigger.event.data.number or '' }}"
+      caller: "{{ trigger.event.data.name or trigger.event.data.number or 'Unbekannt' }}"
+  - sequence: !input action_on_vip
