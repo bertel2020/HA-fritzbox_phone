@@ -103,6 +103,9 @@
     },
     "play_message": {
       "service": "mdi:speaker-play"
+    },
+    "add_contact": {
+      "service": "mdi:account-plus"
     }
   }
 }

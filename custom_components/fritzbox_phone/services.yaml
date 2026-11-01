@@ -120,6 +120,30 @@ lookup_number:
       selector:
         text:
 
+add_contact:
+  target:
+    entity:
+      integration: fritzbox_phone
+  fields:
+    number:
+      required: true
+      example: "030 123456"
+      selector:
+        text:
+    name:
+      required: true
+      example: "Dr. Weber (Praxis)"
+      selector:
+        text:
+    phonebook_id:
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 999
+          mode: box
+
 block_number:
   target:
     entity:

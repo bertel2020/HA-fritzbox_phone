@@ -293,6 +293,22 @@ class FritzBoxPhoneClient:
             )
         return contacts
 
+    def add_contact(self, number: str, name: str, phonebook_id: int = 0) -> str | None:
+        """Add a contact with one number to a phonebook; returns its unique id."""
+        contact = ET.Element("contact")
+        person = ET.SubElement(contact, "person")
+        ET.SubElement(person, "realName").text = name
+        telephony = ET.SubElement(contact, "telephony")
+        entry = ET.SubElement(telephony, "number", type="home", prio="1")
+        entry.text = number
+        info = self._call(
+            ONTEL_SERVICE,
+            "SetPhonebookEntryUID",
+            NewPhonebookID=phonebook_id,
+            NewPhonebookEntryData=ET.tostring(contact, encoding="unicode"),
+        )
+        return info.get("NewPhonebookEntryUniqueID")
+
     # ------------------------------------------------------------------
     # Call barring (Rufsperre)
     # ------------------------------------------------------------------

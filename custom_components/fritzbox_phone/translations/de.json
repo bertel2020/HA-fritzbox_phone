@@ -276,6 +276,24 @@
           "description": "Der Lautsprecher, der die Nachricht abspielt."
         }
       }
+    },
+    "add_contact": {
+      "name": "Kontakt anlegen",
+      "description": "Legt einen Kontakt mit einer Nummer in einem FRITZ!Box-Telefonbuch an, z. B. für einen Anrufer, der in der Anrufliste als unbekannt erscheint. Nummern, die schon in einem Telefonbuch stehen, werden abgelehnt.",
+      "fields": {
+        "number": {
+          "name": "Rufnummer",
+          "description": "Die Nummer des Kontakts."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Der Name, den der Kontakt im Telefonbuch bekommt."
+        },
+        "phonebook_id": {
+          "name": "Telefonbuch",
+          "description": "Nummer des Telefonbuchs (0 ist das Haupttelefonbuch)."
+        }
+      }
     }
   },
   "exceptions": {
@@ -299,6 +317,9 @@
     },
     "no_internal_url": {
       "message": "Es ist keine interne Home-Assistant-Adresse eingestellt, daher kann ein Lautsprecher die Aufnahme nicht abrufen. Sie lässt sich unter Einstellungen > System > Netzwerk festlegen."
+    },
+    "contact_exists": {
+      "message": "{number} steht bereits als {name} im Telefonbuch."
     }
   },
   "issues": {

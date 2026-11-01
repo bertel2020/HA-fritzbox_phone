@@ -25,6 +25,7 @@ from .const import (
     DOMAIN,
     EVENT_NUMBER_BLOCKED,
     EVENT_NUMBER_UNBLOCKED,
+    SERVICE_ADD_CONTACT,
     SERVICE_BLOCK_NUMBER,
     SERVICE_DELETE_MESSAGE,
     SERVICE_DIAL,
@@ -186,6 +187,41 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 )
             _announce(call, coordinator, EVENT_NUMBER_UNBLOCKED, number=number)
 
+    async def add_contact(call: ServiceCall) -> None:
+        number, name = call.data[ATTR_NUMBER], call.data[ATTR_NAME]
+        for coordinator in _coordinators(hass, call):
+            if (known := coordinator.resolve_contact(number)[0]) is not None:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="contact_exists",
+                    translation_placeholders={"number": number, "name": known},
+                )
+            await _async_run(
+                hass,
+                coordinator,
+                coordinator.client.add_contact,
+                number,
+                name,
+                call.data[ATTR_PHONEBOOK_ID],
+            )
+            coordinator.invalidate_phonebooks()
+            await coordinator.async_request_refresh()
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_ADD_CONTACT,
+        add_contact,
+        schema=vol.Schema(
+            {
+                **_DEVICE_FIELD,
+                vol.Required(ATTR_NUMBER): _number,
+                vol.Required(ATTR_NAME): vol.All(cv.string, vol.Strip, vol.Length(min=1, max=64)),
+                vol.Optional(ATTR_PHONEBOOK_ID, default=0): vol.All(
+                    vol.Coerce(int), vol.Range(min=0, max=999)
+                ),
+            }
+        ),
+    )
     hass.services.async_register(
         DOMAIN,
         SERVICE_BLOCK_NUMBER,

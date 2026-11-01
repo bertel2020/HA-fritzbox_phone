@@ -270,3 +270,42 @@ async def test_play_message_refuses_what_cannot_be_played(hass: HomeAssistant) -
             DOMAIN, "play_message", {"entity_id": entity_id(hass, entry, "call_list"), **target}, blocking=True
         )
     assert played == []
+
+
+async def test_add_contact(hass: HomeAssistant) -> None:
+    box = FakeBox(phonebooks=[make_phonebook(("Anna", "030123456"))])
+    await _setup(hass, box)
+
+    await hass.services.async_call(
+        DOMAIN, "add_contact", {"number": "040 999", "name": "  Bob  "}, blocking=True
+    )
+    assert box.calls_log == [("add_contact", "040 999", "Bob", 0)]
+
+    await hass.services.async_call(
+        DOMAIN,
+        "add_contact",
+        {"number": "040 888", "name": "Carla", "phonebook_id": 2},
+        blocking=True,
+    )
+    assert box.calls_log[-1] == ("add_contact", "040 888", "Carla", 2)
+
+
+async def test_add_contact_refuses_a_known_number_in_any_spelling(hass: HomeAssistant) -> None:
+    box = FakeBox(phonebooks=[make_phonebook(("Anna", "030123456"))])
+    await _setup(hass, box)
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN, "add_contact", {"number": "+49 30 123456", "name": "Anna 2"}, blocking=True
+        )
+    assert box.calls_log == []
+
+
+@pytest.mark.parametrize("name", ["", "   ", "x" * 65])
+async def test_add_contact_needs_a_sensible_name(hass: HomeAssistant, name) -> None:
+    box = FakeBox()
+    await _setup(hass, box)
+    with pytest.raises(vol.Invalid):
+        await hass.services.async_call(
+            DOMAIN, "add_contact", {"number": "040 999", "name": name}, blocking=True
+        )
+    assert box.calls_log == []

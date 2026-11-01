@@ -58,10 +58,12 @@ ATTR_MEDIA_PLAYER = "media_player"
 
 ATTR_NUMBER = "number"
 ATTR_NAME = "name"
+ATTR_PHONEBOOK_ID = "phonebook_id"
 
 SERVICE_DIAL = "dial"
 SERVICE_HANGUP = "hangup"
 SERVICE_LOOKUP_NUMBER = "lookup_number"
+SERVICE_ADD_CONTACT = "add_contact"
 SERVICE_BLOCK_NUMBER = "block_number"
 SERVICE_UNBLOCK_NUMBER = "unblock_number"
 SERVICE_MARK_MESSAGE_READ = "mark_message_read"

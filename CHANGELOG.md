@@ -6,6 +6,11 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Hinzugefügt
 
+- Aktion `add_contact`: legt einen Kontakt mit Name und Nummer im Telefonbuch
+  der FRITZ!Box an (Standard: Telefonbuch 0), etwa für einen Anrufer, der in
+  der Anrufliste als unbekannt erscheint. Bekannte Nummern werden abgelehnt,
+  auch in anderer Schreibweise. Danach lädt die Integration die Telefonbücher
+  sofort neu, statt erst nach dem Aktualisierungsintervall.
 - Aktion `play_message`: spielt eine Anrufbeantworter-Aufnahme auf einem
   Mediaplayer ab, z. B. um neue Nachrichten im Wohnzimmer anzusagen. Die
   Aufnahme wird über eine signierte Adresse (zehn Minuten gültig) ausgeliefert;

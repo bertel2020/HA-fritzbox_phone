@@ -423,6 +423,10 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             if (key := path_key(call.path)) and key in by_path:
                 call.tam_index, call.tam_message_index = by_path[key]
 
+    def invalidate_phonebooks(self) -> None:
+        """Have the next poll fetch the phonebooks again (after adding a contact)."""
+        self._phonebooks_fetched = 0.0
+
     def _get_phonebooks(self) -> list[Phonebook]:
         age = time.monotonic() - self._phonebooks_fetched
         if self._phonebooks is not None and age < PHONEBOOK_REFRESH_INTERVAL:

@@ -162,6 +162,10 @@ def build_client_class(box: FakeBox):
         def hangup(self) -> None:
             box.calls_log.append(("hangup",))
 
+        def add_contact(self, number: str, name: str, phonebook_id: int = 0) -> str:
+            box.calls_log.append(("add_contact", number, name, phonebook_id))
+            return "uid"
+
         def block_number(self, number: str, name: str | None = None) -> bool:
             box.calls_log.append(("block", number, name))
             if number in box.blocked:

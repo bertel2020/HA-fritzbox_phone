@@ -276,6 +276,24 @@
           "description": "The speaker that plays the message."
         }
       }
+    },
+    "add_contact": {
+      "name": "Add a contact",
+      "description": "Adds a contact with one number to a FRITZ!Box phonebook, e.g. for a caller the call list shows as unknown. Numbers that are already in a phonebook are refused.",
+      "fields": {
+        "number": {
+          "name": "Phone number",
+          "description": "The number of the contact."
+        },
+        "name": {
+          "name": "Name",
+          "description": "The name the contact gets in the phonebook."
+        },
+        "phonebook_id": {
+          "name": "Phonebook",
+          "description": "Number of the phonebook (0 is the main phonebook)."
+        }
+      }
     }
   },
   "exceptions": {
@@ -299,6 +317,9 @@
     },
     "no_internal_url": {
       "message": "No internal Home Assistant URL is set, so a speaker cannot fetch the recording. Set it under Settings > System > Network."
+    },
+    "contact_exists": {
+      "message": "{number} is already in the phonebook as {name}."
     }
   },
   "issues": {

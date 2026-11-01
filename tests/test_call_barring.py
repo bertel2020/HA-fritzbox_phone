@@ -74,3 +74,14 @@ def test_unblock_of_an_unknown_number_deletes_nothing() -> None:
     client, box = _client([_entry("8", "040999")])
     assert client.unblock_number("030123456") == 0
     assert all(action != "DeleteCallBarringEntryUID" for action, _ in box.actions)
+
+
+def test_add_contact_sends_a_phonebook_entry() -> None:
+    client, box = _client([])
+    client.add_contact("040 999", "Bob & Co", 2)
+    action, arguments = box.actions[-1]
+    assert action == "SetPhonebookEntryUID"
+    assert arguments["NewPhonebookID"] == 2
+    contact = ET.fromstring(arguments["NewPhonebookEntryData"])
+    assert contact.findtext("person/realName") == "Bob & Co"
+    assert contact.findtext("telephony/number") == "040 999"
