@@ -57,6 +57,12 @@
         "state": {
           "off": "mdi:voicemail"
         }
+      },
+      "deflection_enabled": {
+        "default": "mdi:phone-forward",
+        "state": {
+          "off": "mdi:phone-forward-outline"
+        }
       }
     },
     "binary_sensor": {

@@ -1,7 +1,7 @@
 """Fake FRITZ!Box client and data builders for the tests."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 from unittest.mock import patch
 
@@ -17,6 +17,7 @@ from custom_components.fritzbox_phone.api import (
     PhonebookNumber,
     Tam,
     TamMessage,
+    Deflection,
 )
 from custom_components.fritzbox_phone.const import CONF_ENABLE_CALLMONITOR, DOMAIN
 
@@ -104,6 +105,7 @@ class FakeBox:
     serial: str = "ABC123"
     calls_log: list[tuple] = field(default_factory=list)
     blocked: list[str] = field(default_factory=list)
+    deflections: list[Deflection] = field(default_factory=list)
 
 
 def build_client_class(box: FakeBox):
@@ -161,6 +163,16 @@ def build_client_class(box: FakeBox):
 
         def hangup(self) -> None:
             box.calls_log.append(("hangup",))
+
+        def get_deflections(self):
+            self._poll()
+            return [replace(d) for d in box.deflections]
+
+        def set_deflection_enable(self, deflection_id: int, enable: bool) -> None:
+            box.calls_log.append(("set_deflection_enable", deflection_id, enable))
+            for deflection in box.deflections:
+                if deflection.id == deflection_id:
+                    deflection.enabled = enable
 
         def add_contact(self, number: str, name: str, phonebook_id: int = 0) -> str:
             box.calls_log.append(("add_contact", number, name, phonebook_id))

@@ -85,3 +85,32 @@ def test_add_contact_sends_a_phonebook_entry() -> None:
     contact = ET.fromstring(arguments["NewPhonebookEntryData"])
     assert contact.findtext("person/realName") == "Bob & Co"
     assert contact.findtext("telephony/number") == "040 999"
+
+
+def test_deflections_are_read_one_by_one() -> None:
+    client, box = _client([])
+
+    def call_action(service, action, **arguments):
+        box.actions.append((action, arguments))
+        if action == "GetNumberOfDeflections":
+            return {"NewNumberOfDeflections": 2}
+        return {
+            "NewEnable": arguments["NewDeflectionId"] == 0,
+            "NewType": "fromAssignedNumber",
+            "NewNumber": "030 111",
+            "NewDeflectionToNumber": f"0171 {arguments['NewDeflectionId']}",
+            "NewMode": "eDeflectImmediately",
+        }
+
+    box.call_action = call_action
+    deflections = client.get_deflections()
+    assert [(d.id, d.enabled, d.to_number) for d in deflections] == [
+        (0, True, "0171 0"),
+        (1, False, "0171 1"),
+    ]
+
+    client.set_deflection_enable(1, True)
+    assert box.actions[-1] == (
+        "SetDeflectionEnable",
+        {"NewDeflectionId": 1, "NewEnable": 1},
+    )

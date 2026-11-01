@@ -45,6 +45,8 @@ ONTEL_SERVICE = "X_AVM-DE_OnTel1"
 TAM_SERVICE = "X_AVM-DE_TAM1"
 DEVICEINFO_SERVICE = "DeviceInfo1"
 VOIP_SERVICE = "X_VoIP1"
+# More rules than this are not expected; it only bounds the requests per poll.
+MAX_DEFLECTIONS = 32
 
 
 @dataclass
@@ -133,6 +135,18 @@ class Tam:
     running: bool
     capacity_minutes: int | None
     messages: list[TamMessage] = field(default_factory=list)
+
+
+@dataclass
+class Deflection:
+    """A call forwarding rule of the box (X_AVM-DE_OnTel GetDeflection)."""
+
+    id: int
+    enabled: bool
+    type: str | None
+    number: str | None
+    to_number: str | None
+    mode: str | None
 
 
 def path_key(path: str | None) -> tuple[str, tuple[tuple[str, str], ...]] | None:
@@ -308,6 +322,37 @@ class FritzBoxPhoneClient:
             NewPhonebookEntryData=ET.tostring(contact, encoding="unicode"),
         )
         return info.get("NewPhonebookEntryUniqueID")
+
+    # ------------------------------------------------------------------
+    # Call forwarding (Rufumleitung)
+    # ------------------------------------------------------------------
+
+    def get_deflections(self) -> list[Deflection]:
+        count = _to_int(
+            str(self._call(ONTEL_SERVICE, "GetNumberOfDeflections").get("NewNumberOfDeflections"))
+        )
+        deflections: list[Deflection] = []
+        for deflection_id in range(min(count, MAX_DEFLECTIONS)):
+            info = self._call(ONTEL_SERVICE, "GetDeflection", NewDeflectionId=deflection_id)
+            deflections.append(
+                Deflection(
+                    id=deflection_id,
+                    enabled=str(info.get("NewEnable")).lower() in ("1", "true"),
+                    type=info.get("NewType") or None,
+                    number=info.get("NewNumber") or None,
+                    to_number=info.get("NewDeflectionToNumber") or None,
+                    mode=info.get("NewMode") or None,
+                )
+            )
+        return deflections
+
+    def set_deflection_enable(self, deflection_id: int, enable: bool) -> None:
+        self._call(
+            ONTEL_SERVICE,
+            "SetDeflectionEnable",
+            NewDeflectionId=deflection_id,
+            NewEnable=int(enable),
+        )
 
     # ------------------------------------------------------------------
     # Call barring (Rufsperre)

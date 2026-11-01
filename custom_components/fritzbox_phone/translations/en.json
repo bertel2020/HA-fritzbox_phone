@@ -132,6 +132,9 @@
     "switch": {
       "tam_enabled": {
         "name": "{name} active"
+      },
+      "deflection_enabled": {
+        "name": "Forwarding to {target}"
       }
     },
     "binary_sensor": {

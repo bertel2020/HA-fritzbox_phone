@@ -1,7 +1,7 @@
 """DataUpdateCoordinator for the FRITZ!Box phone integration."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 import asyncio
 import logging
@@ -25,7 +25,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import CallEntry, FritzBoxPhoneClient, Phonebook, Tam, TamMessage, path_key
+from .api import CallEntry, Deflection, FritzBoxPhoneClient, Phonebook, Tam, TamMessage, path_key
 from .callmonitor import normalize_number
 from .geocoding import describe_number
 from .phone_numbers import normalize as normalize_phone_number
@@ -82,6 +82,7 @@ class FritzBoxPhoneData:
     phonebooks: list[Phonebook]
     calls: list[CallEntry]
     tams: list[Tam]
+    deflections: list[Deflection] = field(default_factory=list)
 
 
 class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
@@ -106,6 +107,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         # seconds; the number -> contact indexes are rebuilt with them.
         self._phonebooks: list[Phonebook] | None = None
         self._phonebooks_fetched = 0.0
+        self._deflections: list[Deflection] = []
         self._contacts_by_number: dict[str, tuple[str, bool]] = {}
         self._contacts_by_digits: dict[str, tuple[str, bool]] = {}
         # Change detection for the logbook events. `None` means "no poll
@@ -403,7 +405,19 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             phonebooks=self._get_phonebooks(),
             calls=calls,
             tams=tams,
+            deflections=self._get_deflections(),
         )
+
+    def _get_deflections(self) -> list[Deflection]:
+        # Secondary data: a box without forwarding rules, or one that
+        # refuses the request, must not fail the whole poll.
+        try:
+            deflections = self.client.get_deflections()
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.debug("Rufumleitungen konnten nicht gelesen werden: %s", err)
+            return self._deflections
+        self._deflections = deflections
+        return deflections
 
     @staticmethod
     def _link_calls_to_messages(calls: list[CallEntry], tams: list[Tam]) -> None:
@@ -610,6 +624,9 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         area code, fetched once and cached).
         """
         return describe_number(number, self._region_code(), self._get_own_area_code())
+
+    def get_deflection(self, deflection_id: int) -> Deflection | None:
+        return next((d for d in self.data.deflections if d.id == deflection_id), None)
 
     def get_tam(self, tam_index: int) -> Tam | None:
         return next((t for t in self.data.tams if t.index == tam_index), None)

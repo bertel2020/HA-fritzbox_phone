@@ -6,6 +6,11 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Hinzugefügt
 
+- Schalter für die Rufumleitungen der FRITZ!Box: Jede dort eingerichtete
+  Umleitung erscheint als Schalter („Umleitung auf …“) und lässt sich ein- und
+  ausschalten, etwa für „nachts aufs Handy umleiten“ per Automation. Eine Box
+  ohne Umleitungen bekommt keine Schalter. Die Klingelsperre ist über die
+  Schnittstelle der Box nicht erreichbar und daher nicht enthalten.
 - Aktion `add_contact`: legt einen Kontakt mit Name und Nummer im Telefonbuch
   der FRITZ!Box an (Standard: Telefonbuch 0), etwa für einen Anrufer, der in
   der Anrufliste als unbekannt erscheint. Bekannte Nummern werden abgelehnt,

@@ -61,6 +61,7 @@ The integration talks to the FRITZ!Box locally (TR-064 and the CallMonitor on po
 - **Reverse lookup**: unknown numbers are resolved through Tellows.
 - **Place and country**: the origin of a number is determined offline.
 - **Dial and hang up**: the services `dial` and `hangup`, plus a call-back button in the card.
+- **Call forwarding**: every forwarding rule of the box as a switch, e.g. for "forward to my mobile at night".
 - **Call barring**: the services `block_number` and `unblock_number` add numbers to the box's call barring or remove them.
 - **Statistics**: calls today, missed calls, talk time and (with PhoneBlock) spam calls as sensors.
 - **Blueprints**: notification for a missed call, a warning for spam calls, and actions on ringing, VIP callers and new answering machine messages.
