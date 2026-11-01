@@ -44,6 +44,8 @@ async def test_turning_a_deflection_off_and_on(hass: HomeAssistant) -> None:
     await hass.services.async_call("switch", "turn_on", {"entity_id": switch}, blocking=True)
     await hass.async_block_till_done()
     assert box.calls_log[-1] == ("set_deflection_enable", 0, True)
+    # The follow-up refresh is debounced; do not wait for it.
+    await entry.runtime_data.coordinator.async_refresh()
     assert hass.states.get(switch).state == STATE_ON
 
 

@@ -21,6 +21,7 @@ from .const import (
     ATTR_MESSAGE_INDEX,
     ATTR_NAME,
     ATTR_NUMBER,
+    ATTR_PHONEBOOK_ID,
     ATTR_READ,
     DOMAIN,
     EVENT_NUMBER_BLOCKED,
