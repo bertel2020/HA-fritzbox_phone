@@ -2043,9 +2043,28 @@ class FritzboxPhoneCardEditor extends HTMLElement {
     return "unknown";
   }
 
+  // The integration also has plain number sensors (calls/talk time today)
+  // the card cannot show, so the pickers list only the usable ones.
+  _pickable(wanted) {
+    const states = (this._hass && this._hass.states) || {};
+    const ids = Object.keys(states).filter((id) => {
+      if (!id.startsWith("sensor.")) return false;
+      const entry = this._hass.entities && this._hass.entities[id];
+      if (entry && entry.platform !== "fritzbox_phone") return false;
+      const attrs = states[id].attributes || {};
+      return (
+        (wanted !== "messages" && (Array.isArray(attrs.calls) || Array.isArray(attrs.contacts))) ||
+        Array.isArray(attrs.messages) ||
+        (wanted !== "messages" && CALLMONITOR_STATES.includes(states[id].state))
+      );
+    });
+    return { entity: { domain: "sensor", integration: "fritzbox_phone", include_entities: ids } };
+  }
+
   _schema() {
     const t = makeTranslator(this._hass);
-    const ownEntities = { entity: { domain: "sensor", integration: "fritzbox_phone" } };
+    const ownEntities = this._pickable();
+    const tamEntities = this._pickable("messages");
     const kind = this._kind();
     const schema = [
       { name: "entity", selector: ownEntities },
@@ -2058,7 +2077,7 @@ class FritzboxPhoneCardEditor extends HTMLElement {
       schema.push(
         { name: "show_legend", selector: { boolean: {} } },
         { name: "show_stats", selector: { boolean: {} } },
-        { name: "tam_entity", selector: ownEntities }
+        { name: "tam_entity", selector: tamEntities }
       );
     }
     if (kind === "messages") {
