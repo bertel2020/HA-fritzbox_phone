@@ -61,6 +61,7 @@ const TEXTS = {
     all_read: "Alles gelesen",
     n_new: "{n} neu",
     stats: "Heute: {calls} Anrufe, {missed} verpasst",
+    stats_one: "Heute: 1 Anruf, {missed} verpasst",
     d_call_type: "Anruftyp",
     d_number: "Rufnummer",
     d_begin: "Beginn",
@@ -167,6 +168,7 @@ const TEXTS = {
     all_read: "All read",
     n_new: "{n} new",
     stats: "Today: {calls} calls, {missed} missed",
+    stats_one: "Today: 1 call, {missed} missed",
     d_call_type: "Call type",
     d_number: "Phone number",
     d_begin: "Start",
@@ -1371,7 +1373,7 @@ class FritzboxPhoneCard extends HTMLElement {
       if (todays.length > 0) {
         const stats = document.createElement("div");
         stats.className = "fb-stats";
-        stats.textContent = t("stats", {
+        stats.textContent = t(todays.length === 1 ? "stats_one" : "stats", {
           calls: todays.length,
           missed: todays.filter((c) => c.type === "missed").length,
         });
