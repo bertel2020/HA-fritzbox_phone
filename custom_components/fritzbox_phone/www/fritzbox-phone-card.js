@@ -265,7 +265,8 @@ const STYLE_CSS = `
     margin: 0; font-size: 18px; font-weight: 500; letter-spacing: -0.012em;
   }
   .fb-pill {
-    font-size: 11.5px; font-weight: 600; color: var(--fb-c-ab);
+    font-size: 11.5px; font-weight: 600;
+    color: color-mix(in srgb, var(--warning-color, #c98a1f) 40%, var(--primary-text-color, #000));
     background: color-mix(in srgb, var(--warning-color, #c98a1f) 20%, transparent);
     padding: 3px 9px; border-radius: 999px; white-space: nowrap;
   }
@@ -335,7 +336,7 @@ const STYLE_CSS = `
   .fb-spam-badge {
     flex-shrink: 0; display: inline-flex; align-items: center;
     font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
-    color: var(--error-color, #e0453f);
+    color: color-mix(in srgb, var(--error-color, #e0453f) 65%, var(--primary-text-color, #000));
     background: color-mix(in srgb, var(--error-color, #e0453f) 16%, transparent);
     padding: 1px 6px; border-radius: 999px;
   }
@@ -375,8 +376,10 @@ const STYLE_CSS = `
     font: inherit; font-size: 11.5px; font-weight: 600; border: none; border-radius: 6px;
     padding: 4px 8px; cursor: pointer;
   }
-  .fb-confirm .fb-confirm-no { background: transparent; color: var(--secondary-text-color); }
-  .fb-confirm .fb-confirm-yes { background: var(--error-color, #e05a5a); color: #fff; }
+  .fb-confirm .fb-confirm-no { background: transparent; color: var(--primary-text-color); }
+  .fb-confirm .fb-confirm-yes {
+    background: color-mix(in srgb, var(--error-color, #e05a5a) 78%, #000); color: #fff;
+  }
 
   .fb-chevron {
     --mdc-icon-size: 18px; color: var(--secondary-text-color);
@@ -425,7 +428,8 @@ const STYLE_CSS = `
   .fb-vip-badge {
     flex-shrink: 0; display: inline-flex; align-items: center;
     font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
-    color: var(--primary-color); background: color-mix(in srgb, var(--primary-color) 16%, transparent);
+    color: color-mix(in srgb, var(--primary-color) 55%, var(--primary-text-color, #000));
+    background: color-mix(in srgb, var(--primary-color) 16%, transparent);
     padding: 1px 6px; border-radius: 999px;
   }
 
@@ -445,7 +449,8 @@ const STYLE_CSS = `
   .fb-link-btn {
     display: inline-flex; align-items: center; gap: 4px; font: inherit; font-size: 11.5px;
     font-weight: 600; border: none; border-radius: 999px; padding: 4px 10px; margin-top: 4px;
-    cursor: pointer; color: var(--primary-color);
+    cursor: pointer;
+    color: color-mix(in srgb, var(--primary-color) 55%, var(--primary-text-color, #000));
     background: color-mix(in srgb, var(--primary-color) 14%, transparent);
   }
   .fb-link-btn:disabled { opacity: .5; cursor: default; }

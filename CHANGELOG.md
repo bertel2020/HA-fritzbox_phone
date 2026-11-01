@@ -21,6 +21,10 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
   trifft die Aktion nicht mehr eine andere Nachricht, sondern wird abgebrochen
   oder folgt der Nachricht zu ihrem neuen Index. Ohne `message_key` verhalten
   sich die Dienste wie bisher.
+- Karte: Auf schmalen Karten und bei 200 % Zoom überdeckten die Buttons der AB-Zeile
+  den Text; die Zeilen umbrechen jetzt.
+- Karte: Kontrast von „Zurückrufen“, Spam-Etikett, „1 neu“ und der Lösch-Abfrage
+  auf mindestens 4,5:1 angehoben (heller und dunkler Modus).
 - Karte: Mehrfaches Bestätigen von „Löschen" sendet nur noch eine Anfrage.
 - Karte: Ein fehlgeschlagenes Gelesen-Markieren nach dem Abspielen wird gemeldet.
 
