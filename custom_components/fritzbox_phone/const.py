@@ -50,6 +50,7 @@ TAM_PORT_RANGE = range(40, 50)
 
 ATTR_MESSAGE_INDEX = "message_index"
 ATTR_READ = "read"
+ATTR_MESSAGE_KEY = "message_key"
 ATTR_FILENAME = "filename"
 
 ATTR_NUMBER = "number"

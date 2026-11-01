@@ -148,6 +148,10 @@
         "read": {
           "name": "Read",
           "description": "On = mark as read, off = mark as unread."
+        },
+        "message_key": {
+          "name": "Message key",
+          "description": "Optional 'key' of the message (same attribute list). The action is refused if the box has renumbered its messages and the key no longer matches."
         }
       }
     },
@@ -158,6 +162,10 @@
         "message_index": {
           "name": "Message index",
           "description": "Index of the message (see the 'messages' attribute of the answering machine sensor)."
+        },
+        "message_key": {
+          "name": "Message key",
+          "description": "Optional 'key' of the message (same attribute list). The action is refused if the box has renumbered its messages and the key no longer matches."
         }
       }
     },
@@ -172,6 +180,10 @@
         "filename": {
           "name": "File name",
           "description": "Target file name, e.g. message_3.wav"
+        },
+        "message_key": {
+          "name": "Message key",
+          "description": "Optional 'key' of the message (same attribute list). The action is refused if the box has renumbered its messages and the key no longer matches."
         }
       }
     },

@@ -289,7 +289,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         # would otherwise look like a batch of new messages.
         current = {
             tam.index: {
-                self._message_key(message) for message in tam.messages if message.new
+                self.message_key(message) for message in tam.messages if message.new
             }
             for tam in tams
         }
@@ -303,7 +303,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             added = [
                 message
                 for message in tam.messages
-                if message.new and self._message_key(message) not in previous
+                if message.new and self.message_key(message) not in previous
             ]
             removed = len(previous - current[tam.index])
             if not added and not removed:
@@ -324,7 +324,8 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             )
 
     @staticmethod
-    def _message_key(message: TamMessage) -> str:
+    def message_key(message: TamMessage) -> str:
+        """What identifies a message across renumbering: date and caller."""
         return f"{message.date}|{message.number}"
 
     def _call_payload(self, call: CallEntry) -> dict[str, Any]:
@@ -599,7 +600,58 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
                     return self._contacts_by_digits[candidate]
         return None, False
 
-    def fetch_recording(self, tam_index: int, message_index: int) -> bytes:
+    def resolve_message(
+        self,
+        tam_index: int,
+        message_index: int,
+        message_key: str | None,
+    ) -> TamMessage:
+        """The message a caller means, checked against a fresh message list.
+
+        The box renumbers its recordings whenever one is deleted, so an
+        index taken from a card that has not refreshed yet may point at a
+        different message. With the expected key (date and number) the
+        message is verified, or found under its new index when it is the
+        only one with that key; anything else is refused instead of
+        touching a message nobody asked for. Without a key the index is
+        taken as given. Blocking.
+        """
+        messages = self.client.get_tam_messages(tam_index)
+        at_index = next((m for m in messages if m.index == message_index), None)
+        if message_key is None:
+            if at_index is None:
+                raise ValueError(
+                    f"Nachricht {message_index} auf Anrufbeantworter {tam_index} "
+                    "wurde nicht gefunden"
+                )
+            return at_index
+        if at_index is not None and self.message_key(at_index) == message_key:
+            return at_index
+        matches = [m for m in messages if self.message_key(m) == message_key]
+        if len(matches) == 1:
+            return matches[0]
+        raise ValueError(
+            f"Nachricht {message_index} auf Anrufbeantworter {tam_index} hat sich "
+            "geändert oder wurde gelöscht - bitte die Ansicht aktualisieren"
+        )
+
+    def mark_message(
+        self, tam_index: int, message_index: int, read: bool, message_key: str | None
+    ) -> None:
+        """Mark the verified message as read or unread. Blocking."""
+        message = self.resolve_message(tam_index, message_index, message_key)
+        self.client.mark_message(tam_index, message.index, read)
+
+    def delete_message(
+        self, tam_index: int, message_index: int, message_key: str | None
+    ) -> None:
+        """Delete the verified message. Blocking."""
+        message = self.resolve_message(tam_index, message_index, message_key)
+        self.client.delete_message(tam_index, message.index)
+
+    def fetch_recording(
+        self, tam_index: int, message_index: int, message_key: str | None = None
+    ) -> bytes:
         """The audio of one answering machine message. Blocking.
 
         The message list is fetched fresh instead of using the last polled
@@ -607,22 +659,27 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         expire well within the polling interval, so a URL that was valid at
         the last poll may already 404 by the time somebody presses play.
         """
-        messages = self.client.get_tam_messages(tam_index)
-        message = next((m for m in messages if m.index == message_index), None)
-        if message is None or not message.download_url:
+        message = self.resolve_message(tam_index, message_index, message_key)
+        if not message.download_url:
             raise ValueError(
                 f"Nachricht {message_index} auf Anrufbeantworter {tam_index} "
-                "wurde nicht gefunden oder hat keine Aufnahme"
+                "hat keine Aufnahme"
             )
         return self.client.download(message.download_url)
 
-    def download_message(self, tam_index: int, message_index: int, filename: str) -> str:
+    def download_message(
+        self,
+        tam_index: int,
+        message_index: int,
+        filename: str,
+        message_key: str | None = None,
+    ) -> str:
         """Download a TAM recording into config/www/fritzbox_tam/<filename>.
 
         Runs blocking I/O, must be called from an executor thread.
         """
         safe_filename = validate_recording_filename(filename)
-        audio = self.fetch_recording(tam_index, message_index)
+        audio = self.fetch_recording(tam_index, message_index, message_key)
         dest_dir = Path(self.hass.config.path("www", "fritzbox_tam"))
         dest_dir.mkdir(parents=True, exist_ok=True)
         dest_path = dest_dir / safe_filename

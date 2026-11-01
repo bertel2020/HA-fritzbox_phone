@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from http import HTTPStatus
 import logging
+from urllib.parse import urlencode
 
 from aiohttp import web
 from fritzconnection.core.exceptions import FritzConnectionException
@@ -25,11 +26,20 @@ from .const import DOMAIN, RECORDING_URL_TEMPLATE, RECORDING_URL_PATTERN
 _LOGGER = logging.getLogger(__name__)
 
 
-def recording_path(entry_id: str, tam_index: int, message_index: int) -> str:
-    """URL path of a message's recording (needs authentication or a signature)."""
-    return RECORDING_URL_TEMPLATE.format(
+def recording_path(
+    entry_id: str, tam_index: int, message_index: int, message_key: str | None = None
+) -> str:
+    """URL path of a message's recording (needs authentication or a signature).
+
+    The message key makes the view refuse the request when the box has
+    renumbered its messages since the path was handed out.
+    """
+    path = RECORDING_URL_TEMPLATE.format(
         entry_id=entry_id, tam_index=tam_index, message_index=message_index
     )
+    if message_key is not None:
+        path += "?" + urlencode({"key": message_key})
+    return path
 
 
 def audio_content_type(audio: bytes) -> str:
@@ -65,7 +75,10 @@ class FritzBoxRecordingView(HomeAssistantView):
 
         try:
             audio = await hass.async_add_executor_job(
-                coordinator.fetch_recording, int(tam_index), int(message_index)
+                coordinator.fetch_recording,
+                int(tam_index),
+                int(message_index),
+                request.query.get("key"),
             )
         except ValueError:
             return web.Response(status=HTTPStatus.NOT_FOUND)

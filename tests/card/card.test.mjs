@@ -94,6 +94,7 @@ const message = (index, extra = {}) => ({
   index,
   number: "030123456",
   date: `01.01.26 10:0${index}`,
+  key: `k${index}`,
   duration: "0:10",
   new: true,
   in_phonebook: false,
@@ -218,7 +219,7 @@ test("delete asks first, then removes the row", async () => {
 
   root(card).querySelector(".fb-confirm-yes").click();
   await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.ok(redrawn.calls.some((c) => c.service === "delete_message" && c.data.message_index === 1));
+  assert.ok(redrawn.calls.some((c) => c.service === "delete_message" && c.data.message_index === 1 && c.data.message_key === "k1"));
   assert.equal(root(card).querySelectorAll(".fb-row").length, 0);
 });
 

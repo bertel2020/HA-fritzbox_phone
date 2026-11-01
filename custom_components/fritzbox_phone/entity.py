@@ -77,13 +77,19 @@ class FritzBoxPhoneEntity(CoordinatorEntity[FritzBoxPhoneCoordinator]):
     # other sensors answer them with a clear message instead of an
     # AttributeError. FritzBoxTamSensor overrides these.
 
-    async def async_mark_message_read(self, message_index: int, read: bool = True) -> None:
+    async def async_mark_message_read(
+        self, message_index: int, read: bool = True, message_key: str | None = None
+    ) -> None:
         raise self._not_an_answering_machine()
 
-    async def async_delete_message(self, message_index: int) -> None:
+    async def async_delete_message(
+        self, message_index: int, message_key: str | None = None
+    ) -> None:
         raise self._not_an_answering_machine()
 
-    async def async_download_message(self, message_index: int, filename: str) -> None:
+    async def async_download_message(
+        self, message_index: int, filename: str, message_key: str | None = None
+    ) -> None:
         raise self._not_an_answering_machine()
 
     @staticmethod

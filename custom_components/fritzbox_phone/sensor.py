@@ -333,12 +333,18 @@ class FritzBoxTamSensor(FritzBoxPhoneEntity, SensorEntity):
                     "number": message.number,
                     "called": message.called,
                     "date": message.date,
+                    "key": self.coordinator.message_key(message),
                     "duration": message.duration,
                     "new": message.new,
                     "in_phonebook": message.inbook,
                     "has_recording": message.download_url is not None,
                     "recording_path": (
-                        recording_path(self._entry.entry_id, self._tam_index, message.index)
+                        recording_path(
+                            self._entry.entry_id,
+                            self._tam_index,
+                            message.index,
+                            self.coordinator.message_key(message),
+                        )
                         if message.download_url
                         else None
                     ),
@@ -354,21 +360,31 @@ class FritzBoxTamSensor(FritzBoxPhoneEntity, SensorEntity):
             ],
         }
 
-    async def async_mark_message_read(self, message_index: int, read: bool = True) -> None:
+    async def async_mark_message_read(
+        self, message_index: int, read: bool = True, message_key: str | None = None
+    ) -> None:
         await self._async_box_call(
-            self.coordinator.client.mark_message, self._tam_index, message_index, read
+            self.coordinator.mark_message, self._tam_index, message_index, read, message_key
         )
         await self.coordinator.async_request_refresh()
 
-    async def async_delete_message(self, message_index: int) -> None:
+    async def async_delete_message(
+        self, message_index: int, message_key: str | None = None
+    ) -> None:
         await self._async_box_call(
-            self.coordinator.client.delete_message, self._tam_index, message_index
+            self.coordinator.delete_message, self._tam_index, message_index, message_key
         )
         await self.coordinator.async_request_refresh()
 
-    async def async_download_message(self, message_index: int, filename: str) -> None:
+    async def async_download_message(
+        self, message_index: int, filename: str, message_key: str | None = None
+    ) -> None:
         path = await self._async_box_call(
-            self.coordinator.download_message, self._tam_index, message_index, filename
+            self.coordinator.download_message,
+            self._tam_index,
+            message_index,
+            filename,
+            message_key,
         )
         _LOGGER.info("Anrufbeantworter-Nachricht gespeichert unter %s", path)
 

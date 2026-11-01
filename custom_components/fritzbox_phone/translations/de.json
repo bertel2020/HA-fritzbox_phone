@@ -148,6 +148,10 @@
         "read": {
           "name": "Gelesen",
           "description": "Ein = als gelesen markieren, Aus = als ungelesen markieren."
+        },
+        "message_key": {
+          "name": "Nachrichtenschlüssel",
+          "description": "Optional: der 'key' der Nachricht (gleiche Attributliste). Die Aktion wird abgelehnt, wenn die Box die Nachrichten neu nummeriert hat und der Schlüssel nicht mehr passt."
         }
       }
     },
@@ -158,6 +162,10 @@
         "message_index": {
           "name": "Nachrichtenindex",
           "description": "Index der Nachricht (siehe Attribut 'messages' des Anrufbeantworter-Sensors)."
+        },
+        "message_key": {
+          "name": "Nachrichtenschlüssel",
+          "description": "Optional: der 'key' der Nachricht (gleiche Attributliste). Die Aktion wird abgelehnt, wenn die Box die Nachrichten neu nummeriert hat und der Schlüssel nicht mehr passt."
         }
       }
     },
@@ -172,6 +180,10 @@
         "filename": {
           "name": "Dateiname",
           "description": "Zieldateiname, z. B. nachricht_3.mp3"
+        },
+        "message_key": {
+          "name": "Nachrichtenschlüssel",
+          "description": "Optional: der 'key' der Nachricht (gleiche Attributliste). Die Aktion wird abgelehnt, wenn die Box die Nachrichten neu nummeriert hat und der Schlüssel nicht mehr passt."
         }
       }
     },

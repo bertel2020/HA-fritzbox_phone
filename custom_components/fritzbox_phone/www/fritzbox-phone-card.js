@@ -1715,6 +1715,7 @@ class FritzboxPhoneCard extends HTMLElement {
           .callService("fritzbox_phone", "mark_message_read", {
             entity_id: entityId,
             message_index: message.index,
+            message_key: message.key,
             read: true,
           })
           .catch(() => {});
@@ -1732,6 +1733,7 @@ class FritzboxPhoneCard extends HTMLElement {
       await this._hass.callService("fritzbox_phone", "delete_message", {
         entity_id: entityId,
         message_index: message.index,
+        message_key: message.key,
       });
       const player = this._players.get(key);
       if (player) {

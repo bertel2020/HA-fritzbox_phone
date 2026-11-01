@@ -16,6 +16,7 @@ from homeassistant.helpers import config_validation as cv, device_registry as dr
 
 from .const import (
     ATTR_FILENAME,
+    ATTR_MESSAGE_KEY,
     ATTR_MESSAGE_INDEX,
     ATTR_NUMBER,
     ATTR_READ,
@@ -96,19 +97,24 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             SERVICE_MARK_MESSAGE_READ,
             {
                 vol.Required(ATTR_MESSAGE_INDEX): vol.Coerce(int),
+                vol.Optional(ATTR_MESSAGE_KEY): cv.string,
                 vol.Optional(ATTR_READ, default=True): bool,
             },
             "async_mark_message_read",
         ),
         (
             SERVICE_DELETE_MESSAGE,
-            {vol.Required(ATTR_MESSAGE_INDEX): vol.Coerce(int)},
+            {
+                vol.Required(ATTR_MESSAGE_INDEX): vol.Coerce(int),
+                vol.Optional(ATTR_MESSAGE_KEY): cv.string,
+            },
             "async_delete_message",
         ),
         (
             SERVICE_DOWNLOAD_MESSAGE,
             {
                 vol.Required(ATTR_MESSAGE_INDEX): vol.Coerce(int),
+                vol.Optional(ATTR_MESSAGE_KEY): cv.string,
                 vol.Required(ATTR_FILENAME): str,
             },
             "async_download_message",
