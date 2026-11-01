@@ -14,6 +14,7 @@ CONF_PHONEBLOCK_USERNAME = "phoneblock_username"
 CONF_PHONEBLOCK_PASSWORD = "phoneblock_password"
 CONF_PHONEBLOCK_THRESHOLD = "phoneblock_spam_threshold"
 CONF_REVERSE_LOOKUP_ENABLED = "reverse_lookup_enabled"
+CONF_PRIVACY_MODE = "privacy_mode"
 
 DEFAULT_CALL_LIST_DAYS = 7
 DEFAULT_CALL_LIST_MAX = 50
@@ -29,6 +30,7 @@ DEFAULT_COUNTRY_PREFIX = "+49"
 # every poll is the most expensive part of an update.
 PHONEBOOK_REFRESH_INTERVAL = 900  # seconds
 DEFAULT_REVERSE_LOOKUP_ENABLED = False
+DEFAULT_PRIVACY_MODE = False
 
 # X_AVM-DE_OnTel CallList "Type" values (TR-064_Contact_SCPD.pdf, table 70)
 CALL_TYPE_NAMES = {

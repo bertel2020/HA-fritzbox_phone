@@ -14,7 +14,7 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_USE_TLS, DOMAIN
+from .const import CONF_PRIVACY_MODE, CONF_USE_TLS, DEFAULT_PRIVACY_MODE, DOMAIN
 from .coordinator import FritzBoxPhoneCoordinator
 
 
@@ -27,6 +27,13 @@ class FritzBoxPhoneEntity(CoordinatorEntity[FritzBoxPhoneCoordinator]):
     # this to the key the coordinator parks the matching event Context
     # under (see FritzBoxPhoneCoordinator._async_report_changes).
     _context_key: str | None = None
+
+    @property
+    def _privacy_attributes(self) -> dict[str, bool]:
+        """Tells the dashboard card to hide names and numbers until tapped."""
+        return {
+            "privacy_mode": bool(self._entry.options.get(CONF_PRIVACY_MODE, DEFAULT_PRIVACY_MODE))
+        }
 
     def __init__(self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator)

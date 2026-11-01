@@ -68,7 +68,8 @@
           "phoneblock_username": "PhoneBlock-Benutzername",
           "phoneblock_password": "PhoneBlock-Kennwort (leer lassen = unverändert)",
           "phoneblock_spam_threshold": "Spam-Schwellwert (%, ab dieser Spam-Wahrscheinlichkeit gilt eine Nummer als Spam)",
-          "reverse_lookup_enabled": "Online-Rückwärtssuche über Tellows aktivieren (sendet unbekannte Rufnummern im Klartext an tellows.de, kein Account nötig)"
+          "reverse_lookup_enabled": "Online-Rückwärtssuche über Tellows aktivieren (sendet unbekannte Rufnummern im Klartext an tellows.de, kein Account nötig)",
+          "privacy_mode": "Namen und Rufnummern in der Dashboard-Karte verbergen, bis eine Zeile angetippt wird (für Wandtablets)"
         }
       }
     },

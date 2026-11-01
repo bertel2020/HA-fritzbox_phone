@@ -68,7 +68,8 @@
           "phoneblock_username": "PhoneBlock username",
           "phoneblock_password": "PhoneBlock password (leave empty = unchanged)",
           "phoneblock_spam_threshold": "Spam threshold (%, a number counts as spam from this spam probability)",
-          "reverse_lookup_enabled": "Enable online reverse lookup via Tellows (sends unknown phone numbers in clear text to tellows.de, no account needed)"
+          "reverse_lookup_enabled": "Enable online reverse lookup via Tellows (sends unknown phone numbers in clear text to tellows.de, no account needed)",
+          "privacy_mode": "Hide names and numbers in the dashboard card until a row is tapped (for wall tablets)"
         }
       }
     },

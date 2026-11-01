@@ -125,7 +125,10 @@ class FritzBoxCallListSensor(FritzBoxPhoneEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        return {"calls": [_call_to_dict(call) for call in self.coordinator.data.calls]}
+        return {
+            "calls": [_call_to_dict(call) for call in self.coordinator.data.calls],
+            **self._privacy_attributes,
+        }
 
 
 class FritzBoxMissedCallsSensor(FritzBoxPhoneEntity, SensorEntity):
@@ -277,7 +280,8 @@ class FritzBoxPhonebookSensor(FritzBoxPhoneEntity, SensorEntity):
                     ],
                 }
                 for contact in phonebook.contacts
-            ]
+            ],
+            **self._privacy_attributes,
         }
 
 
@@ -326,6 +330,7 @@ class FritzBoxTamSensor(FritzBoxPhoneEntity, SensorEntity):
             "running": tam.running,
             "capacity_minutes_remaining": tam.capacity_minutes,
             "total_messages": len(tam.messages),
+            **self._privacy_attributes,
             "messages": [
                 {
                     "index": message.index,

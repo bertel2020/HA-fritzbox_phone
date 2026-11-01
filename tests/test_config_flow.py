@@ -135,6 +135,20 @@ async def test_options_require_phoneblock_credentials(hass: HomeAssistant) -> No
     assert result["errors"] == {"base": "phoneblock_credentials_required"}
 
 
+async def test_options_offer_the_privacy_mode(hass: HomeAssistant) -> None:
+    entry = MockConfigEntry(domain=DOMAIN, unique_id="ABC123", data=USER_INPUT)
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    key = next(key for key in result["data_schema"].schema if str(key) == "privacy_mode")
+    assert key.default() is False
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"privacy_mode": True}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"]["privacy_mode"] is True
+
+
 async def test_reauth_updates_credentials(hass: HomeAssistant) -> None:
     entry = MockConfigEntry(domain=DOMAIN, unique_id="ABC123", data=USER_INPUT)
     entry.add_to_hass(hass)

@@ -210,3 +210,14 @@ async def test_download_warns_that_the_file_is_public(
     )
     assert (tmp_path / "www" / "fritzbox_tam" / "a.wav").read_bytes() == b"RIFF"
     assert "ohne Anmeldung unter /local/fritzbox_tam/a.wav" in caplog.text
+
+
+async def test_sensors_tell_the_card_about_the_privacy_mode(hass: HomeAssistant) -> None:
+    for options, expected in (({}, False), ({"privacy_mode": True}, True)):
+        box = _box()
+        entry = await setup_integration(hass, box, options)
+        for suffix in ("call_list", "tam_0"):
+            state = hass.states.get(entity_id(hass, entry, suffix))
+            assert state.attributes["privacy_mode"] is expected
+        await hass.config_entries.async_remove(entry.entry_id)
+        await hass.async_block_till_done()
