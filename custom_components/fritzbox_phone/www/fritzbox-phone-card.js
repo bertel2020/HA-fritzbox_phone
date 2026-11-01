@@ -97,6 +97,7 @@ const TEXTS = {
     seek: "Position in der Aufnahme",
     err_load: "Fehler beim Laden der Nachricht: {error}",
     err_delete: "Fehler beim Löschen: {error}",
+    err_mark_read: "Die Nachricht wird abgespielt, konnte aber nicht als gelesen markiert werden: {error}",
     no_recording: "Zu dieser Nachricht gibt es keine Aufnahme.",
     callback: "Zurückrufen",
     redial: "Erneut anrufen",
@@ -197,6 +198,7 @@ const TEXTS = {
     seek: "Position in the recording",
     err_load: "Could not load the message: {error}",
     err_delete: "Could not delete: {error}",
+    err_mark_read: "The message is playing but could not be marked as read: {error}",
     no_recording: "This message has no recording.",
     callback: "Call back",
     redial: "Call again",
@@ -1719,7 +1721,9 @@ class FritzboxPhoneCard extends HTMLElement {
             message_key: message.key,
             read: true,
           })
-          .catch(() => {});
+          .catch((err) => {
+            this._toast(t("err_mark_read", { error: (err && err.message) || err }));
+          });
       }
     } catch (err) {
       this._toast(t("err_load", { error: (err && err.message) || err }));

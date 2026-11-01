@@ -223,6 +223,29 @@ test("delete asks first, then removes the row", async () => {
   assert.equal(root(card).querySelectorAll(".fb-row").length, 0);
 });
 
+test("a failed mark-as-read is reported while the message keeps playing", async () => {
+  const window = load();
+  const messages = [message(1)];
+  const hass = makeHass(
+    { "sensor.tam": state("sensor.tam", "1", { messages }) },
+    {
+      async callService(domain, service) {
+        if (service === "mark_message_read") throw new Error("box offline");
+      },
+    }
+  );
+  const card = mount(window, { entity: "sensor.tam" }, hass);
+  const notes = [];
+  card.addEventListener("hass-notification", (event) => notes.push(event.detail.message));
+
+  root(card).querySelector(".fb-play").click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(FakeAudio.instances[0].paused, false);
+  assert.equal(notes.length, 1);
+  assert.match(notes[0], /box offline/);
+});
+
 test("a double click on delete sends one request only", async () => {
   const window = load();
   const hass = makeHass({ "sensor.tam": state("sensor.tam", "1", { messages: [message(1)] }) });
