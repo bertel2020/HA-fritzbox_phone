@@ -748,3 +748,71 @@ test("no summary without recent calls or when switched off", () => {
   const off = statsCard([call(1, { date: avmDate(0) })], { show_stats: false });
   assert.equal(root(off).querySelector(".fb-stats"), null);
 });
+
+// A Home Assistant with the integration's sensors next to unrelated ones.
+function pickerHass() {
+  const own = { platform: "fritzbox_phone" };
+  return makeHass(
+    {
+      "sensor.backup_manager_state": state("sensor.backup_manager_state", "idle"),
+      "sensor.calls_today": state("sensor.calls_today", "4", { incoming: 2 }),
+      "sensor.talk_time_today": state("sensor.talk_time_today", "12"),
+      "sensor.call_list": state("sensor.call_list", "1", { calls: [call(1)] }),
+      "sensor.answering_machine": state("sensor.answering_machine", "1", { messages: [message(0)] }),
+      "sensor.phonebook": state("sensor.phonebook", "1", { contacts: [] }),
+      "sensor.call_monitor": state("sensor.call_monitor", "idle"),
+    },
+    {
+      entities: {
+        "sensor.backup_manager_state": { platform: "backup" },
+        "sensor.calls_today": own,
+        "sensor.talk_time_today": own,
+        "sensor.call_list": own,
+        "sensor.answering_machine": own,
+        "sensor.phonebook": own,
+        "sensor.call_monitor": own,
+      },
+    }
+  );
+}
+
+test("a new card does not preselect an unrelated sensor that happens to be idle", () => {
+  const window = load();
+  const hass = pickerHass();
+  delete hass.states["sensor.call_list"];
+  delete hass.states["sensor.answering_machine"];
+  delete hass.states["sensor.phonebook"];
+  delete hass.states["sensor.call_monitor"];
+  assert.equal(window.customElements.get("fritzbox-phone-card").getStubConfig(hass).entity, "");
+});
+
+test("a new card preselects an entity of the integration", () => {
+  const window = load();
+  const { entity } = window.customElements.get("fritzbox-phone-card").getStubConfig(pickerHass());
+  assert.notEqual(entity, "sensor.backup_manager_state");
+  assert.notEqual(entity, "sensor.calls_today");
+  assert.ok(entity.startsWith("sensor."));
+});
+
+function editorSchema(window, config = { entity: "sensor.call_list" }) {
+  const editor = window.document.createElement("fritzbox-phone-card-editor");
+  window.document.body.appendChild(editor);
+  editor.setConfig(config);
+  editor.hass = pickerHass();
+  return Object.fromEntries(editor._schema().map((field) => [field.name, field.selector]));
+}
+
+test("the editor offers only entities the card can show", () => {
+  const { entity } = editorSchema(load());
+  assert.deepEqual([...entity.entity.include_entities].sort(), [
+    "sensor.answering_machine",
+    "sensor.call_list",
+    "sensor.call_monitor",
+    "sensor.phonebook",
+  ]);
+});
+
+test("the answering machine picker lists only entities with messages", () => {
+  const schema = editorSchema(load());
+  assert.deepEqual([...schema.tam_entity.entity.include_entities], ["sensor.answering_machine"]);
+});
