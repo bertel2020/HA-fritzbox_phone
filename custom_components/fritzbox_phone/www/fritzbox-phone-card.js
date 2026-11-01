@@ -297,7 +297,7 @@ const STYLE_CSS = `
 
   .fb-list { display: flex; flex-direction: column; }
   .fb-row {
-    display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 10px;
+    display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 10px;
     padding: 8px 2px; border-top: 1px solid var(--divider-color);
   }
   .fb-row:first-child { border-top: none; }
@@ -328,8 +328,8 @@ const STYLE_CSS = `
   .fb-name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fb-row.is-new .fb-name { font-weight: 700; }
   .fb-meta {
-    font-size: 11.5px; color: var(--secondary-text-color); display: flex; gap: 6px;
-    margin-top: 1px; font-variant-numeric: tabular-nums;
+    font-size: 11.5px; color: var(--secondary-text-color); display: flex; flex-wrap: wrap;
+    column-gap: 6px; margin-top: 1px; font-variant-numeric: tabular-nums;
   }
 
   .fb-spam-badge {
