@@ -63,6 +63,11 @@ SERVICE_DELETE_MESSAGE = "delete_message"
 SERVICE_DOWNLOAD_MESSAGE = "download_message"
 
 # Authenticated delivery of answering machine recordings (views.py).
+# A recording larger than this is refused instead of being held in memory
+# (an answering machine message is a few hundred KB to a few MB), and at
+# most this many are fetched from the box at the same time.
+MAX_RECORDING_BYTES = 25 * 1024 * 1024
+MAX_PARALLEL_RECORDINGS = 2
 RECORDING_URL_TEMPLATE = "/api/fritzbox_phone/recording/{entry_id}/{tam_index}/{message_index}"
 RECORDING_URL_PATTERN = "/api/fritzbox_phone/recording/{entry_id}/{tam_index}/{message_index}"
 

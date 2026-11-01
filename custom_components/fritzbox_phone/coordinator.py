@@ -41,6 +41,7 @@ from .const import (
     CONTEXT_KEY_CALL_LIST,
     CONTEXT_KEY_MISSED_CALLS,
     CONTEXT_KEY_TAM,
+    MAX_PARALLEL_RECORDINGS,
     DEFAULT_CALL_LIST_DAYS,
     DEFAULT_CALL_LIST_MAX,
     DEFAULT_COUNTRY_PREFIX,
@@ -93,6 +94,9 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         # Needed by the lookup clients below, which run before the base
         # class has stored it.
         self.hass = hass
+        # Recording downloads wait here instead of piling up on executor
+        # threads (the box answers one request at a time anyway).
+        self.recording_slots = asyncio.Semaphore(MAX_PARALLEL_RECORDINGS)
         self.phoneblock = self._build_phoneblock_client()
         self.tellows = self._build_tellows_client()
         self._own_area_code: str | None = None

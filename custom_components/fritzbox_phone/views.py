@@ -21,6 +21,7 @@ from homeassistant.components.http import HomeAssistantView
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 
+from .api import RecordingTooLarge
 from .const import DOMAIN, RECORDING_URL_TEMPLATE, RECORDING_URL_PATTERN
 
 _LOGGER = logging.getLogger(__name__)
@@ -74,12 +75,15 @@ class FritzBoxRecordingView(HomeAssistantView):
             return web.Response(status=HTTPStatus.BAD_REQUEST)
 
         try:
-            audio = await hass.async_add_executor_job(
-                coordinator.fetch_recording,
-                int(tam_index),
-                int(message_index),
-                request.query.get("key"),
-            )
+            async with coordinator.recording_slots:
+                audio = await hass.async_add_executor_job(
+                    coordinator.fetch_recording,
+                    int(tam_index),
+                    int(message_index),
+                    request.query.get("key"),
+                )
+        except RecordingTooLarge:
+            return web.Response(status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
         except ValueError:
             return web.Response(status=HTTPStatus.NOT_FOUND)
         except (FritzConnectionException, requests.RequestException, OSError) as err:
