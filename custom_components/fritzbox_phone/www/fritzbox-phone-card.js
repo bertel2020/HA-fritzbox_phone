@@ -114,6 +114,14 @@ const TEXTS = {
     redial: "Erneut anrufen",
     dial_started: "Wählhilfe gestartet - das Telefon klingelt gleich.",
     dial_failed: "Anruf konnte nicht gestartet werden: {error}",
+    block: "Sperren",
+    confirm_block: "{number} in der FRITZ!Box sperren?",
+    blocked: "{number} ist gesperrt.",
+    block_failed: "Sperren fehlgeschlagen: {error}",
+    add_contact: "Ins Telefonbuch",
+    contact_prompt: "Name für {number}:",
+    contact_added: "{name} wurde ins Telefonbuch aufgenommen.",
+    contact_failed: "Kontakt konnte nicht angelegt werden: {error}",
     search: "Kontakte durchsuchen",
     no_contacts: "Keine Kontakte",
     no_matches: "Keine Treffer",
@@ -128,6 +136,7 @@ const TEXTS = {
     e_show_legend: "Filter-Legende anzeigen",
     e_show_stats: "Tageszusammenfassung anzeigen",
     e_show_dial: "Rückruf-Knöpfe anzeigen",
+    e_show_manage: "Knöpfe zum Sperren und Speichern anzeigen",
     e_tam_entity:
       "Verknüpfter Anrufbeantworter (optional) - zeigt dessen Nachrichten in derselben Karte",
     e_mark_read_on_play: "Beim Abspielen als gelesen markieren",
@@ -229,6 +238,14 @@ const TEXTS = {
     redial: "Call again",
     dial_started: "Dial help started - your phone is about to ring.",
     dial_failed: "Could not start the call: {error}",
+    block: "Block",
+    confirm_block: "Block {number} on the FRITZ!Box?",
+    blocked: "{number} is blocked.",
+    block_failed: "Could not block: {error}",
+    add_contact: "Add to phonebook",
+    contact_prompt: "Name for {number}:",
+    contact_added: "{name} was added to the phonebook.",
+    contact_failed: "Could not create the contact: {error}",
     search: "Search contacts",
     no_contacts: "No contacts",
     no_matches: "No matches",
@@ -243,6 +260,7 @@ const TEXTS = {
     e_show_legend: "Show filter legend",
     e_show_stats: "Show today's summary",
     e_show_dial: "Show call back buttons",
+    e_show_manage: "Show block and save-contact buttons",
     e_tam_entity:
       "Linked answering machine (optional) - shows its messages in the same card",
     e_mark_read_on_play: "Mark as read when played",
@@ -1244,6 +1262,69 @@ class FritzboxPhoneCard extends HTMLElement {
     return button;
   }
 
+  // "Block" and "Add to phonebook" for a number in a call or a message. Both
+  // are opt-in (`show_manage`): blocking a number is not something to hand
+  // out by default.
+  _buildManageButtons(number, entityId, item, outgoing) {
+    const t = this._t;
+    const make = (icon, labelKey, run) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "fb-link-btn";
+      button.appendChild(haIcon(icon));
+      button.appendChild(textSpan(t(labelKey)));
+      button.setAttribute("aria-label", `${t(labelKey)}: ${number}`);
+      if (this._offline.has(entityId)) {
+        button.disabled = true;
+        button.title = t("offline_action");
+      }
+      button.addEventListener("click", async (event) => {
+        event.stopPropagation();
+        button.disabled = true;
+        try {
+          await run();
+        } finally {
+          button.disabled = false;
+        }
+      });
+      return button;
+    };
+    const target = () => {
+      const deviceId = this._deviceId(entityId);
+      return deviceId ? { device_id: deviceId } : undefined;
+    };
+    const buttons = [];
+    if (!item.name) {
+      buttons.push(
+        make("mdi:account-plus", "add_contact", async () => {
+          const answer = window.prompt(t("contact_prompt", { number }), item.reverse_name || "");
+          const name = answer && answer.trim();
+          if (!name) return;
+          try {
+            await this._hass.callService("fritzbox_phone", "add_contact", { number, name }, target());
+            this._toast(t("contact_added", { name }));
+          } catch (err) {
+            this._toast(t("contact_failed", { error: (err && err.message) || err }));
+          }
+        })
+      );
+    }
+    if (!outgoing) {
+      buttons.push(
+        make("mdi:phone-off", "block", async () => {
+          if (!window.confirm(t("confirm_block", { number }))) return;
+          try {
+            await this._hass.callService("fritzbox_phone", "block_number", { number }, target());
+            this._toast(t("blocked", { number }));
+          } catch (err) {
+            this._toast(t("block_failed", { error: (err && err.message) || err }));
+          }
+        })
+      );
+    }
+    return buttons;
+  }
+
   // ------------------------------------------------------------------
   // Call monitor
   // ------------------------------------------------------------------
@@ -1630,6 +1711,11 @@ class FritzboxPhoneCard extends HTMLElement {
         this._buildDialButton(number, entityId, call.type === "outgoing" ? "redial" : "callback")
       );
     }
+    if (!masked && this._config.show_manage === true && number && !call.is_fax) {
+      for (const button of this._buildManageButtons(number, entityId, call, call.type === "outgoing")) {
+        details.appendChild(button);
+      }
+    }
     row.appendChild(details);
     return row;
   }
@@ -1757,6 +1843,11 @@ class FritzboxPhoneCard extends HTMLElement {
     const number = dialableNumber(message.number);
     if (!masked && this._config.show_dial !== false && number) {
       details.appendChild(this._buildDialButton(number, entityId));
+    }
+    if (!masked && this._config.show_manage === true && number) {
+      for (const button of this._buildManageButtons(number, entityId, message, false)) {
+        details.appendChild(button);
+      }
     }
     row.appendChild(details);
     return row;
@@ -2209,6 +2300,9 @@ class FritzboxPhoneCardEditor extends HTMLElement {
     }
     if (["calls", "messages", "phonebook"].includes(kind)) {
       schema.push({ name: "show_dial", selector: { boolean: {} } });
+    }
+    if (["calls", "messages"].includes(kind)) {
+      schema.push({ name: "show_manage", selector: { boolean: {} } });
     }
     if (["calls", "messages", "phonebook"].includes(kind)) {
       schema.push({

@@ -6,6 +6,10 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Hinzugefügt
 
+- Karte: Mit der neuen Option `show_manage` zeigt eine aufgeklappte Zeile die
+  Knöpfe „Sperren“ (mit Rückfrage) und „Ins Telefonbuch“ (fragt nach dem
+  Namen, nur bei Anrufern ohne Namen). Beide nutzen die Aktionen
+  `block_number` und `add_contact`. Standardmäßig aus.
 - Schalter für die Rufumleitungen der FRITZ!Box: Jede dort eingerichtete
   Umleitung erscheint als Schalter („Umleitung auf …“) und lässt sich ein- und
   ausschalten, etwa für „nachts aufs Handy umleiten“ per Automation. Eine Box

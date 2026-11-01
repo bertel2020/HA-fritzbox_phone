@@ -557,6 +557,80 @@ test("no call back button for a caller without a dialable number", () => {
   assert.equal(root(card).querySelector(".fb-link-btn"), null);
 });
 
+const manageButtons = (card) =>
+  [...root(card).querySelectorAll(".fb-link-btn")].map((b) => b.textContent.trim());
+
+test("block and save-contact buttons are off unless asked for", () => {
+  const window = load();
+  const hass = makeHass({ "sensor.calls": state("sensor.calls", "1", { calls: [call("1")] }) });
+  const card = mount(window, { entity: "sensor.calls" }, hass);
+  assert.deepEqual(manageButtons(card), ["Call back"]);
+});
+
+test("block asks first, then blocks through the integration", async () => {
+  const window = load();
+  const hass = makeHass({ "sensor.calls": state("sensor.calls", "1", { calls: [call("1")] }) });
+  const card = mount(window, { entity: "sensor.calls", show_manage: true }, hass);
+  assert.deepEqual(manageButtons(card), ["Call back", "Add to phonebook", "Block"]);
+  const block = [...root(card).querySelectorAll(".fb-link-btn")].find((b) => b.textContent.includes("Block"));
+
+  window.confirm = () => false;
+  block.click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(hass.calls.length, 0);
+
+  window.confirm = () => true;
+  block.click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(JSON.parse(JSON.stringify(hass.calls[0])), {
+    domain: "fritzbox_phone",
+    service: "block_number",
+    data: { number: "030123456" },
+    target: { device_id: "dev1" },
+  });
+});
+
+test("add to phonebook sends the name that was typed", async () => {
+  const window = load();
+  const hass = makeHass({ "sensor.calls": state("sensor.calls", "1", { calls: [call("1")] }) });
+  const card = mount(window, { entity: "sensor.calls", show_manage: true }, hass);
+  const add = [...root(card).querySelectorAll(".fb-link-btn")].find((b) => b.textContent.includes("phonebook"));
+
+  window.prompt = () => "   ";
+  add.click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(hass.calls.length, 0);
+
+  window.prompt = () => " Anna ";
+  add.click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(JSON.parse(JSON.stringify(hass.calls[0])), {
+    domain: "fritzbox_phone",
+    service: "add_contact",
+    data: { number: "030123456", name: "Anna" },
+    target: { device_id: "dev1" },
+  });
+});
+
+test("known callers cannot be added again and outgoing calls cannot be blocked", () => {
+  const window = load();
+  const calls = [
+    call("1", { name: "Anna" }),
+    call("2", { type: "outgoing", called_number: "0301111", caller_number: "075271" }),
+  ];
+  const card = mount(
+    window,
+    { entity: "sensor.calls", show_manage: true },
+    makeHass({ "sensor.calls": state("sensor.calls", "2", { calls }) }),
+  );
+  const labels = (type) =>
+    [...root(card).querySelectorAll(`.fb-row[data-type="${type}"] .fb-link-btn`)].map((b) =>
+      b.textContent.trim(),
+    );
+  assert.deepEqual(labels("fb-in"), ["Call back", "Block"]);
+  assert.deepEqual(labels("fb-out"), ["Call again", "Add to phonebook"]);
+});
+
 test("phonebook view searches by name and number", () => {
   const window = load();
   const contacts = [
