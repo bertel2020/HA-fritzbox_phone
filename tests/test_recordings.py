@@ -194,3 +194,19 @@ async def test_recording_of_a_changed_message_is_404(
     path = f"/api/fritzbox_phone/recording/{entry.entry_id}/0/3"
     assert (await client.get(path, params={"key": "01.01.26 10:03|030123456"})).status == 200
     assert (await client.get(path, params={"key": "01.01.26 10:09|030000"})).status == 404
+
+
+async def test_download_warns_that_the_file_is_public(
+    hass: HomeAssistant, tmp_path, caplog
+) -> None:
+    entry = await setup_integration(hass, _box())
+    hass.config.config_dir = str(tmp_path)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "download_message",
+        {"entity_id": entity_id(hass, entry, "tam_0"), "message_index": 3, "filename": "a.wav"},
+        blocking=True,
+    )
+    assert (tmp_path / "www" / "fritzbox_tam" / "a.wav").read_bytes() == b"RIFF"
+    assert "ohne Anmeldung unter /local/fritzbox_tam/a.wav" in caplog.text

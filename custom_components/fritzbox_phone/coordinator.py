@@ -688,6 +688,13 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         dest_dir.mkdir(parents=True, exist_ok=True)
         dest_path = dest_dir / safe_filename
         dest_path.write_bytes(audio)
+        _LOGGER.warning(
+            "Aufnahme gespeichert unter %s - sie ist ohne Anmeldung unter "
+            "/local/fritzbox_tam/%s abrufbar. Die Karte spielt Aufnahmen "
+            "angemeldet ab, ohne Export.",
+            dest_path,
+            safe_filename,
+        )
         return str(dest_path)
 
 
