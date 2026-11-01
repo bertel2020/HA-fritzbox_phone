@@ -192,6 +192,11 @@ class FritzCallMonitor:
         self._failures = 0
         self._tasks: set[asyncio.Task] = set()
 
+    @property
+    def failures(self) -> int:
+        """Connection attempts in a row that failed (0 while connected)."""
+        return self._failures
+
     # ------------------------------------------------------------------
     # Listeners
     # ------------------------------------------------------------------

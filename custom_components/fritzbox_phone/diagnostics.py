@@ -13,6 +13,7 @@ from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 
 from .const import CONF_PHONEBLOCK_PASSWORD, CONF_PHONEBLOCK_USERNAME
+from .health import describe_error
 from .runtime import FritzBoxPhoneConfigEntry
 
 TO_REDACT = {
@@ -44,6 +45,11 @@ async def async_get_config_entry_diagnostics(
         },
         "coordinator": {
             "last_update_success": coordinator.last_update_success,
+            "last_error": (
+                describe_error(coordinator.last_exception)
+                if coordinator.last_exception is not None
+                else None
+            ),
             "update_interval_seconds": (
                 coordinator.update_interval.total_seconds() if coordinator.update_interval else None
             ),
@@ -72,12 +78,22 @@ async def async_get_config_entry_diagnostics(
             "lookups": {
                 "phoneblock_enabled": coordinator.phoneblock is not None,
                 "reverse_lookup_enabled": coordinator.tellows is not None,
+                "phoneblock": (
+                    coordinator.phoneblock.health.as_dict() if coordinator.phoneblock else None
+                ),
+                "reverse_lookup": (
+                    coordinator.tellows.health.as_dict() if coordinator.tellows else None
+                ),
             },
         },
         "call_monitor": (
             None
             if monitor is None
-            else {"connected": monitor.connected, "state": monitor.state}
+            else {
+                "connected": monitor.connected,
+                "state": monitor.state,
+                "connection_failures": monitor.failures,
+            }
         ),
     }
 

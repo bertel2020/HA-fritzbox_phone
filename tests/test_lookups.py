@@ -79,6 +79,45 @@ async def test_phoneblock_failure_is_remembered_briefly(
     assert aioclient_mock.call_count == 1
 
 
+async def test_phoneblock_reports_an_outage_once_and_its_recovery(
+    hass: HomeAssistant, aioclient_mock, caplog
+) -> None:
+    aioclient_mock.get(PHONEBLOCK_URL, status=401)
+    client = PhoneBlockClient(
+        async_get_clientsession(hass),
+        "user",
+        "pw",
+        country_prefix="+49",
+        spam_threshold=50,
+        cache=LookupCache(failure_ttl=0),
+    )
+    assert client.health.status == "unknown"
+
+    for number in ("+4930111", "+4930222"):
+        await client.check(number)
+    assert client.health.status == "unknown"  # two lost requests are a hiccup
+    assert "Abfragen in Folge" not in caplog.text
+
+    await client.check("+4930333")
+    assert client.health.status == "error"
+    assert client.health.last_error == "ClientResponseError 401"
+    assert caplog.text.count("Abfragen in Folge fehlgeschlagen") == 1
+    assert "Zugangsdaten" in caplog.text
+
+    await client.check("+4930444")
+    assert caplog.text.count("Abfragen in Folge fehlgeschlagen") == 1  # still only once
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(PHONEBLOCK_URL, json={"spamConfidence": 10})
+    await client.check("+4930555")
+    assert client.health.status == "ok"
+    assert client.health.consecutive_failures == 0
+    assert "antwortet wieder" in caplog.text
+    # What is kept is the kind of error, never a number.
+    dump = str(client.health.as_dict())
+    assert "4930" not in dump
+
+
 async def test_tellows_parses_response_with_trailing_junk(
     hass: HomeAssistant, aioclient_mock
 ) -> None:

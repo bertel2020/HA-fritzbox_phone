@@ -30,6 +30,7 @@ from typing import Any
 import aiohttp
 
 from .cache import LookupCache
+from .health import LookupHealth
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -95,6 +96,7 @@ class PhoneBlockClient:
         self._spam_threshold = spam_threshold
         self._timeout = aiohttp.ClientTimeout(total=timeout)
         self._cache: LookupCache[PhoneBlockInfo] = cache or LookupCache()
+        self.health = LookupHealth("PhoneBlock")
 
     async def check(self, number: str | None) -> PhoneBlockInfo | None:
         """Look up a number's spam rating. Returns None on any failure."""
@@ -114,8 +116,10 @@ class PhoneBlockClient:
             # updates, so we deliberately swallow everything and just skip
             # enrichment for this number.
             _LOGGER.debug("PhoneBlock-Abfrage fehlgeschlagen: %s", err)
+            self.health.record_failure(err)
             self._cache.set(e164, None, failed=True)
             return None
+        self.health.record_success()
         self._cache.set(e164, info)
         return info
 
