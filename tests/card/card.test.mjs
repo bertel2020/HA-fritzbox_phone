@@ -222,6 +222,50 @@ test("delete asks first, then removes the row", async () => {
   assert.equal(root(card).querySelectorAll(".fb-row").length, 0);
 });
 
+test("a list stays visible as stale while the entity is unavailable", () => {
+  const window = load();
+  const live = makeHass({ "sensor.tam": state("sensor.tam", "1", { messages: [message(1)] }) });
+  live.states["sensor.tam"].last_updated = "2026-01-01T10:15:00+00:00";
+  const card = mount(window, { entity: "sensor.tam" }, live);
+  assert.equal(root(card).querySelector(".fb-stale"), null);
+
+  card.hass = makeHass({ "sensor.tam": { entity_id: "sensor.tam", state: "unavailable", attributes: {} } });
+  assert.equal(root(card).querySelectorAll(".fb-row").length, 1);
+  const notice = root(card).querySelector(".fb-stale");
+  assert.ok(notice);
+  assert.equal(notice.getAttribute("role"), "status");
+  assert.match(notice.textContent, /Connection to the FRITZ!Box lost/);
+  assert.doesNotMatch(text(card), /is unavailable/);
+
+  card.hass = makeHass({ "sensor.tam": state("sensor.tam", "1", { messages: [message(1)] }) });
+  assert.equal(root(card).querySelector(".fb-stale"), null);
+});
+
+test("without a list seen before an unavailable entity shows the plain notice", () => {
+  const window = load();
+  const down = makeHass({ "sensor.tam": { entity_id: "sensor.tam", state: "unavailable", attributes: {} } });
+  const card = mount(window, { entity: "sensor.tam" }, down);
+  assert.equal(root(card).querySelector(".fb-stale"), null);
+  assert.match(text(card), /sensor\.tam is unavailable/);
+});
+
+test("a linked answering machine going down marks the call list as partly stale", () => {
+  const window = load();
+  const calls = [call("1", { is_answering_machine: true, tam_index: 0, tam_message_index: 1 })];
+  const up = makeHass({
+    "sensor.calls": state("sensor.calls", "1", { calls }),
+    "sensor.tam": state("sensor.tam", "1", { tam_index: 0, messages: [message(1)] }),
+  });
+  const card = mount(window, { entity: "sensor.calls", tam_entity: "sensor.tam" }, up);
+
+  card.hass = makeHass({
+    "sensor.calls": state("sensor.calls", "1", { calls }),
+    "sensor.tam": { entity_id: "sensor.tam", state: "unavailable", attributes: {} },
+  });
+  assert.ok(root(card).querySelector(".fb-stale"));
+  assert.ok(root(card).querySelector(".fb-play"), "the recording row is still there");
+});
+
 test("a call is linked to its message by the integration's index", () => {
   const window = load();
   const calls = [
