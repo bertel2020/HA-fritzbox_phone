@@ -817,6 +817,9 @@ class FritzboxPhoneCard extends HTMLElement {
   static getStubConfig(hass) {
     const entity = Object.keys(hass.states || {}).find((id) => {
       if (!id.startsWith("sensor.")) return false;
+      // "idle" is also the state of unrelated sensors (e.g. the backup manager).
+      const entry = hass.entities && hass.entities[id];
+      if (entry && entry.platform !== "fritzbox_phone") return false;
       const attrs = hass.states[id].attributes || {};
       return (
         Array.isArray(attrs.calls) ||
