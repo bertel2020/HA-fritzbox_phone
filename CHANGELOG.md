@@ -6,6 +6,11 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Hinzugefügt
 
+- Karte: Die Tageszusammenfassung lässt sich zwischen „Heute“, „7 Tage“ und
+  „30 Tage“ umschalten. Bei den längeren Zeiträumen zeigt sie je Tag einen
+  Balken, der verpasste Anrufe farbig markiert. Gezählt wird, was die
+  FRITZ!Box noch in der Anrufliste hat. Die Zeile erscheint jetzt auch an einem
+  ruhigen Tag („Heute: keine Anrufe“), sobald es Anrufe der letzten 30 Tage gibt.
 - Statussensoren für PhoneBlock und die Online-Rückwärtssuche (Kategorie
   Diagnose, nur bei eingeschaltetem Dienst). Bisher blieb ein Ausfall oder ein
   falsches PhoneBlock-Kennwort unsichtbar und sah aus wie „kein Spam gefunden“.

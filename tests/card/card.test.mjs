@@ -674,3 +674,77 @@ test("the daily summary is redrawn when the day rolls over", () => {
   midnight.fn();
   assert.notEqual(root(card).querySelector("style"), before);
 });
+
+// A call list date such as "01.01.26 10:00", shifted back by whole days.
+function avmDate(daysAgo = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  const p = (n) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${String(d.getFullYear()).slice(-2)} 10:00`;
+}
+
+function statsCard(calls, config = {}) {
+  const window = load();
+  const hass = makeHass({ "sensor.calls": state("sensor.calls", "1", { calls }) });
+  return mount(window, { entity: "sensor.calls", ...config }, hass);
+}
+
+test("the daily summary counts today's calls and the missed ones", () => {
+  const card = statsCard([
+    call(1, { date: avmDate(0) }),
+    call(2, { date: avmDate(0), type: "missed" }),
+    call(3, { date: avmDate(1) }),
+  ]);
+  assert.equal(root(card).querySelector(".fb-stats").textContent, "Today: 2 calls, 1 missed");
+});
+
+test("the daily summary uses the singular for a single call", () => {
+  const card = statsCard([call(1, { date: avmDate(0) })]);
+  assert.equal(root(card).querySelector(".fb-stats").textContent, "Today: 1 call, 0 missed");
+});
+
+test("the summary can be switched to 7 days and shows a bar per day", () => {
+  const card = statsCard([
+    call(1, { date: avmDate(0) }),
+    call(2, { date: avmDate(2), type: "missed" }),
+    call(3, { date: avmDate(10) }),
+  ]);
+  assert.equal(root(card).querySelector(".fb-bars"), null);
+
+  const week = [...root(card).querySelectorAll(".fb-period")].find((b) => b.textContent === "7 days");
+  week.click();
+  assert.equal(root(card).querySelector(".fb-stats").textContent, "Last 7 days: 2 calls, 1 missed");
+  assert.equal(root(card).querySelectorAll(".fb-bar").length, 7);
+  assert.equal(root(card).querySelectorAll(".fb-bar-missed").length, 1);
+  assert.equal(root(card).querySelector('.fb-period[aria-pressed="true"]').textContent, "7 days");
+
+  const month = [...root(card).querySelectorAll(".fb-period")].find((b) => b.textContent === "30 days");
+  month.click();
+  assert.equal(root(card).querySelector(".fb-stats").textContent, "Last 30 days: 3 calls, 1 missed");
+  assert.equal(root(card).querySelectorAll(".fb-bar").length, 30);
+});
+
+test("the chosen period survives a redraw", () => {
+  const window = load();
+  const list = [call(1, { date: avmDate(0) })];
+  const card = mount(
+    window,
+    { entity: "sensor.calls" },
+    makeHass({ "sensor.calls": state("sensor.calls", "1", { calls: list }) })
+  );
+  [...root(card).querySelectorAll(".fb-period")].find((b) => b.textContent === "7 days").click();
+  card.hass = makeHass({ "sensor.calls": state("sensor.calls", "2", { calls: list }) });
+  assert.match(root(card).querySelector(".fb-stats").textContent, /^Last 7 days/);
+});
+
+test("a quiet day still offers the switch when older calls exist", () => {
+  const card = statsCard([call(1, { date: avmDate(3) })]);
+  assert.equal(root(card).querySelector(".fb-stats").textContent, "Today: no calls");
+  assert.equal(root(card).querySelectorAll(".fb-period").length, 3);
+});
+
+test("no summary without recent calls or when switched off", () => {
+  assert.equal(statsCard([call(1, { date: "01.01.20 10:00" })]).shadowRoot.querySelector(".fb-stats"), null);
+  const off = statsCard([call(1, { date: avmDate(0) })], { show_stats: false });
+  assert.equal(root(off).querySelector(".fb-stats"), null);
+});

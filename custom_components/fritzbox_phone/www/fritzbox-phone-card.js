@@ -62,6 +62,14 @@ const TEXTS = {
     n_new: "{n} neu",
     stats: "Heute: {calls} Anrufe, {missed} verpasst",
     stats_one: "Heute: 1 Anruf, {missed} verpasst",
+    stats_none: "Heute: keine Anrufe",
+    stats_days: "Letzte {days} Tage: {calls} Anrufe, {missed} verpasst",
+    stats_one_days: "Letzte {days} Tage: 1 Anruf, {missed} verpasst",
+    stats_none_days: "Letzte {days} Tage: keine Anrufe",
+    period_today: "Heute",
+    period_week: "7 Tage",
+    period_month: "30 Tage",
+    bar_title: "{date}: {calls} Anrufe, {missed} verpasst",
     d_call_type: "Anruftyp",
     d_number: "Rufnummer",
     d_begin: "Beginn",
@@ -169,6 +177,14 @@ const TEXTS = {
     n_new: "{n} new",
     stats: "Today: {calls} calls, {missed} missed",
     stats_one: "Today: 1 call, {missed} missed",
+    stats_none: "Today: no calls",
+    stats_days: "Last {days} days: {calls} calls, {missed} missed",
+    stats_one_days: "Last {days} days: 1 call, {missed} missed",
+    stats_none_days: "Last {days} days: no calls",
+    period_today: "Today",
+    period_week: "7 days",
+    period_month: "30 days",
+    bar_title: "{date}: {calls} calls, {missed} missed",
     d_call_type: "Call type",
     d_number: "Phone number",
     d_begin: "Start",
@@ -457,7 +473,25 @@ const STYLE_CSS = `
     outline: 2px solid var(--primary-color); outline-offset: 2px;
   }
   .fb-progress { height: 6px; cursor: pointer; }
-  .fb-stats { font-size: 12px; color: var(--secondary-text-color); margin: 0 0 8px; }
+  .fb-stats-box { margin: 0 0 8px; }
+  .fb-stats-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .fb-stats { font-size: 12px; color: var(--secondary-text-color); }
+  .fb-periods { display: flex; gap: 2px; }
+  .fb-period {
+    font: inherit; font-size: 11px; color: var(--secondary-text-color); background: none;
+    border: none; border-radius: 999px; padding: 2px 8px; cursor: pointer;
+  }
+  .fb-period:hover { background: var(--secondary-background-color); }
+  .fb-period[aria-pressed="true"] {
+    color: var(--primary-text-color); background: var(--secondary-background-color); font-weight: 600;
+  }
+  .fb-bars { display: flex; align-items: flex-end; gap: 2px; height: 28px; margin: 6px 0 0; }
+  .fb-bar {
+    flex: 1; min-height: 3px; position: relative; overflow: hidden;
+    border-radius: 2px 2px 0 0; background: var(--fb-c-in);
+  }
+  .fb-bar-empty { height: 3px; background: var(--divider-color); }
+  .fb-bar-missed { position: absolute; left: 0; right: 0; bottom: 0; background: var(--fb-c-miss); }
 
   .fb-search {
     width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; padding: 8px 10px;
@@ -676,6 +710,7 @@ function formatElapsed(seconds) {
   return h > 0 ? `${h}:${pad2(m)}:${ss}` : `${m}:${ss}`;
 }
 
+const STATS_PERIODS = { today: 1, week: 7, month: 30 };
 const CALLMONITOR_STATES = ["idle", "ringing", "dialing", "talking"];
 
 const CALLMONITOR_VISUALS = {
@@ -1361,6 +1396,91 @@ class FritzboxPhoneCard extends HTMLElement {
     return findMatchingTamMessage(call, tamContext.messages, claimed);
   }
 
+  // Summary line with a switch between today, 7 and 30 days. The longer
+  // periods add one bar per day. It only knows the calls the box still lists.
+  _buildStats(calls) {
+    const t = this._t;
+    const days = STATS_PERIODS[this._ui.period] || 1;
+    const today = new Date();
+    const first = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 29);
+    const perDay = Array.from({ length: 30 }, () => ({ calls: 0, missed: 0 }));
+    let any = false;
+    for (const call of calls) {
+      const dt = parseAvmDate(call.date);
+      if (!dt) continue;
+      // Rounding absorbs the 23/25 hour days around a clock change.
+      const index = Math.round(
+        (new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()) - first) / 86400000
+      );
+      if (index < 0 || index > 29) continue;
+      any = true;
+      perDay[index].calls += 1;
+      if (call.type === "missed") perDay[index].missed += 1;
+    }
+    if (!any) return null;
+
+    const shown = perDay.slice(30 - days);
+    const total = shown.reduce((sum, day) => sum + day.calls, 0);
+    const missed = shown.reduce((sum, day) => sum + day.missed, 0);
+    const box = document.createElement("div");
+    box.className = "fb-stats-box";
+
+    const head = document.createElement("div");
+    head.className = "fb-stats-head";
+    const line = document.createElement("div");
+    line.className = "fb-stats";
+    const suffix = days === 1 ? "" : "_days";
+    const key = total === 0 ? "stats_none" : total === 1 ? "stats_one" : "stats";
+    line.textContent = t(key + suffix, { calls: total, missed, days });
+    head.appendChild(line);
+
+    const switcher = document.createElement("div");
+    switcher.className = "fb-periods";
+    for (const [period, length] of Object.entries(STATS_PERIODS)) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "fb-period";
+      button.textContent = t(`period_${period}`);
+      button.setAttribute("aria-pressed", String(length === days));
+      button.addEventListener("click", () => {
+        this._ui.period = period;
+        const fresh = this._buildStats(calls);
+        box.replaceWith(fresh);
+        fresh.querySelector('[aria-pressed="true"]').focus();
+      });
+      switcher.appendChild(button);
+    }
+    head.appendChild(switcher);
+    box.appendChild(head);
+
+    if (days > 1) {
+      const peak = Math.max(1, ...shown.map((day) => day.calls));
+      const bars = document.createElement("div");
+      bars.className = "fb-bars";
+      bars.setAttribute("aria-hidden", "true");
+      shown.forEach((day, i) => {
+        const bar = document.createElement("span");
+        bar.className = day.calls ? "fb-bar" : "fb-bar fb-bar-empty";
+        bar.style.height = day.calls ? `${Math.round((day.calls / peak) * 100)}%` : "";
+        const date = new Date(first.getFullYear(), first.getMonth(), first.getDate() + 30 - days + i);
+        bar.title = t("bar_title", {
+          date: date.toLocaleDateString(t.lang, { day: "numeric", month: "numeric" }),
+          calls: day.calls,
+          missed: day.missed,
+        });
+        if (day.missed) {
+          const part = document.createElement("span");
+          part.className = "fb-bar-missed";
+          part.style.height = `${Math.round((day.missed / day.calls) * 100)}%`;
+          bar.appendChild(part);
+        }
+        bars.appendChild(bar);
+      });
+      box.appendChild(bars);
+    }
+    return box;
+  }
+
   _buildCallsList(calls, tamContext, entityId) {
     const t = this._t;
     const body = document.createElement("div");
@@ -1378,21 +1498,9 @@ class FritzboxPhoneCard extends HTMLElement {
     const list = document.createElement("div");
     list.className = "fb-list";
 
-    if (this._config.show_stats !== false && calls.length > 0) {
-      const today = new Date();
-      const todays = calls.filter((c) => {
-        const dt = parseAvmDate(c.date);
-        return dt && isSameDay(dt, today);
-      });
-      if (todays.length > 0) {
-        const stats = document.createElement("div");
-        stats.className = "fb-stats";
-        stats.textContent = t(todays.length === 1 ? "stats_one" : "stats", {
-          calls: todays.length,
-          missed: todays.filter((c) => c.type === "missed").length,
-        });
-        body.appendChild(stats);
-      }
+    if (this._config.show_stats !== false) {
+      const stats = this._buildStats(calls);
+      if (stats) body.appendChild(stats);
     }
     if (this._config.show_legend !== false) {
       body.appendChild(
