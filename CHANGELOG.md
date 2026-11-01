@@ -27,6 +27,8 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 ### Geändert
 
 - Karte: Die Fortschrittsleiste ist ein Regler und per Tastatur bedienbar.
+- Karte: Esc schließt die Löschabfrage, und nach dem Löschen springt der Fokus
+  auf die nächste Zeile.
 - Aufnahmen werden nur noch bis 25 MB geladen (sonst HTTP 413), höchstens zwei
   gleichzeitig.
 - `download_message` schreibt eine Warnung ins Protokoll, dass die Datei unter

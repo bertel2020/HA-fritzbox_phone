@@ -223,6 +223,38 @@ test("delete asks first, then removes the row", async () => {
   assert.equal(root(card).querySelectorAll(".fb-row").length, 0);
 });
 
+test("escape closes the delete question and returns the focus", () => {
+  const window = load();
+  const hass = makeHass({ "sensor.tam": state("sensor.tam", "1", { messages: [message(1)] }) });
+  const card = mount(window, { entity: "sensor.tam" }, hass);
+  const row = root(card).querySelector(".fb-row");
+
+  root(card).querySelector(".fb-del").click();
+  assert.ok(row.classList.contains("is-confirming"));
+  root(card)
+    .querySelector(".fb-confirm-yes")
+    .dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  assert.equal(row.classList.contains("is-confirming"), false);
+  assert.equal(root(card).activeElement, root(card).querySelector(".fb-del"));
+  assert.equal(hass.calls.some((c) => c.service === "delete_message"), false);
+});
+
+test("after a delete the focus moves to the next row", async () => {
+  const window = load();
+  const messages = [message(1), message(2)];
+  const hass = makeHass({ "sensor.tam": state("sensor.tam", "2", { messages }) });
+  const card = mount(window, { entity: "sensor.tam" }, hass);
+
+  root(card).querySelector(".fb-del").click();
+  const yes = root(card).querySelector(".fb-confirm-yes");
+  yes.focus();
+  yes.click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(root(card).querySelectorAll(".fb-row").length, 1);
+  assert.equal(root(card).activeElement, root(card).querySelector(".fb-main"));
+});
+
 test("a failed mark-as-read is reported while the message keeps playing", async () => {
   const window = load();
   const messages = [message(1)];

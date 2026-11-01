@@ -1699,10 +1699,17 @@ class FritzboxPhoneCard extends HTMLElement {
       this._ui.confirming.add(key);
       yes.focus();
     });
-    no.addEventListener("click", () => {
+    const cancelConfirm = () => {
       row.classList.remove("is-confirming");
       this._ui.confirming.delete(key);
       delBtn.focus();
+    };
+    no.addEventListener("click", cancelConfirm);
+    confirm.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      // Close the question only, not a dialog the card may sit in.
+      event.stopPropagation();
+      cancelConfirm();
     });
     yes.addEventListener("click", () => this._handleDelete(entityId, message, key, row));
   }
@@ -1783,7 +1790,13 @@ class FritzboxPhoneCard extends HTMLElement {
       }
       this._ui.confirming.delete(key);
       this._ui.expanded.delete(key);
+      // The focused button disappears with the row: hand the focus to the
+      // neighbouring row so keyboard users do not start from the top again.
+      const neighbour = row.nextElementSibling || row.previousElementSibling;
+      const hadFocus = row.contains(this.shadowRoot.activeElement);
       row.remove();
+      const next = hadFocus && neighbour && neighbour.querySelector(".fb-main");
+      if (next) next.focus();
     } catch (err) {
       row.classList.remove("is-confirming");
       this._ui.confirming.delete(key);
