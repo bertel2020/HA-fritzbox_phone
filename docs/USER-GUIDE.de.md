@@ -329,6 +329,8 @@ actions:
 | `fritzbox_phone.dial` | Anruf über die Wählhilfe der Box starten: das dort gewählte Telefon klingelt zuerst, die Nummer wird nach dem Abheben gewählt | Gerät (bei nur einer Box optional); `number` |
 | `fritzbox_phone.hangup` | Einen noch nicht angenommenen Wählvorgang abbrechen | Gerät (optional) |
 | `fritzbox_phone.lookup_number` | Antwortet mit dem, was zu einer Nummer bekannt ist | Gerät (optional); `number` |
+| `fritzbox_phone.block_number` | Nummer in die Rufsperre der Box eintragen: Anrufe von ihr werden von der Box abgewiesen. Steht sie schon drin, passiert nichts | Gerät (optional); `number`, optional `name` (Bezeichnung in der Sperrliste) |
+| `fritzbox_phone.unblock_number` | Nummer aus der Rufsperre entfernen; meldet einen Fehler, wenn sie nicht gesperrt war | Gerät (optional); `number` |
 
 Die Wählhilfe muss an der FRITZ!Box aktiviert sein (Telefonie →
 Telefoniegeräte). `dial` nimmt nur Ziffern und die Zeichen `+ * # ( ) - /`

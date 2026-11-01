@@ -94,3 +94,30 @@ lookup_number:
       example: "+49 30 123456"
       selector:
         text:
+
+block_number:
+  target:
+    entity:
+      integration: fritzbox_phone
+  fields:
+    number:
+      required: true
+      example: "030 123456"
+      selector:
+        text:
+    name:
+      required: false
+      example: "Gewinnspiel-Zentrale"
+      selector:
+        text:
+
+unblock_number:
+  target:
+    entity:
+      integration: fritzbox_phone
+  fields:
+    number:
+      required: true
+      example: "030 123456"
+      selector:
+        text:

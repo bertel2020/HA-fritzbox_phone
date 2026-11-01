@@ -228,6 +228,30 @@
           "description": "The number to look up."
         }
       }
+    },
+    "block_number": {
+      "name": "Block a number",
+      "description": "Adds a number to the FRITZ!Box call barring: calls from it are rejected by the box. The block can be lifted with the \"Unblock a number\" action or in the box settings.",
+      "fields": {
+        "number": {
+          "name": "Phone number",
+          "description": "The number to block."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Optional label shown in the box's call barring list. Defaults to the number."
+        }
+      }
+    },
+    "unblock_number": {
+      "name": "Unblock a number",
+      "description": "Removes a number from the FRITZ!Box call barring.",
+      "fields": {
+        "number": {
+          "name": "Phone number",
+          "description": "The number to unblock."
+        }
+      }
     }
   },
   "exceptions": {
@@ -242,6 +266,9 @@
     },
     "no_box": {
       "message": "No FRITZ!Box is set up or loaded."
+    },
+    "number_not_blocked": {
+      "message": "The number {number} is not on the FRITZ!Box call barring list."
     }
   },
   "issues": {

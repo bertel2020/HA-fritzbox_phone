@@ -24,6 +24,7 @@ from fritzconnection.core.exceptions import FritzActionError, FritzSecurityError
 from fritzconnection.core.utils import get_xml_root
 
 from .const import CALL_TYPE_NAMES, FAX_PORT, MAX_RECORDING_BYTES, TAM_PORT, TAM_PORT_RANGE
+from .phone_numbers import normalize
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -291,6 +292,56 @@ class FritzBoxPhoneClient:
                 )
             )
         return contacts
+
+    # ------------------------------------------------------------------
+    # Call barring (Rufsperre)
+    # ------------------------------------------------------------------
+
+    def get_blocked_numbers(self) -> list[PhonebookContact]:
+        """The entries of the box's call barring list."""
+        info = self._call(ONTEL_SERVICE, "GetCallBarringList")
+        url = info.get("NewPhonebookURL")
+        return self._download_phonebook(url) if url else []
+
+    def _blocked_entries(self, number: str) -> list[PhonebookContact]:
+        wanted = normalize(number)
+        return [
+            contact
+            for contact in self.get_blocked_numbers()
+            if any(normalize(entry.number) == wanted for entry in contact.numbers)
+        ]
+
+    def block_number(self, number: str, name: str | None = None) -> bool:
+        """Add `number` to the box's call barring; False if it was blocked already.
+
+        The entry has the shape of a phonebook contact
+        (TR-064_Contact_SCPD.pdf, SetCallBarringEntry).
+        """
+        if self._blocked_entries(number):
+            return False
+        contact = ET.Element("contact")
+        person = ET.SubElement(contact, "person")
+        ET.SubElement(person, "realName").text = name or number
+        telephony = ET.SubElement(contact, "telephony")
+        entry = ET.SubElement(telephony, "number", type="home", prio="1")
+        entry.text = number
+        self._call(
+            ONTEL_SERVICE,
+            "SetCallBarringEntry",
+            NewPhonebookEntryData=ET.tostring(contact, encoding="unicode"),
+        )
+        return True
+
+    def unblock_number(self, number: str) -> int:
+        """Remove `number` from the call barring; returns how many entries went."""
+        entries = [contact for contact in self._blocked_entries(number) if contact.uniqueid]
+        for contact in entries:
+            self._call(
+                ONTEL_SERVICE,
+                "DeleteCallBarringEntryUID",
+                NewPhonebookEntryUniqueID=contact.uniqueid,
+            )
+        return len(entries)
 
     # ------------------------------------------------------------------
     # Call list

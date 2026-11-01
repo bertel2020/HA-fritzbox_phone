@@ -88,6 +88,12 @@
     },
     "lookup_number": {
       "service": "mdi:magnify"
+    },
+    "block_number": {
+      "service": "mdi:phone-cancel"
+    },
+    "unblock_number": {
+      "service": "mdi:phone-check"
     }
   }
 }

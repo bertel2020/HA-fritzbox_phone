@@ -26,6 +26,8 @@ from .const import (
     EVENT_CALL,
     EVENT_CALL_LIST_CHANGED,
     EVENT_MISSED_CALL,
+    EVENT_NUMBER_BLOCKED,
+    EVENT_NUMBER_UNBLOCKED,
     EVENT_TAM_MESSAGE,
 )
 
@@ -33,6 +35,7 @@ NAME_CALL_MONITOR = "Anrufmonitor"
 NAME_CALL_LIST = "Anrufliste"
 NAME_MISSED_CALLS = "Verpasste Anrufe"
 NAME_TAM = "Anrufbeantworter"
+NAME_BLOCKING = "Rufsperre"
 
 # CallEntry.type_name (see CALL_TYPE_NAMES) in German, for call list entries.
 CALL_TYPE_LABELS = {
@@ -251,6 +254,22 @@ def _describe_tam_message(event: Event) -> dict[str, str]:
     }
 
 
+def _describe_number_blocked(event: Event) -> dict[str, str]:
+    number = event.data.get("number")
+    if event.data.get("already_blocked"):
+        message = f"Rufnummer {number} stand bereits in der Rufsperre"
+    else:
+        message = f"Rufnummer {number} gesperrt"
+    return {LOGBOOK_ENTRY_NAME: NAME_BLOCKING, LOGBOOK_ENTRY_MESSAGE: message}
+
+
+def _describe_number_unblocked(event: Event) -> dict[str, str]:
+    return {
+        LOGBOOK_ENTRY_NAME: NAME_BLOCKING,
+        LOGBOOK_ENTRY_MESSAGE: f"Sperre für Rufnummer {event.data.get('number')} aufgehoben",
+    }
+
+
 @callback
 def async_describe_events(
     hass: HomeAssistant,
@@ -261,3 +280,5 @@ def async_describe_events(
     async_describe_event(DOMAIN, EVENT_CALL_LIST_CHANGED, _describe_call_list_changed)
     async_describe_event(DOMAIN, EVENT_MISSED_CALL, _describe_missed_call)
     async_describe_event(DOMAIN, EVENT_TAM_MESSAGE, _describe_tam_message)
+    async_describe_event(DOMAIN, EVENT_NUMBER_BLOCKED, _describe_number_blocked)
+    async_describe_event(DOMAIN, EVENT_NUMBER_UNBLOCKED, _describe_number_unblocked)

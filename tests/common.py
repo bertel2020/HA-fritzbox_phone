@@ -103,6 +103,7 @@ class FakeBox:
     poll_error: Exception | None = None
     serial: str = "ABC123"
     calls_log: list[tuple] = field(default_factory=list)
+    blocked: list[str] = field(default_factory=list)
 
 
 def build_client_class(box: FakeBox):
@@ -160,6 +161,20 @@ def build_client_class(box: FakeBox):
 
         def hangup(self) -> None:
             box.calls_log.append(("hangup",))
+
+        def block_number(self, number: str, name: str | None = None) -> bool:
+            box.calls_log.append(("block", number, name))
+            if number in box.blocked:
+                return False
+            box.blocked.append(number)
+            return True
+
+        def unblock_number(self, number: str) -> int:
+            box.calls_log.append(("unblock", number))
+            if number not in box.blocked:
+                return 0
+            box.blocked.remove(number)
+            return 1
 
     return FakeClient
 

@@ -9,7 +9,7 @@ import requests
 import voluptuous as vol
 
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
-from homeassistant.const import ATTR_AREA_ID, ATTR_DEVICE_ID, ATTR_ENTITY_ID
+from homeassistant.const import ATTR_AREA_ID, ATTR_DEVICE_ID, ATTR_ENTITY_ID, CONF_HOST
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_registry as er, service
@@ -18,15 +18,20 @@ from .const import (
     ATTR_FILENAME,
     ATTR_MESSAGE_KEY,
     ATTR_MESSAGE_INDEX,
+    ATTR_NAME,
     ATTR_NUMBER,
     ATTR_READ,
     DOMAIN,
+    EVENT_NUMBER_BLOCKED,
+    EVENT_NUMBER_UNBLOCKED,
+    SERVICE_BLOCK_NUMBER,
     SERVICE_DELETE_MESSAGE,
     SERVICE_DIAL,
     SERVICE_DOWNLOAD_MESSAGE,
     SERVICE_HANGUP,
     SERVICE_LOOKUP_NUMBER,
     SERVICE_MARK_MESSAGE_READ,
+    SERVICE_UNBLOCK_NUMBER,
 )
 from .coordinator import FritzBoxPhoneCoordinator
 from .runtime import FritzBoxPhoneConfigEntry
@@ -136,6 +141,58 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         coordinator = _coordinators(hass, call)[0]
         return await coordinator.async_lookup_number(call.data[ATTR_NUMBER])
 
+    def _announce(
+        call: ServiceCall, coordinator: FritzBoxPhoneCoordinator, event: str, **data: Any
+    ) -> None:
+        # The logbook shows who blocked or released which number.
+        hass.bus.async_fire(
+            event,
+            {
+                "config_entry_id": coordinator.entry.entry_id,
+                "host": coordinator.entry.data[CONF_HOST],
+                **data,
+            },
+            context=call.context,
+        )
+
+    async def block_number(call: ServiceCall) -> None:
+        number = call.data[ATTR_NUMBER]
+        for coordinator in _coordinators(hass, call):
+            added = await _async_run(
+                hass, coordinator, coordinator.client.block_number, number, call.data.get(ATTR_NAME)
+            )
+            _announce(call, coordinator, EVENT_NUMBER_BLOCKED, number=number, already_blocked=not added)
+
+    async def unblock_number(call: ServiceCall) -> None:
+        number = call.data[ATTR_NUMBER]
+        for coordinator in _coordinators(hass, call):
+            removed = await _async_run(hass, coordinator, coordinator.client.unblock_number, number)
+            if not removed:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="number_not_blocked",
+                    translation_placeholders={"number": number},
+                )
+            _announce(call, coordinator, EVENT_NUMBER_UNBLOCKED, number=number)
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_BLOCK_NUMBER,
+        block_number,
+        schema=vol.Schema(
+            {
+                **_DEVICE_FIELD,
+                vol.Required(ATTR_NUMBER): _number,
+                vol.Optional(ATTR_NAME): vol.All(cv.string, vol.Length(max=64)),
+            }
+        ),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_UNBLOCK_NUMBER,
+        unblock_number,
+        schema=vol.Schema({**_DEVICE_FIELD, vol.Required(ATTR_NUMBER): _number}),
+    )
     hass.services.async_register(
         DOMAIN,
         SERVICE_DIAL,

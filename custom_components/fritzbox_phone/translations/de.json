@@ -228,6 +228,30 @@
           "description": "Die nachzuschlagende Nummer."
         }
       }
+    },
+    "block_number": {
+      "name": "Nummer sperren",
+      "description": "Trägt eine Nummer in die Rufsperre der FRITZ!Box ein: Anrufe von ihr werden von der Box abgewiesen. Die Sperre lässt sich mit der Aktion „Nummer freigeben“ oder in den Einstellungen der Box wieder aufheben.",
+      "fields": {
+        "number": {
+          "name": "Rufnummer",
+          "description": "Die zu sperrende Nummer."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Optional: Bezeichnung in der Rufsperre-Liste der Box. Standard: die Nummer."
+        }
+      }
+    },
+    "unblock_number": {
+      "name": "Nummer freigeben",
+      "description": "Entfernt eine Nummer aus der Rufsperre der FRITZ!Box.",
+      "fields": {
+        "number": {
+          "name": "Rufnummer",
+          "description": "Die freizugebende Nummer."
+        }
+      }
     }
   },
   "exceptions": {
@@ -242,6 +266,9 @@
     },
     "no_box": {
       "message": "Es ist keine FRITZ!Box eingerichtet oder geladen."
+    },
+    "number_not_blocked": {
+      "message": "Die Nummer {number} steht nicht in der Rufsperre der FRITZ!Box."
     }
   },
   "issues": {

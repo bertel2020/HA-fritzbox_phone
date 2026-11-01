@@ -59,6 +59,7 @@ Die Integration arbeitet lokal mit der FRITZ!Box (TR-064 und CallMonitor, Port 1
 - **Rückwärtssuche**: unbekannte Nummern werden über Tellows aufgelöst.
 - **Ort und Land**: Herkunft einer Nummer wird offline bestimmt, ohne Internetzugriff.
 - **Wählen und Auflegen**: Services `dial` und `hangup`, Rückruf-Knopf in der Karte.
+- **Rufsperre**: Services `block_number` und `unblock_number` tragen Nummern in die Rufsperre der Box ein oder entfernen sie.
 - **Statistik**: Anrufe heute, verpasste Anrufe und Gesprächszeit als Sensoren.
 - **Blueprints**: Benachrichtigung bei verpasstem Anruf und Warnung bei Spam-Anrufen.
 - **Einfache Einrichtung**: automatische Erkennung der FRITZ!Box im Netzwerk, neue Anmeldung und neue Adresse ohne Neueinrichtung, Diagnosedaten zum Weitergeben.

@@ -8,6 +8,7 @@ import voluptuous as vol
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import device_registry as dr
+from pytest_homeassistant_custom_component.common import async_capture_events
 
 from custom_components.fritzbox_phone.const import (
     CONF_PHONEBLOCK_ENABLED,
@@ -40,6 +41,50 @@ async def test_dial_and_hangup(hass: HomeAssistant) -> None:
     # With a single box the device is optional.
     await hass.services.async_call(DOMAIN, "hangup", {}, blocking=True)
     assert box.calls_log == [("dial", "030 123456"), ("hangup",)]
+
+
+async def test_block_and_unblock_number(hass: HomeAssistant) -> None:
+    box = FakeBox()
+    await _setup(hass, box)
+    events = async_capture_events(hass, "fritzbox_phone_number_blocked")
+    released = async_capture_events(hass, "fritzbox_phone_number_unblocked")
+
+    await hass.services.async_call(
+        DOMAIN, "block_number", {"number": "0900 123", "name": "Spam"}, blocking=True
+    )
+    assert box.blocked == ["0900 123"]
+    assert box.calls_log == [("block", "0900 123", "Spam")]
+    await hass.async_block_till_done()
+    assert [event.data["already_blocked"] for event in events] == [False]
+    assert events[0].data["number"] == "0900 123"
+
+    # Blocking twice is reported, not repeated.
+    await hass.services.async_call(DOMAIN, "block_number", {"number": "0900 123"}, blocking=True)
+    await hass.async_block_till_done()
+    assert box.blocked == ["0900 123"]
+    assert [event.data["already_blocked"] for event in events] == [False, True]
+
+    await hass.services.async_call(DOMAIN, "unblock_number", {"number": "0900 123"}, blocking=True)
+    await hass.async_block_till_done()
+    assert box.blocked == []
+    assert len(released) == 1
+
+
+async def test_unblocking_a_number_that_is_not_blocked_is_refused(hass: HomeAssistant) -> None:
+    await _setup(hass, FakeBox())
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN, "unblock_number", {"number": "0900 123"}, blocking=True
+        )
+
+
+@pytest.mark.parametrize("number", ["", "abc", "0900;rm", "1" * 40])
+async def test_block_rejects_what_is_not_a_phone_number(hass: HomeAssistant, number) -> None:
+    box = FakeBox()
+    await _setup(hass, box)
+    with pytest.raises(vol.Invalid):
+        await hass.services.async_call(DOMAIN, "block_number", {"number": number}, blocking=True)
+    assert box.blocked == []
 
 
 async def test_dial_accepts_entity_and_area_targets(hass: HomeAssistant) -> None:

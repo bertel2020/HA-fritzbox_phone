@@ -56,10 +56,13 @@ ATTR_MESSAGE_KEY = "message_key"
 ATTR_FILENAME = "filename"
 
 ATTR_NUMBER = "number"
+ATTR_NAME = "name"
 
 SERVICE_DIAL = "dial"
 SERVICE_HANGUP = "hangup"
 SERVICE_LOOKUP_NUMBER = "lookup_number"
+SERVICE_BLOCK_NUMBER = "block_number"
+SERVICE_UNBLOCK_NUMBER = "unblock_number"
 SERVICE_MARK_MESSAGE_READ = "mark_message_read"
 SERVICE_DELETE_MESSAGE = "delete_message"
 SERVICE_DOWNLOAD_MESSAGE = "download_message"
@@ -97,6 +100,8 @@ EVENT_CALL = f"{DOMAIN}_call"
 EVENT_CALL_LIST_CHANGED = f"{DOMAIN}_call_list_changed"
 EVENT_MISSED_CALL = f"{DOMAIN}_missed_call"
 EVENT_TAM_MESSAGE = f"{DOMAIN}_tam_message"
+EVENT_NUMBER_BLOCKED = f"{DOMAIN}_number_blocked"
+EVENT_NUMBER_UNBLOCKED = f"{DOMAIN}_number_unblocked"
 
 # Context keys under which the coordinator parks the Context belonging to
 # a just-fired event, for the matching entity to pick up (see

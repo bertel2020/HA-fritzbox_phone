@@ -6,6 +6,12 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Hinzugefügt
 
+- Aktionen `block_number` und `unblock_number`: tragen eine Rufnummer in die
+  Rufsperre der FRITZ!Box ein oder entfernen sie (TR-064 `SetCallBarringEntry`
+  und `DeleteCallBarringEntryUID`). Eine bereits gesperrte Nummer wird nicht
+  doppelt eingetragen, auch nicht in anderer Schreibweise. Beides erscheint im
+  Logbuch. Der Eintrag ist ein Telefonbuch-Kontakt mit der Nummer; das
+  Benutzerkonto der Integration braucht das Recht für Telefonie-Einstellungen.
 - Karte: Die Tageszusammenfassung lässt sich zwischen „Heute“, „7 Tage“ und
   „30 Tage“ umschalten. Bei den längeren Zeiträumen zeigt sie je Tag einen
   Balken, der verpasste Anrufe farbig markiert. Gezählt wird, was die
