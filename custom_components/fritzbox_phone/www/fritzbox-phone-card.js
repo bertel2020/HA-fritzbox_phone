@@ -765,7 +765,7 @@ class FritzboxPhoneCard extends HTMLElement {
     // need the box are disabled for them.
     this._offline = new Set();
     // What the user is doing, kept across redraws (see _render).
-    this._ui = { expanded: new Set(), confirming: new Set(), filters: null };
+    this._ui = { expanded: new Set(), confirming: new Set(), deleting: new Set(), filters: null };
     this._search = "";
     // Audio lives outside the DOM so a redraw cannot interrupt it.
     this._players = new Map();
@@ -1658,6 +1658,7 @@ class FritzboxPhoneCard extends HTMLElement {
     confirm.appendChild(buttons);
     row.appendChild(confirm);
     if (this._ui.confirming.has(key)) row.classList.add("is-confirming");
+    yes.disabled = this._ui.deleting.has(key);
 
     this._applyPlayerUi(row, player);
 
@@ -1729,6 +1730,13 @@ class FritzboxPhoneCard extends HTMLElement {
 
   async _handleDelete(entityId, message, key, row) {
     const t = this._t;
+    // The box renumbers its messages after a delete, so a second request
+    // for the same row must never go out while the first is still running.
+    // The row may be redrawn meanwhile, hence the card-level set.
+    if (this._ui.deleting.has(key)) return;
+    this._ui.deleting.add(key);
+    const yes = row.querySelector(".fb-confirm-yes");
+    if (yes) yes.disabled = true;
     try {
       await this._hass.callService("fritzbox_phone", "delete_message", {
         entity_id: entityId,
@@ -1747,6 +1755,9 @@ class FritzboxPhoneCard extends HTMLElement {
       row.classList.remove("is-confirming");
       this._ui.confirming.delete(key);
       this._toast(t("err_delete", { error: (err && err.message) || err }));
+    } finally {
+      this._ui.deleting.delete(key);
+      if (yes) yes.disabled = false;
     }
   }
 

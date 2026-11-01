@@ -223,6 +223,20 @@ test("delete asks first, then removes the row", async () => {
   assert.equal(root(card).querySelectorAll(".fb-row").length, 0);
 });
 
+test("a double click on delete sends one request only", async () => {
+  const window = load();
+  const hass = makeHass({ "sensor.tam": state("sensor.tam", "1", { messages: [message(1)] }) });
+  const card = mount(window, { entity: "sensor.tam" }, hass);
+
+  root(card).querySelector(".fb-del").click();
+  const yes = root(card).querySelector(".fb-confirm-yes");
+  yes.click();
+  yes.click();
+  assert.equal(yes.disabled, true);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(hass.calls.filter((c) => c.service === "delete_message").length, 1);
+});
+
 test("a list stays visible as stale while the entity is unavailable", () => {
   const window = load();
   const live = makeHass({ "sensor.tam": state("sensor.tam", "1", { messages: [message(1)] }) });
