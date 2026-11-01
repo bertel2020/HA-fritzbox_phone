@@ -266,6 +266,56 @@ test("a linked answering machine going down marks the call list as partly stale"
   assert.ok(root(card).querySelector(".fb-play"), "the recording row is still there");
 });
 
+test("actions that need the box are disabled while the list is stale", () => {
+  const window = load();
+  const calls = [call("1", { is_answering_machine: true, tam_index: 0, tam_message_index: 1 })];
+  const up = makeHass({
+    "sensor.calls": state("sensor.calls", "1", { calls }),
+    "sensor.tam": state("sensor.tam", "1", { tam_index: 0, messages: [message(1)] }),
+  });
+  const card = mount(window, { entity: "sensor.calls", tam_entity: "sensor.tam" }, up);
+  const dial = () => root(card).querySelector(".fb-link-btn");
+  assert.equal(root(card).querySelector(".fb-play").disabled, false);
+  assert.equal(dial().disabled, false);
+
+  // only the answering machine is down: recordings are locked, dialling is not
+  card.hass = makeHass({
+    "sensor.calls": state("sensor.calls", "1", { calls }),
+    "sensor.tam": { entity_id: "sensor.tam", state: "unavailable", attributes: {} },
+  });
+  assert.equal(root(card).querySelector(".fb-play").disabled, true);
+  assert.equal(root(card).querySelector(".fb-del").disabled, true);
+  assert.match(root(card).querySelector(".fb-del").title, /Not possible/);
+  assert.equal(dial().disabled, false);
+
+  // the call list is down as well: dialling is locked too
+  card.hass = makeHass({
+    "sensor.calls": { entity_id: "sensor.calls", state: "unavailable", attributes: {} },
+    "sensor.tam": { entity_id: "sensor.tam", state: "unavailable", attributes: {} },
+  });
+  assert.equal(dial().disabled, true);
+
+  // and everything is back when the box is
+  card.hass = makeHass({
+    "sensor.calls": state("sensor.calls", "1", { calls }),
+    "sensor.tam": state("sensor.tam", "1", { tam_index: 0, messages: [message(1)] }),
+  });
+  assert.equal(root(card).querySelector(".fb-play").disabled, false);
+  assert.equal(root(card).querySelector(".fb-del").disabled, false);
+  assert.equal(dial().disabled, false);
+});
+
+test("an open delete question closes when the connection drops", () => {
+  const window = load();
+  const messages = [message(1)];
+  const card = mount(window, { entity: "sensor.tam" }, makeHass({ "sensor.tam": state("sensor.tam", "1", { messages }) }));
+  root(card).querySelector(".fb-del").click();
+  assert.ok(root(card).querySelector(".fb-row").classList.contains("is-confirming"));
+
+  card.hass = makeHass({ "sensor.tam": { entity_id: "sensor.tam", state: "unavailable", attributes: {} } });
+  assert.equal(root(card).querySelector(".fb-row").classList.contains("is-confirming"), false);
+});
+
 test("a call is linked to its message by the integration's index", () => {
   const window = load();
   const calls = [

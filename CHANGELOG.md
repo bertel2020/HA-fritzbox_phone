@@ -10,6 +10,8 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
   „nicht verfügbar“, bleibt die zuletzt gesehene Liste sichtbar. Ein Hinweis
   „Verbindung zur FRITZ!Box unterbrochen – Stand …“ zeigt, wie alt sie ist.
   Ohne zuvor gesehene Liste erscheint wie bisher die Meldung zur Entität.
+  Abspielen, Löschen und Zurückrufen sind in dieser Zeit gesperrt, mit Hinweis
+  im Tooltip; eine offene Löschabfrage schließt sich.
 
 ## 2.0.3 – 2026-10-31
 
