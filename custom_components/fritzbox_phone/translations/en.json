@@ -105,6 +105,22 @@
       },
       "talk_time_today": {
         "name": "Talk time today"
+      },
+      "phoneblock_status": {
+        "name": "PhoneBlock",
+        "state": {
+          "ok": "OK",
+          "error": "Error",
+          "unknown": "Unknown"
+        }
+      },
+      "reverse_lookup_status": {
+        "name": "Online reverse lookup",
+        "state": {
+          "ok": "OK",
+          "error": "Error",
+          "unknown": "Unknown"
+        }
       }
     },
     "switch": {

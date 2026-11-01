@@ -1,12 +1,15 @@
 """PhoneBlock / Tellows clients, the lookup cache and coordinator enrichment."""
 from __future__ import annotations
 
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from custom_components.fritzbox_phone import cache as cache_module
 from custom_components.fritzbox_phone.cache import LookupCache
 from custom_components.fritzbox_phone.const import (
+    DOMAIN,
     CONF_PHONEBLOCK_ENABLED,
     CONF_PHONEBLOCK_PASSWORD,
     CONF_PHONEBLOCK_USERNAME,
@@ -16,7 +19,7 @@ from custom_components.fritzbox_phone.phoneblock import API_URL as PHONEBLOCK_UR
 from custom_components.fritzbox_phone.phoneblock import PhoneBlockClient
 from custom_components.fritzbox_phone.tellows import MAX_RESPONSE_BYTES, TellowsClient
 
-from .common import FakeBox, get_coordinator, make_call, make_message, make_tam, setup_integration
+from .common import FakeBox, entity_id, get_coordinator, make_call, make_message, make_tam, setup_integration
 
 TELLOWS_URL = "https://www.tellows.de/basic/num/+4930123456"
 TELLOWS_XML = (
@@ -176,3 +179,52 @@ async def test_coordinator_enriches_unknown_callers(hass: HomeAssistant, aioclie
     assert message.is_spam and message.reverse_name == "Teleshop"
     # Four entries, one number: one request per service.
     assert aioclient_mock.call_count == 2
+
+
+async def test_status_sensors_exist_only_for_enabled_lookups(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    entry = await setup_integration(hass, FakeBox())
+    registry = er.async_get(hass)
+    for key in ("phoneblock_status", "reverse_lookup_status"):
+        assert registry.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_{key}") is None
+
+    entry = await setup_integration(
+        hass,
+        FakeBox(serial="OTHER"),
+        {
+            CONF_PHONEBLOCK_ENABLED: True,
+            CONF_PHONEBLOCK_USERNAME: "u",
+            CONF_PHONEBLOCK_PASSWORD: "p",
+        },
+    )
+    assert entity_id(hass, entry, "phoneblock_status")
+    assert registry.async_get_entity_id(
+        "sensor", DOMAIN, f"{entry.entry_id}_reverse_lookup_status"
+    ) is None
+    sensor = hass.states.get(entity_id(hass, entry, "phoneblock_status"))
+    assert sensor.state == "unknown"
+    assert registry.async_get(sensor.entity_id).entity_category is EntityCategory.DIAGNOSTIC
+
+
+async def test_status_sensor_shows_rejected_credentials(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    aioclient_mock.get(PHONEBLOCK_URL, status=401)
+    box = FakeBox(
+        calls=[make_call(str(i), caller_number=f"03012345{i}") for i in range(3)],
+    )
+    entry = await setup_integration(
+        hass,
+        box,
+        {
+            CONF_PHONEBLOCK_ENABLED: True,
+            CONF_PHONEBLOCK_USERNAME: "u",
+            CONF_PHONEBLOCK_PASSWORD: "wrong",
+        },
+    )
+    state = hass.states.get(entity_id(hass, entry, "phoneblock_status"))
+    assert state.state == "error"
+    assert state.attributes["consecutive_failures"] == 3
+    assert state.attributes["last_error"] == "ClientResponseError 401"
+    assert "03012345" not in str(state.attributes)

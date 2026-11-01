@@ -7,7 +7,7 @@ from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfTime
+from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
@@ -24,6 +24,7 @@ from .const import (
 from .coordinator import FritzBoxPhoneCoordinator
 from .runtime import FritzBoxPhoneConfigEntry
 from .entity import FritzBoxPhoneEntity
+from .health import STATUS_ERROR, STATUS_OK, STATUS_UNKNOWN, LookupHealth
 from .views import recording_path
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,6 +47,20 @@ async def async_setup_entry(
     ]
     if (monitor := entry.runtime_data.call_monitor) is not None:
         entities.append(FritzBoxCallMonitorSensor(coordinator, entry, monitor))
+    # Only the lookups that are switched on get a status sensor (a change of
+    # the options reloads the entry).
+    if coordinator.phoneblock is not None:
+        entities.append(
+            FritzBoxLookupStatusSensor(
+                coordinator, entry, "phoneblock_status", coordinator.phoneblock.health
+            )
+        )
+    if coordinator.tellows is not None:
+        entities.append(
+            FritzBoxLookupStatusSensor(
+                coordinator, entry, "reverse_lookup_status", coordinator.tellows.health
+            )
+        )
     async_add_entities(entities)
 
     # Phonebooks and answering machines are discovered, not fixed at setup:
@@ -392,6 +407,42 @@ class FritzBoxTamSensor(FritzBoxPhoneEntity, SensorEntity):
             message_key,
         )
         _LOGGER.info("Anrufbeantworter-Nachricht gespeichert unter %s", path)
+
+
+class FritzBoxLookupStatusSensor(FritzBoxPhoneEntity, SensorEntity):
+    """Whether an online lookup (PhoneBlock, Tellows) is answering.
+
+    The lookups swallow their errors so a poll never fails because of them;
+    this makes a dead service visible - e.g. rejected PhoneBlock credentials
+    that would otherwise look like "no spam found". Refreshed with every
+    poll. Carries no numbers: only counts, a time and the kind of error.
+    """
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = [STATUS_OK, STATUS_ERROR, STATUS_UNKNOWN]
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(
+        self,
+        coordinator: FritzBoxPhoneCoordinator,
+        entry: ConfigEntry,
+        key: str,
+        health: LookupHealth,
+    ) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_translation_key = key
+        self._attr_unique_id = f"{entry.entry_id}_{key}"
+        self._health = health
+
+    @property
+    def native_value(self) -> str:
+        return self._health.status
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        data = self._health.as_dict()
+        data.pop("status")
+        return data
 
 
 class FritzBoxCallMonitorSensor(FritzBoxPhoneEntity, SensorEntity):

@@ -27,6 +27,22 @@
       },
       "talk_time_today": {
         "default": "mdi:timer-outline"
+      },
+      "phoneblock_status": {
+        "default": "mdi:shield-check",
+        "state": {
+          "ok": "mdi:shield-check",
+          "error": "mdi:shield-alert",
+          "unknown": "mdi:shield-outline"
+        }
+      },
+      "reverse_lookup_status": {
+        "default": "mdi:magnify",
+        "state": {
+          "ok": "mdi:magnify",
+          "error": "mdi:magnify-close",
+          "unknown": "mdi:magnify"
+        }
       }
     },
     "switch": {
