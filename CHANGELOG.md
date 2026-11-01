@@ -33,6 +33,9 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Behoben
 
+- Karte: Die Tageszusammenfassung wechselt um Mitternacht auf den neuen Tag,
+  auch wenn sich der Sensor nicht ändert. Bisher zeigte sie nach Mitternacht
+  noch den Vortag, bis die nächste Zustandsänderung kam.
 - Anrufbeantworter: Abspielen, Löschen und Gelesen-Markieren prüfen die
   Nachricht vor der Aktion anhand von Datum und Rufnummer (`message_key`) gegen
   die frisch geladene Liste. Nummeriert die FRITZ!Box nach einer Löschung neu,

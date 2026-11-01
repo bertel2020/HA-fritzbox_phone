@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { JSDOM } from "jsdom";
@@ -36,9 +36,15 @@ class FakeAudio extends EventTarget {
 }
 FakeAudio.instances = [];
 
+// Cards keep a timer for the next midnight; closing the windows lets the
+// test process exit.
+const windows = [];
+after(() => windows.forEach((window) => window.close()));
+
 function load() {
   const dom = new JSDOM("<!doctype html><body></body>", { runScripts: "outside-only", pretendToBeVisual: true });
   const { window } = dom;
+  windows.push(window);
   window.Audio = FakeAudio;
   FakeAudio.instances = [];
   window.eval(SOURCE);
@@ -442,7 +448,7 @@ test("privacy mode hides names and numbers until a row is tapped", () => {
 test("a revealed row is hidden again after a while", () => {
   const window = load();
   const timers = [];
-  window.setTimeout = (fn) => timers.push(fn) && timers.length;
+  window.setTimeout = (fn, ms) => timers.push({ fn, ms }) && timers.length;
   const hass = makeHass({
     "sensor.calls": state("sensor.calls", "1", { calls: privateCalls(), privacy_mode: true }),
   });
@@ -450,7 +456,8 @@ test("a revealed row is hidden again after a while", () => {
 
   root(card).querySelector(".fb-main").click();
   assert.match(text(card), /Anna Schmidt/);
-  timers.at(-1)();
+  // The other timer on the card is the one for the next midnight.
+  timers.findLast((timer) => timer.ms < 60_000).fn();
   assert.doesNotMatch(text(card), /Anna|03055512345/);
   assert.equal(root(card).querySelector(".fb-row").classList.contains("is-expanded"), false);
 });
@@ -648,4 +655,22 @@ test("players and opened rows of vanished messages are dropped", async () => {
   card.hass = makeHass({ "sensor.tam": state("sensor.tam", "1", { messages: [both[1]] }) });
   assert.equal(card._players.size, 1);
   assert.equal(card._ui.expanded.size, 0);
+});
+
+test("the daily summary is redrawn when the day rolls over", () => {
+  const window = load();
+  const timers = [];
+  window.setTimeout = (fn, ms) => {
+    timers.push({ fn, ms });
+    return timers.length;
+  };
+  window.clearTimeout = () => {};
+  const hass = makeHass({ "sensor.calls": state("sensor.calls", "1", { calls: [call(1)] }) });
+  const card = mount(window, { entity: "sensor.calls" }, hass);
+
+  const midnight = timers.at(-1);
+  assert.ok(midnight.ms > 0 && midnight.ms <= 25 * 3600 * 1000);
+  const before = root(card).querySelector("style");
+  midnight.fn();
+  assert.notEqual(root(card).querySelector("style"), before);
 });

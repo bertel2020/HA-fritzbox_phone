@@ -896,11 +896,24 @@ class FritzboxPhoneCard extends HTMLElement {
 
   disconnectedCallback() {
     this._stopCallMonitorTimer();
+    clearTimeout(this._midnightTimer);
     for (const timer of this._revealed.values()) clearTimeout(timer);
     this._revealed.clear();
     // A card that left the page must not keep playing.
     for (const player of this._players.values()) player.pause();
     this._players.clear();
+  }
+
+  // "Today" in the summary changes without any state change: redraw once
+  // the local day rolls over.
+  _scheduleMidnightRefresh() {
+    clearTimeout(this._midnightTimer);
+    const now = new Date();
+    const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+    this._midnightTimer = setTimeout(() => {
+      this._lastStateObj = undefined;
+      this._render();
+    }, next - now);
   }
 
   _stopCallMonitorTimer() {
@@ -946,6 +959,7 @@ class FritzboxPhoneCard extends HTMLElement {
     this._lastTamStateObj = tamStateObj;
     this._lastLang = t.lang;
     this._stopCallMonitorTimer();
+    this._scheduleMidnightRefresh();
     this._rows = new Map();
 
     this.shadowRoot.replaceChildren();
