@@ -13,6 +13,25 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
   Abspielen, Löschen und Zurückrufen sind in dieser Zeit gesperrt, mit Hinweis
   im Tooltip; eine offene Löschabfrage schließt sich.
 
+### Behoben
+
+- Anrufbeantworter: Abspielen, Löschen und Gelesen-Markieren prüfen die
+  Nachricht vor der Aktion anhand von Datum und Rufnummer (`message_key`) gegen
+  die frisch geladene Liste. Nummeriert die FRITZ!Box nach einer Löschung neu,
+  trifft die Aktion nicht mehr eine andere Nachricht, sondern wird abgebrochen
+  oder folgt der Nachricht zu ihrem neuen Index. Ohne `message_key` verhalten
+  sich die Dienste wie bisher.
+- Karte: Mehrfaches Bestätigen von „Löschen" sendet nur noch eine Anfrage.
+- Karte: Ein fehlgeschlagenes Gelesen-Markieren nach dem Abspielen wird gemeldet.
+
+### Geändert
+
+- Karte: Die Fortschrittsleiste ist ein Regler und per Tastatur bedienbar.
+- Aufnahmen werden nur noch bis 25 MB geladen (sonst HTTP 413), höchstens zwei
+  gleichzeitig.
+- `download_message` schreibt eine Warnung ins Protokoll, dass die Datei unter
+  `/local/fritzbox_tam/` ohne Anmeldung abrufbar ist.
+
 ## 2.0.3 – 2026-10-31
 
 ### Behoben
