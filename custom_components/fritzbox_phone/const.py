@@ -14,6 +14,7 @@ CONF_PHONEBLOCK_USERNAME = "phoneblock_username"
 CONF_PHONEBLOCK_PASSWORD = "phoneblock_password"
 CONF_PHONEBLOCK_THRESHOLD = "phoneblock_spam_threshold"
 CONF_REVERSE_LOOKUP_ENABLED = "reverse_lookup_enabled"
+CONF_PRIVACY_MODE = "privacy_mode"
 
 DEFAULT_CALL_LIST_DAYS = 7
 DEFAULT_CALL_LIST_MAX = 50
@@ -29,6 +30,7 @@ DEFAULT_COUNTRY_PREFIX = "+49"
 # every poll is the most expensive part of an update.
 PHONEBOOK_REFRESH_INTERVAL = 900  # seconds
 DEFAULT_REVERSE_LOOKUP_ENABLED = False
+DEFAULT_PRIVACY_MODE = False
 
 # X_AVM-DE_OnTel CallList "Type" values (TR-064_Contact_SCPD.pdf, table 70)
 CALL_TYPE_NAMES = {
@@ -50,6 +52,7 @@ TAM_PORT_RANGE = range(40, 50)
 
 ATTR_MESSAGE_INDEX = "message_index"
 ATTR_READ = "read"
+ATTR_MESSAGE_KEY = "message_key"
 ATTR_FILENAME = "filename"
 
 ATTR_NUMBER = "number"
@@ -62,6 +65,11 @@ SERVICE_DELETE_MESSAGE = "delete_message"
 SERVICE_DOWNLOAD_MESSAGE = "download_message"
 
 # Authenticated delivery of answering machine recordings (views.py).
+# A recording larger than this is refused instead of being held in memory
+# (an answering machine message is a few hundred KB to a few MB), and at
+# most this many are fetched from the box at the same time.
+MAX_RECORDING_BYTES = 25 * 1024 * 1024
+MAX_PARALLEL_RECORDINGS = 2
 RECORDING_URL_TEMPLATE = "/api/fritzbox_phone/recording/{entry_id}/{tam_index}/{message_index}"
 RECORDING_URL_PATTERN = "/api/fritzbox_phone/recording/{entry_id}/{tam_index}/{message_index}"
 

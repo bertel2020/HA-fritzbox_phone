@@ -23,7 +23,7 @@ from fritzconnection import FritzConnection
 from fritzconnection.core.exceptions import FritzActionError, FritzSecurityError, FritzServiceError
 from fritzconnection.core.utils import get_xml_root
 
-from .const import CALL_TYPE_NAMES, FAX_PORT, TAM_PORT, TAM_PORT_RANGE
+from .const import CALL_TYPE_NAMES, FAX_PORT, MAX_RECORDING_BYTES, TAM_PORT, TAM_PORT_RANGE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,6 +34,10 @@ _LOGGER = logging.getLogger(__name__)
 # call list.
 # Also missing permissions (TR-064 error 606): a box user without the right
 # for a feature should lose the feature, not the whole integration.
+class RecordingTooLarge(ValueError):
+    """The box offered a recording bigger than MAX_RECORDING_BYTES."""
+
+
 UNSUPPORTED_ERRORS = (FritzServiceError, FritzActionError, FritzSecurityError)
 
 ONTEL_SERVICE = "X_AVM-DE_OnTel1"
@@ -452,8 +456,11 @@ class FritzBoxPhoneClient:
         authenticated TR-064 session."""
         try:
             with self._lock:
-                response = self.fc.session.get(url, timeout=30)
-            response.raise_for_status()
+                with self.fc.session.get(url, timeout=30, stream=True) as response:
+                    response.raise_for_status()
+                    return self._read_limited(response)
+        except RecordingTooLarge:
+            raise
         except requests.exceptions.HTTPError as err:
             status = err.response.status_code if err.response is not None else "?"
             raise ValueError(
@@ -461,7 +468,23 @@ class FritzBoxPhoneClient:
                 "möglicherweise wurde die Nachricht zwischenzeitlich gelöscht "
                 "oder enthält keine Sprachaufnahme."
             ) from err
-        return response.content
+
+    @staticmethod
+    def _read_limited(response: requests.Response) -> bytes:
+        """The body of a response, refused as soon as it exceeds the limit."""
+        too_large = RecordingTooLarge(
+            "Die Aufnahme ist größer als "
+            f"{MAX_RECORDING_BYTES // (1024 * 1024)} MB und wird nicht geladen"
+        )
+        declared = response.headers.get("Content-Length", "")
+        if declared.isdigit() and int(declared) > MAX_RECORDING_BYTES:
+            raise too_large
+        body = bytearray()
+        for chunk in response.iter_content(chunk_size=64 * 1024):
+            body += chunk
+            if len(body) > MAX_RECORDING_BYTES:
+                raise too_large
+        return bytes(body)
 
     # ------------------------------------------------------------------
 

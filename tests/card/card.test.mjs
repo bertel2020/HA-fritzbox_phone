@@ -94,6 +94,7 @@ const message = (index, extra = {}) => ({
   index,
   number: "030123456",
   date: `01.01.26 10:0${index}`,
+  key: `k${index}`,
   duration: "0:10",
   new: true,
   in_phonebook: false,
@@ -218,8 +219,107 @@ test("delete asks first, then removes the row", async () => {
 
   root(card).querySelector(".fb-confirm-yes").click();
   await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.ok(redrawn.calls.some((c) => c.service === "delete_message" && c.data.message_index === 1));
+  assert.ok(redrawn.calls.some((c) => c.service === "delete_message" && c.data.message_index === 1 && c.data.message_key === "k1"));
   assert.equal(root(card).querySelectorAll(".fb-row").length, 0);
+});
+
+test("escape closes the delete question and returns the focus", () => {
+  const window = load();
+  const hass = makeHass({ "sensor.tam": state("sensor.tam", "1", { messages: [message(1)] }) });
+  const card = mount(window, { entity: "sensor.tam" }, hass);
+  const row = root(card).querySelector(".fb-row");
+
+  root(card).querySelector(".fb-del").click();
+  assert.ok(row.classList.contains("is-confirming"));
+  root(card)
+    .querySelector(".fb-confirm-yes")
+    .dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  assert.equal(row.classList.contains("is-confirming"), false);
+  assert.equal(root(card).activeElement, root(card).querySelector(".fb-del"));
+  assert.equal(hass.calls.some((c) => c.service === "delete_message"), false);
+});
+
+test("after a delete the focus moves to the next row", async () => {
+  const window = load();
+  const messages = [message(1), message(2)];
+  const hass = makeHass({ "sensor.tam": state("sensor.tam", "2", { messages }) });
+  const card = mount(window, { entity: "sensor.tam" }, hass);
+
+  root(card).querySelector(".fb-del").click();
+  const yes = root(card).querySelector(".fb-confirm-yes");
+  yes.focus();
+  yes.click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(root(card).querySelectorAll(".fb-row").length, 1);
+  assert.equal(root(card).activeElement, root(card).querySelector(".fb-main"));
+});
+
+test("a failed mark-as-read is reported while the message keeps playing", async () => {
+  const window = load();
+  const messages = [message(1)];
+  const hass = makeHass(
+    { "sensor.tam": state("sensor.tam", "1", { messages }) },
+    {
+      async callService(domain, service) {
+        if (service === "mark_message_read") throw new Error("box offline");
+      },
+    }
+  );
+  const card = mount(window, { entity: "sensor.tam" }, hass);
+  const notes = [];
+  card.addEventListener("hass-notification", (event) => notes.push(event.detail.message));
+
+  root(card).querySelector(".fb-play").click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(FakeAudio.instances[0].paused, false);
+  assert.equal(notes.length, 1);
+  assert.match(notes[0], /box offline/);
+});
+
+test("the seek bar is a slider that arrow keys can move", async () => {
+  const window = load();
+  const hass = makeHass({ "sensor.tam": state("sensor.tam", "1", { messages: [message(1)] }) });
+  const card = mount(window, { entity: "sensor.tam" }, hass);
+  root(card).querySelector(".fb-play").click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const player = FakeAudio.instances[0];
+  const bar = root(card).querySelector(".fb-progress");
+  assert.equal(bar.getAttribute("role"), "slider");
+  assert.equal(bar.tabIndex, 0);
+  assert.equal(bar.getAttribute("aria-valuemax"), "10");
+
+  const press = (key) =>
+    bar.dispatchEvent(new window.KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+  press("ArrowRight");
+  assert.equal(player.currentTime, 5);
+  press("ArrowRight");
+  press("ArrowRight");
+  assert.equal(player.currentTime, 10); // stops at the end
+  press("Home");
+  assert.equal(player.currentTime, 0);
+  press("ArrowLeft");
+  assert.equal(player.currentTime, 0); // and at the start
+  player.currentTime = 7;
+  player.dispatchEvent(new Event("timeupdate"));
+  assert.equal(bar.getAttribute("aria-valuenow"), "7");
+  assert.equal(bar.getAttribute("aria-valuetext"), "0:07 / 0:10");
+});
+
+test("a double click on delete sends one request only", async () => {
+  const window = load();
+  const hass = makeHass({ "sensor.tam": state("sensor.tam", "1", { messages: [message(1)] }) });
+  const card = mount(window, { entity: "sensor.tam" }, hass);
+
+  root(card).querySelector(".fb-del").click();
+  const yes = root(card).querySelector(".fb-confirm-yes");
+  yes.click();
+  yes.click();
+  assert.equal(yes.disabled, true);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(hass.calls.filter((c) => c.service === "delete_message").length, 1);
 });
 
 test("a list stays visible as stale while the entity is unavailable", () => {
@@ -314,6 +414,76 @@ test("an open delete question closes when the connection drops", () => {
 
   card.hass = makeHass({ "sensor.tam": { entity_id: "sensor.tam", state: "unavailable", attributes: {} } });
   assert.equal(root(card).querySelector(".fb-row").classList.contains("is-confirming"), false);
+});
+
+const privateCalls = () => [
+  call("1", { name: "Anna Schmidt", caller_number: "03055512345", device: "Wohnzimmer" }),
+];
+
+test("privacy mode hides names and numbers until a row is tapped", () => {
+  const window = load();
+  const hass = makeHass({
+    "sensor.calls": state("sensor.calls", "1", { calls: privateCalls(), privacy_mode: true }),
+  });
+  const card = mount(window, { entity: "sensor.calls" }, hass);
+
+  assert.doesNotMatch(text(card), /Anna|03055512345/);
+  assert.match(text(card), /••••••/);
+  assert.match(text(card), /Wohnzimmer/); // time and device are not sensitive
+  assert.equal(root(card).querySelector(".fb-link-btn"), null, "no call back button while hidden");
+
+  root(card).querySelector(".fb-main").click();
+  assert.match(text(card), /Anna Schmidt/);
+  assert.match(text(card), /03055512345/);
+  assert.ok(root(card).querySelector(".fb-row").classList.contains("is-expanded"));
+  assert.ok(root(card).querySelector(".fb-link-btn"));
+});
+
+test("a revealed row is hidden again after a while", () => {
+  const window = load();
+  const timers = [];
+  window.setTimeout = (fn) => timers.push(fn) && timers.length;
+  const hass = makeHass({
+    "sensor.calls": state("sensor.calls", "1", { calls: privateCalls(), privacy_mode: true }),
+  });
+  const card = mount(window, { entity: "sensor.calls" }, hass);
+
+  root(card).querySelector(".fb-main").click();
+  assert.match(text(card), /Anna Schmidt/);
+  timers.at(-1)();
+  assert.doesNotMatch(text(card), /Anna|03055512345/);
+  assert.equal(root(card).querySelector(".fb-row").classList.contains("is-expanded"), false);
+});
+
+test("the card option overrides the integration's privacy setting", () => {
+  const window = load();
+  const on = makeHass({ "sensor.calls": state("sensor.calls", "1", { calls: privateCalls(), privacy_mode: false }) });
+  assert.doesNotMatch(text(mount(window, { entity: "sensor.calls", privacy: "on" }, on)), /Anna/);
+
+  const off = makeHass({ "sensor.calls": state("sensor.calls", "1", { calls: privateCalls(), privacy_mode: true }) });
+  assert.match(text(mount(window, { entity: "sensor.calls", privacy: "off" }, off)), /Anna Schmidt/);
+});
+
+test("privacy mode hides phonebook contacts and answering machine callers too", () => {
+  const window = load();
+  const book = makeHass({
+    "sensor.book": state("sensor.book", "1", {
+      contacts: [{ name: "Anna Schmidt", vip: false, numbers: [{ type: "Mobil", number: "0171 1234567" }] }],
+      privacy_mode: true,
+    }),
+  });
+  const phonebook = mount(window, { entity: "sensor.book" }, book);
+  assert.doesNotMatch(text(phonebook), /Anna|1234567/);
+  root(phonebook).querySelector(".fb-contact .fb-main").click();
+  assert.match(text(phonebook), /Anna Schmidt/);
+  assert.match(text(phonebook), /1234567/);
+
+  const tam = makeHass({
+    "sensor.tam": state("sensor.tam", "1", { messages: [message(1, { name: "Anna Schmidt" })], privacy_mode: true }),
+  });
+  const messages = mount(window, { entity: "sensor.tam" }, tam);
+  assert.doesNotMatch(text(messages), /Anna|030123456/);
+  assert.ok(root(messages).querySelector(".fb-play"), "the recording stays playable");
 });
 
 test("a call is linked to its message by the integration's index", () => {

@@ -129,6 +129,7 @@ gespeicherten Zugangsdaten ab, fragt Home Assistant selbst nach neuen
 | PhoneBlock-Benutzername / -Kennwort | leer | Zugangsdaten eines kostenlosen Accounts auf [phoneblock.net](https://phoneblock.net). Das gespeicherte Kennwort wird nie wieder ins Formular geladen - ein leeres Feld lässt es unverändert |
 | Spam-Schwellwert | 50 % | ab welcher PhoneBlock-Spam-Wahrscheinlichkeit `is_spam` gesetzt wird |
 | Online-Rückwärtssuche (Tellows) aktivieren | aus | schaltet die Namensauflösung unbekannter Nummern über Tellows an/aus, siehe unten |
+| Namen und Rufnummern in der Dashboard-Karte verbergen | aus | die Karte zeigt Punkte statt Namen und Nummern, bis eine Zeile angetippt wird (dann 15 Sekunden lesbar); gedacht für Wandtablets. Reine Anzeige: Sensoren, Logbuch und Automationen behalten die echten Daten. Pro Karte überschreibbar mit der Kartenoption `privacy` (`auto`, `on`, `off`); der Anrufmonitor bleibt unverdeckt |
 
 ## Spam-Erkennung (PhoneBlock)
 
@@ -239,6 +240,7 @@ und Firmware). Namen und Symbole sind übersetzt (Deutsch/Englisch).
 | `sensor.*_anrufmonitor` | `idle` / `ringing` / `dialing` / `talking`; `unavailable`, solange die Verbindung zum CallMonitor nicht steht | je nach Zustand `from`/`to`/`with`, `from_name`/`to_name`/`with_name`, `vip`, `area_name` (Ort/Land, offline), `device`, `duration`, bei unbekannten eingehenden Anrufen zusätzlich PhoneBlock-Spamfelder und `reverse_name`/`reverse_category` (Tellows, jeweils falls aktiviert); im Zustand `idle` bleiben die Felder des zuletzt beendeten Gesprächs erhalten, ergänzt um `initiated` (Klingel-/Wählbeginn), `accepted` (Annahmezeitpunkt), `started` (Gesprächsbeginn = `accepted`, falls vorhanden), `closed` (Auflegen), `duration_formatted` (exakte Gesprächsdauer inkl. Sekunden, z. B. `1:09:18`) und `ring_duration_formatted` (Klingeldauer bis zur Annahme, z. B. `0:11`, nur falls der Anruf angenommen wurde) |
 | `binary_sensor.*_klingelt` | an, solange ein Anruf klingelt | `number`, `name`, `is_spam` |
 | `event.*_anruf` | letzter Anruf-Vorgang | Ereignistyp `ringing` / `dialing` / `talking` / `ended` / `updated`; Attribute wie das Ereignis `fritzbox_phone_call` |
+| Sensoren „PhoneBlock“ und „Online-Rückwärtssuche“ (Kategorie Diagnose, nur bei eingeschaltetem Dienst) | `ok` / `error` / `unknown`: `error` nach drei fehlgeschlagenen Abfragen in Folge (z. B. abgelehnte PhoneBlock-Zugangsdaten), `unknown`, solange noch keine Abfrage gelang | `consecutive_failures`, `last_success`, `last_error` (nur Fehlerart, z. B. `ClientResponseError 401`). Aktualisiert sich mit jeder Abfrage der Box. Die Integration schreibt bei einem Ausfall einmal eine Warnung ins Protokoll; lehnt PhoneBlock die Anmeldung ab, erscheint zusätzlich ein Hinweis unter Einstellungen → Reparaturen |
 
 Neue Telefonbücher und Anrufbeantworter erscheinen automatisch (ein
 Telefonbuch spätestens nach 15 Minuten, siehe unten); verschwindet eines,

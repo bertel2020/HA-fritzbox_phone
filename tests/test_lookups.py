@@ -1,12 +1,16 @@
 """PhoneBlock / Tellows clients, the lookup cache and coordinator enrichment."""
 from __future__ import annotations
 
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from custom_components.fritzbox_phone import cache as cache_module
 from custom_components.fritzbox_phone.cache import LookupCache
 from custom_components.fritzbox_phone.const import (
+    DOMAIN,
     CONF_PHONEBLOCK_ENABLED,
     CONF_PHONEBLOCK_PASSWORD,
     CONF_PHONEBLOCK_USERNAME,
@@ -16,7 +20,7 @@ from custom_components.fritzbox_phone.phoneblock import API_URL as PHONEBLOCK_UR
 from custom_components.fritzbox_phone.phoneblock import PhoneBlockClient
 from custom_components.fritzbox_phone.tellows import MAX_RESPONSE_BYTES, TellowsClient
 
-from .common import FakeBox, get_coordinator, make_call, make_message, make_tam, setup_integration
+from .common import FakeBox, entity_id, get_coordinator, make_call, make_message, make_tam, setup_integration
 
 TELLOWS_URL = "https://www.tellows.de/basic/num/+4930123456"
 TELLOWS_XML = (
@@ -79,6 +83,45 @@ async def test_phoneblock_failure_is_remembered_briefly(
     assert aioclient_mock.call_count == 1
 
 
+async def test_phoneblock_reports_an_outage_once_and_its_recovery(
+    hass: HomeAssistant, aioclient_mock, caplog
+) -> None:
+    aioclient_mock.get(PHONEBLOCK_URL, status=401)
+    client = PhoneBlockClient(
+        async_get_clientsession(hass),
+        "user",
+        "pw",
+        country_prefix="+49",
+        spam_threshold=50,
+        cache=LookupCache(failure_ttl=0),
+    )
+    assert client.health.status == "unknown"
+
+    for number in ("+4930111", "+4930222"):
+        await client.check(number)
+    assert client.health.status == "unknown"  # two lost requests are a hiccup
+    assert "Abfragen in Folge" not in caplog.text
+
+    await client.check("+4930333")
+    assert client.health.status == "error"
+    assert client.health.last_error == "ClientResponseError 401"
+    assert caplog.text.count("Abfragen in Folge fehlgeschlagen") == 1
+    assert "Zugangsdaten" in caplog.text
+
+    await client.check("+4930444")
+    assert caplog.text.count("Abfragen in Folge fehlgeschlagen") == 1  # still only once
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(PHONEBLOCK_URL, json={"spamConfidence": 10})
+    await client.check("+4930555")
+    assert client.health.status == "ok"
+    assert client.health.consecutive_failures == 0
+    assert "antwortet wieder" in caplog.text
+    # What is kept is the kind of error, never a number.
+    dump = str(client.health.as_dict())
+    assert "4930" not in dump
+
+
 async def test_tellows_parses_response_with_trailing_junk(
     hass: HomeAssistant, aioclient_mock
 ) -> None:
@@ -137,3 +180,102 @@ async def test_coordinator_enriches_unknown_callers(hass: HomeAssistant, aioclie
     assert message.is_spam and message.reverse_name == "Teleshop"
     # Four entries, one number: one request per service.
     assert aioclient_mock.call_count == 2
+
+
+async def test_status_sensors_exist_only_for_enabled_lookups(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    entry = await setup_integration(hass, FakeBox())
+    registry = er.async_get(hass)
+    for key in ("phoneblock_status", "reverse_lookup_status"):
+        assert registry.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_{key}") is None
+
+    entry = await setup_integration(
+        hass,
+        FakeBox(serial="OTHER"),
+        {
+            CONF_PHONEBLOCK_ENABLED: True,
+            CONF_PHONEBLOCK_USERNAME: "u",
+            CONF_PHONEBLOCK_PASSWORD: "p",
+        },
+    )
+    assert entity_id(hass, entry, "phoneblock_status")
+    assert registry.async_get_entity_id(
+        "sensor", DOMAIN, f"{entry.entry_id}_reverse_lookup_status"
+    ) is None
+    sensor = hass.states.get(entity_id(hass, entry, "phoneblock_status"))
+    assert sensor.state == "unknown"
+    assert registry.async_get(sensor.entity_id).entity_category is EntityCategory.DIAGNOSTIC
+
+
+async def test_status_sensor_shows_rejected_credentials(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    aioclient_mock.get(PHONEBLOCK_URL, status=401)
+    box = FakeBox(
+        calls=[make_call(str(i), caller_number=f"03012345{i}") for i in range(3)],
+    )
+    entry = await setup_integration(
+        hass,
+        box,
+        {
+            CONF_PHONEBLOCK_ENABLED: True,
+            CONF_PHONEBLOCK_USERNAME: "u",
+            CONF_PHONEBLOCK_PASSWORD: "wrong",
+        },
+    )
+    state = hass.states.get(entity_id(hass, entry, "phoneblock_status"))
+    assert state.state == "error"
+    assert state.attributes["consecutive_failures"] == 3
+    assert state.attributes["last_error"] == "ClientResponseError 401"
+    assert "03012345" not in str(state.attributes)
+
+
+async def test_rejected_credentials_raise_a_repair_that_clears_again(
+    hass: HomeAssistant, aioclient_mock
+) -> None:
+    aioclient_mock.get(PHONEBLOCK_URL, status=401)
+    box = FakeBox(calls=[make_call(str(i), caller_number=f"03012345{i}") for i in range(3)])
+    entry = await setup_integration(
+        hass,
+        box,
+        {
+            CONF_PHONEBLOCK_ENABLED: True,
+            CONF_PHONEBLOCK_USERNAME: "u",
+            CONF_PHONEBLOCK_PASSWORD: "wrong",
+        },
+    )
+    issue_id = f"phoneblock_credentials_{entry.entry_id}"
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_key == "phoneblock_credentials_rejected"
+    assert issue.is_fixable is False
+
+    coordinator = get_coordinator(hass, entry)
+    coordinator.phoneblock.health.record_success()
+    await coordinator.async_refresh()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+    # and it does not outlive the entry
+    coordinator.phoneblock.health.consecutive_failures = 3
+    coordinator.phoneblock.health._last_status = 401
+    coordinator.async_update_repairs()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+    await hass.config_entries.async_unload(entry.entry_id)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
+async def test_an_outage_is_not_a_credentials_repair(hass: HomeAssistant, aioclient_mock) -> None:
+    aioclient_mock.get(PHONEBLOCK_URL, status=503)
+    box = FakeBox(calls=[make_call(str(i), caller_number=f"03012345{i}") for i in range(3)])
+    entry = await setup_integration(
+        hass,
+        box,
+        {
+            CONF_PHONEBLOCK_ENABLED: True,
+            CONF_PHONEBLOCK_USERNAME: "u",
+            CONF_PHONEBLOCK_PASSWORD: "pw",
+        },
+    )
+    assert hass.states.get(entity_id(hass, entry, "phoneblock_status")).state == "error"
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"phoneblock_credentials_{entry.entry_id}") is None

@@ -141,4 +141,6 @@ async def _async_update_listener(hass: HomeAssistant, entry: FritzBoxPhoneConfig
 
 async def async_unload_entry(hass: HomeAssistant, entry: FritzBoxPhoneConfigEntry) -> bool:
     """Unload a config entry."""
+    # A reload re-raises the repair on the first poll if it still applies.
+    entry.runtime_data.coordinator.async_clear_repairs()
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

@@ -12,6 +12,11 @@ mark_message_read:
           min: 0
           max: 999
           mode: box
+    message_key:
+      required: false
+      example: "01.01.26 10:00|0301234567"
+      selector:
+        text:
     read:
       required: false
       default: true
@@ -32,6 +37,11 @@ delete_message:
           min: 0
           max: 999
           mode: box
+    message_key:
+      required: false
+      example: "01.01.26 10:00|0301234567"
+      selector:
+        text:
 
 download_message:
   target:
@@ -47,6 +57,11 @@ download_message:
           min: 0
           max: 999
           mode: box
+    message_key:
+      required: false
+      example: "01.01.26 10:00|0301234567"
+      selector:
+        text:
     filename:
       required: true
       example: nachricht_3.mp3

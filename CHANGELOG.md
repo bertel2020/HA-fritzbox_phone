@@ -6,12 +6,55 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Hinzugefügt
 
+- Statussensoren für PhoneBlock und die Online-Rückwärtssuche (Kategorie
+  Diagnose, nur bei eingeschaltetem Dienst). Bisher blieb ein Ausfall oder ein
+  falsches PhoneBlock-Kennwort unsichtbar und sah aus wie „kein Spam gefunden“.
+  Nach drei fehlgeschlagenen Abfragen in Folge steht der Sensor auf `error`, und
+  das Protokoll enthält einmal pro Ausfall eine Warnung (mit Hinweis bei
+  abgelehnten Zugangsdaten). Die Diagnosedaten enthalten zusätzlich den Status
+  der Dienste, den letzten Fehler der Box-Abfrage und die Fehlversuche des
+  Anrufmonitors – ohne Rufnummern.
+- Reparatur-Hinweis in Home Assistant, wenn PhoneBlock die Anmeldung mehrfach
+  in Folge ablehnt (HTTP 401/403). Er verschwindet, sobald eine Abfrage wieder
+  gelingt oder die Integration entladen wird. Ein bloßer Ausfall des Dienstes
+  löst ihn nicht aus.
+- Option „Namen und Rufnummern in der Dashboard-Karte verbergen“ (Standard: aus).
+  Die Karte zeigt dann Punkte, bis eine Zeile angetippt wird; danach sind Name und
+  Nummer 15 Sekunden lesbar. Gilt für Anrufliste, Anrufbeantworter und
+  Telefonbuch, nicht für den Anrufmonitor. Pro Karte überschreibbar mit `privacy`
+  (`auto`, `on`, `off`). Es ist nur eine Anzeigeoption: Sensor-Attribute,
+  Logbuch und Automationen enthalten weiter die echten Daten.
 - Karte: Ist die FRITZ!Box nicht erreichbar und die Sensoren werden
   „nicht verfügbar“, bleibt die zuletzt gesehene Liste sichtbar. Ein Hinweis
   „Verbindung zur FRITZ!Box unterbrochen – Stand …“ zeigt, wie alt sie ist.
   Ohne zuvor gesehene Liste erscheint wie bisher die Meldung zur Entität.
   Abspielen, Löschen und Zurückrufen sind in dieser Zeit gesperrt, mit Hinweis
   im Tooltip; eine offene Löschabfrage schließt sich.
+
+### Behoben
+
+- Anrufbeantworter: Abspielen, Löschen und Gelesen-Markieren prüfen die
+  Nachricht vor der Aktion anhand von Datum und Rufnummer (`message_key`) gegen
+  die frisch geladene Liste. Nummeriert die FRITZ!Box nach einer Löschung neu,
+  trifft die Aktion nicht mehr eine andere Nachricht, sondern wird abgebrochen
+  oder folgt der Nachricht zu ihrem neuen Index. Ohne `message_key` verhalten
+  sich die Dienste wie bisher.
+- Karte: Auf schmalen Karten und bei 200 % Zoom überdeckten die Buttons der AB-Zeile
+  den Text; die Zeilen umbrechen jetzt.
+- Karte: Kontrast von „Zurückrufen“, Spam-Etikett, „1 neu“ und der Lösch-Abfrage
+  auf mindestens 4,5:1 angehoben (heller und dunkler Modus).
+- Karte: Mehrfaches Bestätigen von „Löschen" sendet nur noch eine Anfrage.
+- Karte: Ein fehlgeschlagenes Gelesen-Markieren nach dem Abspielen wird gemeldet.
+
+### Geändert
+
+- Karte: Die Fortschrittsleiste ist ein Regler und per Tastatur bedienbar.
+- Karte: Esc schließt die Löschabfrage, und nach dem Löschen springt der Fokus
+  auf die nächste Zeile.
+- Aufnahmen werden nur noch bis 25 MB geladen (sonst HTTP 413), höchstens zwei
+  gleichzeitig.
+- `download_message` schreibt eine Warnung ins Protokoll, dass die Datei unter
+  `/local/fritzbox_tam/` ohne Anmeldung abrufbar ist.
 
 ## 2.0.3 – 2026-10-31
 

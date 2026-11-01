@@ -21,6 +21,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST
 from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -41,6 +42,7 @@ from .const import (
     CONTEXT_KEY_CALL_LIST,
     CONTEXT_KEY_MISSED_CALLS,
     CONTEXT_KEY_TAM,
+    MAX_PARALLEL_RECORDINGS,
     DEFAULT_CALL_LIST_DAYS,
     DEFAULT_CALL_LIST_MAX,
     DEFAULT_COUNTRY_PREFIX,
@@ -93,6 +95,9 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         # Needed by the lookup clients below, which run before the base
         # class has stored it.
         self.hass = hass
+        # Recording downloads wait here instead of piling up on executor
+        # threads (the box answers one request at a time anyway).
+        self.recording_slots = asyncio.Semaphore(MAX_PARALLEL_RECORDINGS)
         self.phoneblock = self._build_phoneblock_client()
         self.tellows = self._build_tellows_client()
         self._own_area_code: str | None = None
@@ -209,11 +214,39 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             # as new again.
             raise UpdateFailed(f"{type(err).__name__}: {err}") from err
         await self._async_enrich_online(data)
+        self.async_update_repairs()
         # Fire before returning: the coordinator notifies its entities the
         # moment this returns, and they need the Contexts to already be
         # parked when they write their new state.
         self._async_report_changes(data)
         return data
+
+    @property
+    def _phoneblock_issue_id(self) -> str:
+        return f"phoneblock_credentials_{self.entry.entry_id}"
+
+    @callback
+    def async_update_repairs(self) -> None:
+        """Raise (or clear) the repair for rejected PhoneBlock credentials.
+
+        Only this case needs the user to act and cannot be noticed from the
+        results: a rejected login looks exactly like "no spam found".
+        """
+        if self.phoneblock is not None and self.phoneblock.health.credentials_rejected:
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                self._phoneblock_issue_id,
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="phoneblock_credentials_rejected",
+            )
+        else:
+            ir.async_delete_issue(self.hass, DOMAIN, self._phoneblock_issue_id)
+
+    @callback
+    def async_clear_repairs(self) -> None:
+        ir.async_delete_issue(self.hass, DOMAIN, self._phoneblock_issue_id)
 
     @callback
     def take_context(self, key: str) -> Context | None:
@@ -289,7 +322,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         # would otherwise look like a batch of new messages.
         current = {
             tam.index: {
-                self._message_key(message) for message in tam.messages if message.new
+                self.message_key(message) for message in tam.messages if message.new
             }
             for tam in tams
         }
@@ -303,7 +336,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             added = [
                 message
                 for message in tam.messages
-                if message.new and self._message_key(message) not in previous
+                if message.new and self.message_key(message) not in previous
             ]
             removed = len(previous - current[tam.index])
             if not added and not removed:
@@ -324,7 +357,8 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             )
 
     @staticmethod
-    def _message_key(message: TamMessage) -> str:
+    def message_key(message: TamMessage) -> str:
+        """What identifies a message across renumbering: date and caller."""
         return f"{message.date}|{message.number}"
 
     def _call_payload(self, call: CallEntry) -> dict[str, Any]:
@@ -599,7 +633,58 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
                     return self._contacts_by_digits[candidate]
         return None, False
 
-    def fetch_recording(self, tam_index: int, message_index: int) -> bytes:
+    def resolve_message(
+        self,
+        tam_index: int,
+        message_index: int,
+        message_key: str | None,
+    ) -> TamMessage:
+        """The message a caller means, checked against a fresh message list.
+
+        The box renumbers its recordings whenever one is deleted, so an
+        index taken from a card that has not refreshed yet may point at a
+        different message. With the expected key (date and number) the
+        message is verified, or found under its new index when it is the
+        only one with that key; anything else is refused instead of
+        touching a message nobody asked for. Without a key the index is
+        taken as given. Blocking.
+        """
+        messages = self.client.get_tam_messages(tam_index)
+        at_index = next((m for m in messages if m.index == message_index), None)
+        if message_key is None:
+            if at_index is None:
+                raise ValueError(
+                    f"Nachricht {message_index} auf Anrufbeantworter {tam_index} "
+                    "wurde nicht gefunden"
+                )
+            return at_index
+        if at_index is not None and self.message_key(at_index) == message_key:
+            return at_index
+        matches = [m for m in messages if self.message_key(m) == message_key]
+        if len(matches) == 1:
+            return matches[0]
+        raise ValueError(
+            f"Nachricht {message_index} auf Anrufbeantworter {tam_index} hat sich "
+            "geändert oder wurde gelöscht - bitte die Ansicht aktualisieren"
+        )
+
+    def mark_message(
+        self, tam_index: int, message_index: int, read: bool, message_key: str | None
+    ) -> None:
+        """Mark the verified message as read or unread. Blocking."""
+        message = self.resolve_message(tam_index, message_index, message_key)
+        self.client.mark_message(tam_index, message.index, read)
+
+    def delete_message(
+        self, tam_index: int, message_index: int, message_key: str | None
+    ) -> None:
+        """Delete the verified message. Blocking."""
+        message = self.resolve_message(tam_index, message_index, message_key)
+        self.client.delete_message(tam_index, message.index)
+
+    def fetch_recording(
+        self, tam_index: int, message_index: int, message_key: str | None = None
+    ) -> bytes:
         """The audio of one answering machine message. Blocking.
 
         The message list is fetched fresh instead of using the last polled
@@ -607,26 +692,38 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         expire well within the polling interval, so a URL that was valid at
         the last poll may already 404 by the time somebody presses play.
         """
-        messages = self.client.get_tam_messages(tam_index)
-        message = next((m for m in messages if m.index == message_index), None)
-        if message is None or not message.download_url:
+        message = self.resolve_message(tam_index, message_index, message_key)
+        if not message.download_url:
             raise ValueError(
                 f"Nachricht {message_index} auf Anrufbeantworter {tam_index} "
-                "wurde nicht gefunden oder hat keine Aufnahme"
+                "hat keine Aufnahme"
             )
         return self.client.download(message.download_url)
 
-    def download_message(self, tam_index: int, message_index: int, filename: str) -> str:
+    def download_message(
+        self,
+        tam_index: int,
+        message_index: int,
+        filename: str,
+        message_key: str | None = None,
+    ) -> str:
         """Download a TAM recording into config/www/fritzbox_tam/<filename>.
 
         Runs blocking I/O, must be called from an executor thread.
         """
         safe_filename = validate_recording_filename(filename)
-        audio = self.fetch_recording(tam_index, message_index)
+        audio = self.fetch_recording(tam_index, message_index, message_key)
         dest_dir = Path(self.hass.config.path("www", "fritzbox_tam"))
         dest_dir.mkdir(parents=True, exist_ok=True)
         dest_path = dest_dir / safe_filename
         dest_path.write_bytes(audio)
+        _LOGGER.warning(
+            "Aufnahme gespeichert unter %s - sie ist ohne Anmeldung unter "
+            "/local/fritzbox_tam/%s abrufbar. Die Karte spielt Aufnahmen "
+            "angemeldet ab, ohne Export.",
+            dest_path,
+            safe_filename,
+        )
         return str(dest_path)
 
 

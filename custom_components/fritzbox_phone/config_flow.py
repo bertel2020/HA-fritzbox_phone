@@ -40,6 +40,7 @@ from .const import (
     CONF_PHONEBLOCK_THRESHOLD,
     CONF_PHONEBLOCK_USERNAME,
     CONF_PREFIXES,
+    CONF_PRIVACY_MODE,
     CONF_REVERSE_LOOKUP_ENABLED,
     CONF_SCAN_INTERVAL,
     CONF_USE_TLS,
@@ -49,6 +50,7 @@ from .const import (
     DEFAULT_ENABLE_CALLMONITOR,
     DEFAULT_PHONEBLOCK_ENABLED,
     DEFAULT_PHONEBLOCK_THRESHOLD,
+    DEFAULT_PRIVACY_MODE,
     DEFAULT_REVERSE_LOOKUP_ENABLED,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
@@ -363,6 +365,10 @@ class FritzBoxPhoneOptionsFlow(config_entries.OptionsFlow):
                     default=options.get(
                         CONF_REVERSE_LOOKUP_ENABLED, DEFAULT_REVERSE_LOOKUP_ENABLED
                     ),
+                ): bool,
+                vol.Optional(
+                    CONF_PRIVACY_MODE,
+                    default=options.get(CONF_PRIVACY_MODE, DEFAULT_PRIVACY_MODE),
                 ): bool,
             }
         )

@@ -68,7 +68,8 @@
           "phoneblock_username": "PhoneBlock username",
           "phoneblock_password": "PhoneBlock password (leave empty = unchanged)",
           "phoneblock_spam_threshold": "Spam threshold (%, a number counts as spam from this spam probability)",
-          "reverse_lookup_enabled": "Enable online reverse lookup via Tellows (sends unknown phone numbers in clear text to tellows.de, no account needed)"
+          "reverse_lookup_enabled": "Enable online reverse lookup via Tellows (sends unknown phone numbers in clear text to tellows.de, no account needed)",
+          "privacy_mode": "Hide names and numbers in the dashboard card until a row is tapped (for wall tablets)"
         }
       }
     },
@@ -104,6 +105,22 @@
       },
       "talk_time_today": {
         "name": "Talk time today"
+      },
+      "phoneblock_status": {
+        "name": "PhoneBlock",
+        "state": {
+          "ok": "OK",
+          "error": "Error",
+          "unknown": "Unknown"
+        }
+      },
+      "reverse_lookup_status": {
+        "name": "Online reverse lookup",
+        "state": {
+          "ok": "OK",
+          "error": "Error",
+          "unknown": "Unknown"
+        }
       }
     },
     "switch": {
@@ -148,6 +165,10 @@
         "read": {
           "name": "Read",
           "description": "On = mark as read, off = mark as unread."
+        },
+        "message_key": {
+          "name": "Message key",
+          "description": "Optional 'key' of the message (same attribute list). The action is refused if the box has renumbered its messages and the key no longer matches."
         }
       }
     },
@@ -158,6 +179,10 @@
         "message_index": {
           "name": "Message index",
           "description": "Index of the message (see the 'messages' attribute of the answering machine sensor)."
+        },
+        "message_key": {
+          "name": "Message key",
+          "description": "Optional 'key' of the message (same attribute list). The action is refused if the box has renumbered its messages and the key no longer matches."
         }
       }
     },
@@ -172,6 +197,10 @@
         "filename": {
           "name": "File name",
           "description": "Target file name, e.g. message_3.wav"
+        },
+        "message_key": {
+          "name": "Message key",
+          "description": "Optional 'key' of the message (same attribute list). The action is refused if the box has renumbered its messages and the key no longer matches."
         }
       }
     },
@@ -213,6 +242,12 @@
     },
     "no_box": {
       "message": "No FRITZ!Box is set up or loaded."
+    }
+  },
+  "issues": {
+    "phoneblock_credentials_rejected": {
+      "title": "PhoneBlock rejects the login",
+      "description": "PhoneBlock did not accept the username or password for several requests in a row, so no spam ratings are being fetched. Open the integration's options (Settings → Devices & services → FRITZ!Box Telefon → Configure) and check the PhoneBlock username and password, or switch the spam check off."
     }
   }
 }

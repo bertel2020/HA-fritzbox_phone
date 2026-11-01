@@ -50,7 +50,11 @@ async def test_calls_are_linked_to_their_message(hass: HomeAssistant) -> None:
     assert calls[1]["tam_message_index"] is None
 
     message = hass.states.get(entity_id(hass, entry, "tam_0")).attributes["messages"][0]
-    assert message["recording_path"] == f"/api/fritzbox_phone/recording/{entry.entry_id}/0/3"
+    assert message["key"] == "01.01.26 10:03|030123456"
+    assert message["recording_path"] == (
+        f"/api/fritzbox_phone/recording/{entry.entry_id}/0/3"
+        "?key=01.01.26+10%3A03%7C030123456"
+    )
 
 
 async def test_recording_requires_authentication(hass: HomeAssistant, hass_client_no_auth) -> None:
@@ -120,3 +124,100 @@ def test_filename_validation_rejects(name) -> None:
 @pytest.mark.parametrize("name", ["nachricht_3.wav", "Anruf.MP3", "x.ogg"])
 def test_filename_validation_accepts(name) -> None:
     assert validate_recording_filename(name) == name
+
+
+def _renumbered_box() -> FakeBox:
+    """Message 3 was deleted elsewhere: the one that was 4 is now number 3."""
+    return FakeBox(
+        tams=[make_tam([make_message(3, number="030999", date="01.01.26 10:04")])],
+    )
+
+
+async def test_delete_is_refused_when_the_message_changed(hass: HomeAssistant) -> None:
+    box = _renumbered_box()
+    entry = await setup_integration(hass, box)
+
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN,
+            "delete_message",
+            {
+                "entity_id": entity_id(hass, entry, "tam_0"),
+                "message_index": 3,
+                "message_key": "01.01.26 10:03|030123456",
+            },
+            blocking=True,
+        )
+    assert not any(call[0] == "delete_message" for call in box.calls_log)
+
+
+async def test_delete_follows_the_message_to_its_new_index(hass: HomeAssistant) -> None:
+    box = _renumbered_box()
+    entry = await setup_integration(hass, box)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "delete_message",
+        {
+            "entity_id": entity_id(hass, entry, "tam_0"),
+            "message_index": 4,
+            "message_key": "01.01.26 10:04|030999",
+        },
+        blocking=True,
+    )
+    assert ("delete_message", 0, 3) in box.calls_log
+
+
+async def test_mark_read_checks_the_key(hass: HomeAssistant) -> None:
+    box = _renumbered_box()
+    entry = await setup_integration(hass, box)
+
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN,
+            "mark_message_read",
+            {
+                "entity_id": entity_id(hass, entry, "tam_0"),
+                "message_index": 3,
+                "message_key": "01.01.26 10:03|030123456",
+            },
+            blocking=True,
+        )
+    assert not any(call[0] == "mark_message" for call in box.calls_log)
+
+
+async def test_recording_of_a_changed_message_is_404(
+    hass: HomeAssistant, hass_client
+) -> None:
+    entry = await setup_integration(hass, _box())
+    client = await hass_client()
+    path = f"/api/fritzbox_phone/recording/{entry.entry_id}/0/3"
+    assert (await client.get(path, params={"key": "01.01.26 10:03|030123456"})).status == 200
+    assert (await client.get(path, params={"key": "01.01.26 10:09|030000"})).status == 404
+
+
+async def test_download_warns_that_the_file_is_public(
+    hass: HomeAssistant, tmp_path, caplog
+) -> None:
+    entry = await setup_integration(hass, _box())
+    hass.config.config_dir = str(tmp_path)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "download_message",
+        {"entity_id": entity_id(hass, entry, "tam_0"), "message_index": 3, "filename": "a.wav"},
+        blocking=True,
+    )
+    assert (tmp_path / "www" / "fritzbox_tam" / "a.wav").read_bytes() == b"RIFF"
+    assert "ohne Anmeldung unter /local/fritzbox_tam/a.wav" in caplog.text
+
+
+async def test_sensors_tell_the_card_about_the_privacy_mode(hass: HomeAssistant) -> None:
+    for options, expected in (({}, False), ({"privacy_mode": True}, True)):
+        box = _box()
+        entry = await setup_integration(hass, box, options)
+        for suffix in ("call_list", "tam_0"):
+            state = hass.states.get(entity_id(hass, entry, suffix))
+            assert state.attributes["privacy_mode"] is expected
+        await hass.config_entries.async_remove(entry.entry_id)
+        await hass.async_block_till_done()

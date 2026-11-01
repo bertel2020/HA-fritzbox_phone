@@ -68,7 +68,8 @@
           "phoneblock_username": "PhoneBlock-Benutzername",
           "phoneblock_password": "PhoneBlock-Kennwort (leer lassen = unverändert)",
           "phoneblock_spam_threshold": "Spam-Schwellwert (%, ab dieser Spam-Wahrscheinlichkeit gilt eine Nummer als Spam)",
-          "reverse_lookup_enabled": "Online-Rückwärtssuche über Tellows aktivieren (sendet unbekannte Rufnummern im Klartext an tellows.de, kein Account nötig)"
+          "reverse_lookup_enabled": "Online-Rückwärtssuche über Tellows aktivieren (sendet unbekannte Rufnummern im Klartext an tellows.de, kein Account nötig)",
+          "privacy_mode": "Namen und Rufnummern in der Dashboard-Karte verbergen, bis eine Zeile angetippt wird (für Wandtablets)"
         }
       }
     },
@@ -104,6 +105,22 @@
       },
       "talk_time_today": {
         "name": "Gesprächszeit heute"
+      },
+      "phoneblock_status": {
+        "name": "PhoneBlock",
+        "state": {
+          "ok": "OK",
+          "error": "Fehler",
+          "unknown": "Unbekannt"
+        }
+      },
+      "reverse_lookup_status": {
+        "name": "Online-Rückwärtssuche",
+        "state": {
+          "ok": "OK",
+          "error": "Fehler",
+          "unknown": "Unbekannt"
+        }
       }
     },
     "switch": {
@@ -148,6 +165,10 @@
         "read": {
           "name": "Gelesen",
           "description": "Ein = als gelesen markieren, Aus = als ungelesen markieren."
+        },
+        "message_key": {
+          "name": "Nachrichtenschlüssel",
+          "description": "Optional: der 'key' der Nachricht (gleiche Attributliste). Die Aktion wird abgelehnt, wenn die Box die Nachrichten neu nummeriert hat und der Schlüssel nicht mehr passt."
         }
       }
     },
@@ -158,6 +179,10 @@
         "message_index": {
           "name": "Nachrichtenindex",
           "description": "Index der Nachricht (siehe Attribut 'messages' des Anrufbeantworter-Sensors)."
+        },
+        "message_key": {
+          "name": "Nachrichtenschlüssel",
+          "description": "Optional: der 'key' der Nachricht (gleiche Attributliste). Die Aktion wird abgelehnt, wenn die Box die Nachrichten neu nummeriert hat und der Schlüssel nicht mehr passt."
         }
       }
     },
@@ -172,6 +197,10 @@
         "filename": {
           "name": "Dateiname",
           "description": "Zieldateiname, z. B. nachricht_3.mp3"
+        },
+        "message_key": {
+          "name": "Nachrichtenschlüssel",
+          "description": "Optional: der 'key' der Nachricht (gleiche Attributliste). Die Aktion wird abgelehnt, wenn die Box die Nachrichten neu nummeriert hat und der Schlüssel nicht mehr passt."
         }
       }
     },
@@ -213,6 +242,12 @@
     },
     "no_box": {
       "message": "Es ist keine FRITZ!Box eingerichtet oder geladen."
+    }
+  },
+  "issues": {
+    "phoneblock_credentials_rejected": {
+      "title": "PhoneBlock lehnt die Anmeldung ab",
+      "description": "PhoneBlock hat Benutzername oder Kennwort mehrere Anfragen in Folge nicht akzeptiert, deshalb werden keine Spam-Bewertungen abgerufen. Öffne die Optionen der Integration (Einstellungen → Geräte & Dienste → FRITZ!Box Telefon → Konfigurieren) und prüfe Benutzername und Kennwort für PhoneBlock oder schalte die Spam-Erkennung aus."
     }
   }
 }

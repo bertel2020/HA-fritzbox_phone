@@ -7,7 +7,7 @@ from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfTime
+from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
@@ -24,6 +24,7 @@ from .const import (
 from .coordinator import FritzBoxPhoneCoordinator
 from .runtime import FritzBoxPhoneConfigEntry
 from .entity import FritzBoxPhoneEntity
+from .health import STATUS_ERROR, STATUS_OK, STATUS_UNKNOWN, LookupHealth
 from .views import recording_path
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,6 +47,20 @@ async def async_setup_entry(
     ]
     if (monitor := entry.runtime_data.call_monitor) is not None:
         entities.append(FritzBoxCallMonitorSensor(coordinator, entry, monitor))
+    # Only the lookups that are switched on get a status sensor (a change of
+    # the options reloads the entry).
+    if coordinator.phoneblock is not None:
+        entities.append(
+            FritzBoxLookupStatusSensor(
+                coordinator, entry, "phoneblock_status", coordinator.phoneblock.health
+            )
+        )
+    if coordinator.tellows is not None:
+        entities.append(
+            FritzBoxLookupStatusSensor(
+                coordinator, entry, "reverse_lookup_status", coordinator.tellows.health
+            )
+        )
     async_add_entities(entities)
 
     # Phonebooks and answering machines are discovered, not fixed at setup:
@@ -125,7 +140,10 @@ class FritzBoxCallListSensor(FritzBoxPhoneEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        return {"calls": [_call_to_dict(call) for call in self.coordinator.data.calls]}
+        return {
+            "calls": [_call_to_dict(call) for call in self.coordinator.data.calls],
+            **self._privacy_attributes,
+        }
 
 
 class FritzBoxMissedCallsSensor(FritzBoxPhoneEntity, SensorEntity):
@@ -277,7 +295,8 @@ class FritzBoxPhonebookSensor(FritzBoxPhoneEntity, SensorEntity):
                     ],
                 }
                 for contact in phonebook.contacts
-            ]
+            ],
+            **self._privacy_attributes,
         }
 
 
@@ -326,6 +345,7 @@ class FritzBoxTamSensor(FritzBoxPhoneEntity, SensorEntity):
             "running": tam.running,
             "capacity_minutes_remaining": tam.capacity_minutes,
             "total_messages": len(tam.messages),
+            **self._privacy_attributes,
             "messages": [
                 {
                     "index": message.index,
@@ -333,12 +353,18 @@ class FritzBoxTamSensor(FritzBoxPhoneEntity, SensorEntity):
                     "number": message.number,
                     "called": message.called,
                     "date": message.date,
+                    "key": self.coordinator.message_key(message),
                     "duration": message.duration,
                     "new": message.new,
                     "in_phonebook": message.inbook,
                     "has_recording": message.download_url is not None,
                     "recording_path": (
-                        recording_path(self._entry.entry_id, self._tam_index, message.index)
+                        recording_path(
+                            self._entry.entry_id,
+                            self._tam_index,
+                            message.index,
+                            self.coordinator.message_key(message),
+                        )
                         if message.download_url
                         else None
                     ),
@@ -354,23 +380,69 @@ class FritzBoxTamSensor(FritzBoxPhoneEntity, SensorEntity):
             ],
         }
 
-    async def async_mark_message_read(self, message_index: int, read: bool = True) -> None:
+    async def async_mark_message_read(
+        self, message_index: int, read: bool = True, message_key: str | None = None
+    ) -> None:
         await self._async_box_call(
-            self.coordinator.client.mark_message, self._tam_index, message_index, read
+            self.coordinator.mark_message, self._tam_index, message_index, read, message_key
         )
         await self.coordinator.async_request_refresh()
 
-    async def async_delete_message(self, message_index: int) -> None:
+    async def async_delete_message(
+        self, message_index: int, message_key: str | None = None
+    ) -> None:
         await self._async_box_call(
-            self.coordinator.client.delete_message, self._tam_index, message_index
+            self.coordinator.delete_message, self._tam_index, message_index, message_key
         )
         await self.coordinator.async_request_refresh()
 
-    async def async_download_message(self, message_index: int, filename: str) -> None:
+    async def async_download_message(
+        self, message_index: int, filename: str, message_key: str | None = None
+    ) -> None:
         path = await self._async_box_call(
-            self.coordinator.download_message, self._tam_index, message_index, filename
+            self.coordinator.download_message,
+            self._tam_index,
+            message_index,
+            filename,
+            message_key,
         )
         _LOGGER.info("Anrufbeantworter-Nachricht gespeichert unter %s", path)
+
+
+class FritzBoxLookupStatusSensor(FritzBoxPhoneEntity, SensorEntity):
+    """Whether an online lookup (PhoneBlock, Tellows) is answering.
+
+    The lookups swallow their errors so a poll never fails because of them;
+    this makes a dead service visible - e.g. rejected PhoneBlock credentials
+    that would otherwise look like "no spam found". Refreshed with every
+    poll. Carries no numbers: only counts, a time and the kind of error.
+    """
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = [STATUS_OK, STATUS_ERROR, STATUS_UNKNOWN]
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(
+        self,
+        coordinator: FritzBoxPhoneCoordinator,
+        entry: ConfigEntry,
+        key: str,
+        health: LookupHealth,
+    ) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_translation_key = key
+        self._attr_unique_id = f"{entry.entry_id}_{key}"
+        self._health = health
+
+    @property
+    def native_value(self) -> str:
+        return self._health.status
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        data = self._health.as_dict()
+        data.pop("status")
+        return data
 
 
 class FritzBoxCallMonitorSensor(FritzBoxPhoneEntity, SensorEntity):
