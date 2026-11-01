@@ -28,6 +28,8 @@ const TEXTS = {
       "Bitte eine Entität auswählen (Anrufliste, Anrufbeantworter, Telefonbuch oder Anrufmonitor der Integration).",
     entity_missing: "Entität {entity} nicht gefunden.",
     entity_unavailable: "Entität {entity} ist nicht verfügbar.",
+    stale: "Verbindung zur FRITZ!Box unterbrochen – Stand {time}",
+    offline_action: "Nicht möglich, solange die Verbindung zur FRITZ!Box unterbrochen ist",
     wrong_entity:
       "Diese Entität liefert weder Anrufe, Nachrichten, Kontakte noch einen Anrufmonitor-Status - falsche Entität ausgewählt?",
     today: "heute",
@@ -126,6 +128,8 @@ const TEXTS = {
       "Please choose an entity (call list, answering machine, phonebook or call monitor of the integration).",
     entity_missing: "Entity {entity} not found.",
     entity_unavailable: "Entity {entity} is unavailable.",
+    stale: "Connection to the FRITZ!Box lost – as of {time}",
+    offline_action: "Not possible while the connection to the FRITZ!Box is lost",
     wrong_entity:
       "This entity provides neither calls, messages, contacts nor a call monitor state - wrong entity selected?",
     today: "today",
@@ -264,6 +268,12 @@ const STYLE_CSS = `
     padding: 3px 9px; border-radius: 999px; white-space: nowrap;
   }
   .fb-content { padding: 0 16px 16px; }
+  .fb-stale {
+    display: flex; align-items: center; gap: 8px; margin: 0 0 8px; padding: 6px 10px;
+    border-radius: 8px; font-size: 12px; color: var(--primary-text-color);
+    background: color-mix(in srgb, var(--warning-color, #c98a1f) 22%, transparent);
+  }
+  .fb-stale ha-icon { --mdc-icon-size: 16px; flex-shrink: 0; }
   .fb-empty {
     padding: 16px 0; color: var(--secondary-text-color); font-size: 13px;
   }
@@ -606,6 +616,10 @@ function metaLine(parts) {
   return meta;
 }
 
+function isUnavailable(stateObj) {
+  return ["unavailable", "unknown"].includes(stateObj.state);
+}
+
 function emptyNotice(text) {
   const box = document.createElement("div");
   box.className = "fb-empty";
@@ -744,6 +758,12 @@ class FritzboxPhoneCard extends HTMLElement {
   constructor() {
     super();
     this._t = makeTranslator(null);
+    // The last list seen per entity, shown (as stale) while the entity is
+    // unavailable (see _current).
+    this._lastGood = new Map();
+    // Entities whose list is currently drawn from _lastGood: actions that
+    // need the box are disabled for them.
+    this._offline = new Set();
     // What the user is doing, kept across redraws (see _render).
     this._ui = { expanded: new Set(), confirming: new Set(), filters: null };
     this._search = "";
@@ -883,21 +903,37 @@ class FritzboxPhoneCard extends HTMLElement {
     style.textContent = STYLE_CSS;
     this.shadowRoot.appendChild(style);
 
+    // While the box is unreachable its sensors turn unavailable and carry
+    // no data. A list the card has already seen stays on screen, marked as
+    // stale, instead of being replaced by an empty notice.
+    const stale = [];
+    const current = this._current(entityId, stateObj, stale);
+    const tamCurrent = this._current(tamEntityId, tamStateObj, stale);
+    this._offline = new Set(
+      [
+        current !== stateObj && entityId,
+        tamCurrent !== tamStateObj && tamEntityId,
+      ].filter(Boolean)
+    );
+    const staleSince = stale.length
+      ? stale.reduce((a, b) => (Date.parse(a) <= Date.parse(b) ? a : b))
+      : null;
+
     const card = document.createElement("ha-card");
-    const attrs = (stateObj && stateObj.attributes) || {};
-    const kind = this._entityKind(stateObj);
-    const unavailable = !!stateObj && ["unavailable", "unknown"].includes(stateObj.state);
+    const attrs = (current && current.attributes) || {};
+    const kind = this._entityKind(current);
+    const unavailable = !!current && isUnavailable(current);
     const tamContext =
-      kind === "calls" && tamStateObj && Array.isArray(tamStateObj.attributes.messages)
+      kind === "calls" && tamCurrent && Array.isArray(tamCurrent.attributes.messages)
         ? {
-            entityId: tamStateObj.entity_id,
-            tamIndex: tamStateObj.attributes.tam_index,
-            messages: tamStateObj.attributes.messages,
+            entityId: tamCurrent.entity_id,
+            tamIndex: tamCurrent.attributes.tam_index,
+            messages: tamCurrent.attributes.messages,
           }
         : null;
 
     const title =
-      this._config.title || (stateObj && (attrs.friendly_name || entityId)) || entityId;
+      this._config.title || (current && (attrs.friendly_name || entityId)) || entityId;
     const header = document.createElement("div");
     header.className = "fb-header";
     const h2 = document.createElement("h2");
@@ -923,7 +959,8 @@ class FritzboxPhoneCard extends HTMLElement {
 
     const content = document.createElement("div");
     content.className = "fb-content";
-    if (!stateObj) {
+    if (staleSince) content.appendChild(this._buildStaleNotice(staleSince));
+    if (!current) {
       content.appendChild(emptyNotice(t("entity_missing", { entity: entityId })));
     } else if (unavailable) {
       content.appendChild(emptyNotice(t("entity_unavailable", { entity: entityId })));
@@ -934,12 +971,48 @@ class FritzboxPhoneCard extends HTMLElement {
     } else if (kind === "phonebook") {
       content.appendChild(this._buildPhonebook(attrs.contacts, entityId));
     } else if (kind === "monitor") {
-      content.appendChild(this._buildCallMonitor(stateObj));
+      content.appendChild(this._buildCallMonitor(current));
     } else {
       content.appendChild(emptyNotice(t("wrong_entity")));
     }
     card.appendChild(content);
     this.shadowRoot.appendChild(card);
+  }
+
+  // The state to draw for an entity: the live one, or - when it is
+  // unavailable and a list was seen before - the last good one, in which
+  // case its timestamp is added to `stale`.
+  _current(entityId, stateObj, stale) {
+    if (!entityId || !stateObj) return stateObj;
+    if (!isUnavailable(stateObj)) {
+      const kind = this._entityKind(stateObj);
+      if (kind === "calls" || kind === "messages" || kind === "phonebook") {
+        this._lastGood.set(entityId, {
+          stateObj,
+          since: stateObj.last_updated || new Date().toISOString(),
+        });
+      }
+      return stateObj;
+    }
+    const known = this._lastGood.get(entityId);
+    if (!known) return stateObj;
+    stale.push(known.since);
+    return known.stateObj;
+  }
+
+  _buildStaleNotice(since) {
+    const t = this._t;
+    const when = new Date(since);
+    const sameDay = when.toDateString() === new Date().toDateString();
+    const time = sameDay
+      ? when.toLocaleTimeString(t.lang, { hour: "2-digit", minute: "2-digit" })
+      : when.toLocaleString(t.lang, { dateStyle: "short", timeStyle: "short" });
+    const notice = document.createElement("div");
+    notice.className = "fb-stale";
+    notice.setAttribute("role", "status");
+    notice.appendChild(haIcon("mdi:lan-disconnect"));
+    notice.appendChild(textSpan(t("stale", { time })));
+    return notice;
   }
 
   // ------------------------------------------------------------------
@@ -1002,6 +1075,10 @@ class FritzboxPhoneCard extends HTMLElement {
     button.appendChild(haIcon("mdi:phone-outgoing"));
     button.appendChild(textSpan(t(labelKey)));
     button.setAttribute("aria-label", `${t(labelKey)}: ${number}`);
+    if (this._offline.has(entityId)) {
+      button.disabled = true;
+      button.title = t("offline_action");
+    }
     button.addEventListener("click", async (event) => {
       event.stopPropagation();
       button.disabled = true;
@@ -1492,7 +1569,11 @@ class FritzboxPhoneCard extends HTMLElement {
     if (progress) progress.setAttribute("aria-valuenow", String(Math.round(percent)));
     const playBtn = row.querySelector(".fb-play");
     if (playBtn) {
-      const label = playing ? t("pause") : t("play");
+      const label = playBtn.dataset.offline
+        ? t("offline_action")
+        : playing
+          ? t("pause")
+          : t("play");
       playBtn.setAttribute("aria-label", label);
       playBtn.title = label;
       playBtn.setAttribute("aria-pressed", String(playing));
@@ -1525,6 +1606,20 @@ class FritzboxPhoneCard extends HTMLElement {
     delBtn.title = t("delete");
     delBtn.setAttribute("aria-label", t("delete"));
     delBtn.appendChild(haIcon("mdi:trash-can-outline"));
+
+    // Without the box neither the recording nor a delete can work. A
+    // recording that is already playing can still be paused.
+    const offline = this._offline.has(entityId);
+    if (offline) {
+      delBtn.disabled = true;
+      delBtn.title = t("offline_action");
+      delBtn.setAttribute("aria-label", t("offline_action"));
+      if (player.paused) {
+        playBtn.disabled = true;
+        playBtn.dataset.offline = "1";
+      }
+      this._ui.confirming.delete(key);
+    }
 
     actions.appendChild(playBtn);
     actions.appendChild(delBtn);
