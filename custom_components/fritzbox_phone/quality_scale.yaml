@@ -27,18 +27,12 @@ rules:
   config-entry-unloading: done
   docs-configuration-parameters: done
   docs-installation-parameters: done
-  entity-unavailable:
-    status: todo
-    comment: Not verified that every entity turns unavailable when the box is unreachable.
+  entity-unavailable: done
   integration-owner: done
-  log-when-unavailable:
-    status: todo
-    comment: Not verified that an outage is logged once and its recovery once.
+  log-when-unavailable: done
   parallel-updates: done
   reauthentication-flow: done
-  test-coverage:
-    status: todo
-    comment: Measured in CI, currently 85% (api.py 59%, logbook.py 30%); the target is 95%.
+  test-coverage: done
 
   # Gold
   devices: done

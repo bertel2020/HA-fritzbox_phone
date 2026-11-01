@@ -88,3 +88,41 @@ async def test_connection_error_at_setup_is_retried(hass: HomeAssistant) -> None
     box = FakeBox(connect_error=requests.ConnectionError("down"))
     entry = await setup_integration(hass, box)
     assert entry.state is ConfigEntryState.SETUP_RETRY
+
+
+async def test_an_outage_makes_every_entity_unavailable_and_is_logged_once(
+    hass: HomeAssistant, caplog
+) -> None:
+    from homeassistant.const import STATE_UNAVAILABLE
+    from homeassistant.helpers import entity_registry as er
+
+    from .common import make_message, make_phonebook, make_tam
+
+    box = FakeBox(
+        calls=[make_call("1")],
+        tams=[make_tam([make_message(1)])],
+        phonebooks=[make_phonebook(("Anna", "030123456"))],
+    )
+    entry = await setup_integration(hass, box)
+    coordinator = get_coordinator(hass, entry)
+    registry = er.async_get(hass)
+    entity_ids = [e.entity_id for e in er.async_entries_for_config_entry(registry, entry.entry_id)]
+    assert len(entity_ids) > 3
+
+    def unavailable() -> list[str]:
+        return [e for e in entity_ids if hass.states.get(e).state == STATE_UNAVAILABLE]
+
+    assert unavailable() == []
+
+    box.poll_error = FritzConnectionException("box away")
+    for _ in range(3):
+        await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert sorted(unavailable()) == sorted(entity_ids)
+    assert caplog.text.count("Error fetching") == 1
+
+    box.poll_error = None
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert unavailable() == []
+    assert caplog.text.count("data recovered") == 1
