@@ -38,6 +38,7 @@ import aiohttp
 from defusedxml import ElementTree as ET
 
 from .cache import LookupCache
+from .health import LookupHealth
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -87,6 +88,7 @@ class TellowsClient:
         self._spam_score_threshold = spam_score_threshold
         self._timeout = aiohttp.ClientTimeout(total=timeout)
         self._cache: LookupCache[TellowsInfo] = cache or LookupCache()
+        self.health = LookupHealth("Tellows")
 
     async def lookup(self, number: str | None) -> TellowsInfo | None:
         """Look up a number on Tellows. Returns None on any failure."""
@@ -105,8 +107,10 @@ class TellowsClient:
             # (network, Tellows outage, unexpected response) just skips
             # enrichment for this number.
             _LOGGER.debug("Tellows-Abfrage fehlgeschlagen: %s", err)
+            self.health.record_failure(err)
             self._cache.set(normalized, None, failed=True)
             return None
+        self.health.record_success()
         self._cache.set(normalized, info)
         return info
 

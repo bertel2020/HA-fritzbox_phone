@@ -105,6 +105,22 @@
       },
       "talk_time_today": {
         "name": "Talk time today"
+      },
+      "phoneblock_status": {
+        "name": "PhoneBlock",
+        "state": {
+          "ok": "OK",
+          "error": "Error",
+          "unknown": "Unknown"
+        }
+      },
+      "reverse_lookup_status": {
+        "name": "Online reverse lookup",
+        "state": {
+          "ok": "OK",
+          "error": "Error",
+          "unknown": "Unknown"
+        }
       }
     },
     "switch": {
@@ -226,6 +242,12 @@
     },
     "no_box": {
       "message": "No FRITZ!Box is set up or loaded."
+    }
+  },
+  "issues": {
+    "phoneblock_credentials_rejected": {
+      "title": "PhoneBlock rejects the login",
+      "description": "PhoneBlock did not accept the username or password for several requests in a row, so no spam ratings are being fetched. Open the integration's options (Settings → Devices & services → FRITZ!Box Telefon → Configure) and check the PhoneBlock username and password, or switch the spam check off."
     }
   }
 }
