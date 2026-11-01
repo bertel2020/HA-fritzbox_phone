@@ -357,10 +357,13 @@ const STYLE_CSS = `
 
   .fb-progress {
     grid-column: 1 / -1; height: 3px; background: var(--divider-color); border-radius: 2px;
-    overflow: hidden; display: none;
+    display: none;
   }
   .fb-row.is-playing .fb-progress { display: block; }
-  .fb-progress > span { display: block; height: 100%; width: 0%; background: var(--primary-color); }
+  .fb-progress > span {
+    display: block; height: 100%; width: 0%; border-radius: inherit; background: var(--primary-color);
+  }
+  .fb-progress:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
 
   .fb-confirm {
     grid-column: 1 / -1; display: none; align-items: center; justify-content: space-between;
@@ -627,6 +630,11 @@ function emptyNotice(text) {
   box.className = "fb-empty";
   box.textContent = text;
   return box;
+}
+
+function formatSeconds(seconds) {
+  const whole = Math.max(0, Math.floor(seconds));
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
 }
 
 function haIcon(name, className) {
@@ -1568,7 +1576,15 @@ class FritzboxPhoneCard extends HTMLElement {
     const bar = row.querySelector(".fb-progress > span");
     if (bar) bar.style.width = `${percent}%`;
     const progress = row.querySelector(".fb-progress");
-    if (progress) progress.setAttribute("aria-valuenow", String(Math.round(percent)));
+    if (progress) {
+      const total = Number.isFinite(player.duration) ? player.duration : 0;
+      progress.setAttribute("aria-valuemax", String(Math.round(total)));
+      progress.setAttribute("aria-valuenow", String(Math.round(player.currentTime || 0)));
+      progress.setAttribute(
+        "aria-valuetext",
+        `${formatSeconds(player.currentTime || 0)} / ${formatSeconds(total)}`
+      );
+    }
     const playBtn = row.querySelector(".fb-play");
     if (playBtn) {
       const label = playBtn.dataset.offline
@@ -1629,15 +1645,28 @@ class FritzboxPhoneCard extends HTMLElement {
 
     const progress = document.createElement("div");
     progress.className = "fb-progress";
-    progress.setAttribute("role", "progressbar");
+    progress.setAttribute("role", "slider");
+    progress.tabIndex = 0;
     progress.setAttribute("aria-label", t("seek"));
     progress.setAttribute("aria-valuemin", "0");
-    progress.setAttribute("aria-valuemax", "100");
+    progress.setAttribute("aria-valuemax", "0");
+    progress.setAttribute("aria-valuenow", "0");
     progress.appendChild(document.createElement("span"));
     progress.addEventListener("click", (event) => {
       if (!player.duration) return;
       const box = progress.getBoundingClientRect();
       player.currentTime = ((event.clientX - box.left) / box.width) * player.duration;
+    });
+    progress.addEventListener("keydown", (event) => {
+      if (!player.duration) return;
+      const steps = { ArrowLeft: -5, ArrowDown: -5, ArrowRight: 5, ArrowUp: 5, PageDown: -15, PageUp: 15 };
+      let target;
+      if (event.key in steps) target = player.currentTime + steps[event.key];
+      else if (event.key === "Home") target = 0;
+      else if (event.key === "End") target = player.duration;
+      else return;
+      event.preventDefault();
+      player.currentTime = Math.min(Math.max(target, 0), player.duration);
     });
     row.appendChild(progress);
 

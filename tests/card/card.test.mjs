@@ -246,6 +246,36 @@ test("a failed mark-as-read is reported while the message keeps playing", async 
   assert.match(notes[0], /box offline/);
 });
 
+test("the seek bar is a slider that arrow keys can move", async () => {
+  const window = load();
+  const hass = makeHass({ "sensor.tam": state("sensor.tam", "1", { messages: [message(1)] }) });
+  const card = mount(window, { entity: "sensor.tam" }, hass);
+  root(card).querySelector(".fb-play").click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const player = FakeAudio.instances[0];
+  const bar = root(card).querySelector(".fb-progress");
+  assert.equal(bar.getAttribute("role"), "slider");
+  assert.equal(bar.tabIndex, 0);
+  assert.equal(bar.getAttribute("aria-valuemax"), "10");
+
+  const press = (key) =>
+    bar.dispatchEvent(new window.KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+  press("ArrowRight");
+  assert.equal(player.currentTime, 5);
+  press("ArrowRight");
+  press("ArrowRight");
+  assert.equal(player.currentTime, 10); // stops at the end
+  press("Home");
+  assert.equal(player.currentTime, 0);
+  press("ArrowLeft");
+  assert.equal(player.currentTime, 0); // and at the start
+  player.currentTime = 7;
+  player.dispatchEvent(new Event("timeupdate"));
+  assert.equal(bar.getAttribute("aria-valuenow"), "7");
+  assert.equal(bar.getAttribute("aria-valuetext"), "0:07 / 0:10");
+});
+
 test("a double click on delete sends one request only", async () => {
   const window = load();
   const hass = makeHass({ "sensor.tam": state("sensor.tam", "1", { messages: [message(1)] }) });
