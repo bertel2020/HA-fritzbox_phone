@@ -6,6 +6,10 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Hinzugefügt
 
+- Aktion `play_message`: spielt eine Anrufbeantworter-Aufnahme auf einem
+  Mediaplayer ab, z. B. um neue Nachrichten im Wohnzimmer anzusagen. Die
+  Aufnahme wird über eine signierte Adresse (zehn Minuten gültig) ausgeliefert;
+  dafür muss in Home Assistant eine interne Adresse eingestellt sein.
 - Drei weitere Blueprints: „Aktion bei klingelndem Telefon“ (einmal je Anruf,
   mit optionalem Pausieren von Mediaplayern), „Aktion bei Anruf eines
   VIP-Kontakts“ und „Aktion bei neuer Nachricht auf dem Anrufbeantworter“.

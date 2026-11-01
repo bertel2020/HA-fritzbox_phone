@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
-from pytest_homeassistant_custom_component.common import async_capture_events
+from pytest_homeassistant_custom_component.common import async_capture_events, async_mock_service
 
 from custom_components.fritzbox_phone.const import (
     CONF_PHONEBLOCK_ENABLED,
@@ -23,7 +23,9 @@ from .common import (
     FakeBox,
     entity_id,
     make_call,
+    make_message,
     make_phonebook,
+    make_tam,
     setup_integration,
 )
 
@@ -225,3 +227,46 @@ async def test_spam_statistics_need_phoneblock(hass: HomeAssistant) -> None:
     registry = er.async_get(hass)
     for suffix in ("spam_calls_today", "spam_calls_total"):
         assert registry.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_{suffix}") is None
+
+
+async def test_play_message_on_a_speaker(hass: HomeAssistant) -> None:
+    hass.config.internal_url = "http://ha.local:8123"
+    box = FakeBox(tams=[make_tam([make_message(1, download_url="http://box/a.wav")])])
+    entry = await _setup(hass, box)
+    played = async_mock_service(hass, "media_player", "play_media")
+
+    await hass.services.async_call(
+        DOMAIN,
+        "play_message",
+        {
+            "entity_id": entity_id(hass, entry, "tam_0"),
+            "message_index": 1,
+            "media_player": "media_player.kitchen",
+        },
+        blocking=True,
+    )
+
+    data = played[0].data
+    assert data["entity_id"] == "media_player.kitchen"
+    prefix = f"http://ha.local:8123/api/fritzbox_phone/recording/{entry.entry_id}/0/1?"
+    assert data["media_content_id"].startswith(prefix)
+    # Signed, because the speaker has no login; the key guards against renumbering.
+    assert "authSig=" in data["media_content_id"] and "key=" in data["media_content_id"]
+
+
+async def test_play_message_refuses_what_cannot_be_played(hass: HomeAssistant) -> None:
+    hass.config.internal_url = "http://ha.local:8123"
+    box = FakeBox(tams=[make_tam([make_message(1)])])  # no recording
+    entry = await _setup(hass, box)
+    played = async_mock_service(hass, "media_player", "play_media")
+    target = {"media_player": "media_player.kitchen", "message_index": 1}
+
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN, "play_message", {"entity_id": entity_id(hass, entry, "tam_0"), **target}, blocking=True
+        )
+    with pytest.raises(ServiceValidationError):  # not an answering machine
+        await hass.services.async_call(
+            DOMAIN, "play_message", {"entity_id": entity_id(hass, entry, "call_list"), **target}, blocking=True
+        )
+    assert played == []

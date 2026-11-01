@@ -16,6 +16,7 @@ from homeassistant.helpers import config_validation as cv, device_registry as dr
 
 from .const import (
     ATTR_FILENAME,
+    ATTR_MEDIA_PLAYER,
     ATTR_MESSAGE_KEY,
     ATTR_MESSAGE_INDEX,
     ATTR_NAME,
@@ -31,6 +32,7 @@ from .const import (
     SERVICE_HANGUP,
     SERVICE_LOOKUP_NUMBER,
     SERVICE_MARK_MESSAGE_READ,
+    SERVICE_PLAY_MESSAGE,
     SERVICE_UNBLOCK_NUMBER,
 )
 from .coordinator import FritzBoxPhoneCoordinator
@@ -123,6 +125,15 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 vol.Required(ATTR_FILENAME): str,
             },
             "async_download_message",
+        ),
+        (
+            SERVICE_PLAY_MESSAGE,
+            {
+                vol.Required(ATTR_MESSAGE_INDEX): vol.Coerce(int),
+                vol.Optional(ATTR_MESSAGE_KEY): cv.string,
+                vol.Required(ATTR_MEDIA_PLAYER): cv.entity_id,
+            },
+            "async_play_message",
         ),
     ):
         service.async_register_platform_entity_service(

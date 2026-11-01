@@ -54,6 +54,7 @@ ATTR_MESSAGE_INDEX = "message_index"
 ATTR_READ = "read"
 ATTR_MESSAGE_KEY = "message_key"
 ATTR_FILENAME = "filename"
+ATTR_MEDIA_PLAYER = "media_player"
 
 ATTR_NUMBER = "number"
 ATTR_NAME = "name"
@@ -66,6 +67,7 @@ SERVICE_UNBLOCK_NUMBER = "unblock_number"
 SERVICE_MARK_MESSAGE_READ = "mark_message_read"
 SERVICE_DELETE_MESSAGE = "delete_message"
 SERVICE_DOWNLOAD_MESSAGE = "download_message"
+SERVICE_PLAY_MESSAGE = "play_message"
 
 # Authenticated delivery of answering machine recordings (views.py).
 # A recording larger than this is refused instead of being held in memory

@@ -258,6 +258,24 @@
           "description": "Die freizugebende Nummer."
         }
       }
+    },
+    "play_message": {
+      "name": "Nachricht auf einem Lautsprecher abspielen",
+      "description": "Spielt eine Anrufbeantworter-Aufnahme auf einem Mediaplayer ab. Der Lautsprecher muss Home Assistant unter der internen Adresse erreichen; die Adresse ist signiert und zehn Minuten gültig.",
+      "fields": {
+        "message_index": {
+          "name": "Nachrichtenindex",
+          "description": "Index der Nachricht (siehe Attribut 'messages' des Anrufbeantworter-Sensors)."
+        },
+        "message_key": {
+          "name": "Nachrichtenschlüssel",
+          "description": "Optional: der 'key' der Nachricht (gleiche Attributliste). Die Aktion wird abgelehnt, wenn die Box die Nachrichten neu nummeriert hat und der Schlüssel nicht mehr passt."
+        },
+        "media_player": {
+          "name": "Mediaplayer",
+          "description": "Der Lautsprecher, der die Nachricht abspielt."
+        }
+      }
     }
   },
   "exceptions": {
@@ -275,6 +293,12 @@
     },
     "number_not_blocked": {
       "message": "Die Nummer {number} steht nicht in der Rufsperre der FRITZ!Box."
+    },
+    "message_not_playable": {
+      "message": "Nachricht {index} hat keine Aufnahme, die sich abspielen ließe."
+    },
+    "no_internal_url": {
+      "message": "Es ist keine interne Home-Assistant-Adresse eingestellt, daher kann ein Lautsprecher die Aufnahme nicht abrufen. Sie lässt sich unter Einstellungen > System > Netzwerk festlegen."
     }
   },
   "issues": {

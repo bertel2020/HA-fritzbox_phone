@@ -258,6 +258,24 @@
           "description": "The number to unblock."
         }
       }
+    },
+    "play_message": {
+      "name": "Play a message on a speaker",
+      "description": "Plays an answering machine recording on a media player. The speaker needs to reach Home Assistant at its internal URL; the address is signed and valid for ten minutes.",
+      "fields": {
+        "message_index": {
+          "name": "Message index",
+          "description": "Index of the message (see the 'messages' attribute of the answering machine sensor)."
+        },
+        "message_key": {
+          "name": "Message key",
+          "description": "Optional 'key' of the message (same attribute list). The action is refused if the box has renumbered its messages and the key no longer matches."
+        },
+        "media_player": {
+          "name": "Media player",
+          "description": "The speaker that plays the message."
+        }
+      }
     }
   },
   "exceptions": {
@@ -275,6 +293,12 @@
     },
     "number_not_blocked": {
       "message": "The number {number} is not on the FRITZ!Box call barring list."
+    },
+    "message_not_playable": {
+      "message": "Message {index} has no recording that could be played."
+    },
+    "no_internal_url": {
+      "message": "No internal Home Assistant URL is set, so a speaker cannot fetch the recording. Set it under Settings > System > Network."
     }
   },
   "issues": {

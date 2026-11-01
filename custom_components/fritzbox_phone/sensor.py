@@ -1,10 +1,11 @@
 """Sensor platform for the FRITZ!Box phone integration."""
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import logging
 from typing import Any
 
+from homeassistant.components.http.auth import async_sign_path
 from homeassistant.components.sensor import (
     RestoreSensor,
     SensorDeviceClass,
@@ -14,7 +15,9 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import Context, HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.util import dt as dt_util
 
 from .api import CallEntry, Phonebook, Tam
@@ -23,6 +26,7 @@ from .const import (
     CONTEXT_KEY_CALL_LIST,
     CONTEXT_KEY_MISSED_CALLS,
     CONTEXT_KEY_TAM,
+    DOMAIN,
     MISSED_CALL_TYPE,
     OUTGOING_CALL_TYPE,
 )
@@ -454,6 +458,47 @@ class FritzBoxTamSensor(FritzBoxPhoneEntity, SensorEntity):
             self.coordinator.delete_message, self._tam_index, message_index, message_key
         )
         await self.coordinator.async_request_refresh()
+
+    async def async_play_message(
+        self, message_index: int, media_player: str, message_key: str | None = None
+    ) -> None:
+        tam = self._tam
+        message = next(
+            (m for m in (tam.messages if tam else []) if m.index == message_index), None
+        )
+        if message is None or not message.download_url:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="message_not_playable",
+                translation_placeholders={"index": str(message_index)},
+            )
+        # The key makes the recording view refuse the request if the box has
+        # renumbered its messages in the meantime.
+        path = recording_path(
+            self._entry.entry_id,
+            self._tam_index,
+            message.index,
+            message_key or self.coordinator.message_key(message),
+        )
+        try:
+            base = get_url(self.hass, allow_external=False)
+        except NoURLAvailableError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="no_internal_url"
+            ) from err
+        # A signed address, as the speaker has no Home Assistant login.
+        url = base + async_sign_path(self.hass, path, timedelta(minutes=10))
+        await self.hass.services.async_call(
+            "media_player",
+            "play_media",
+            {
+                "entity_id": media_player,
+                "media_content_id": url,
+                "media_content_type": "music",
+            },
+            blocking=True,
+            context=self._context,
+        )
 
     async def async_download_message(
         self, message_index: int, filename: str, message_key: str | None = None
