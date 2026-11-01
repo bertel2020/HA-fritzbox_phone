@@ -6,6 +6,12 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Hinzugefügt
 
+- Option „Namen und Rufnummern in der Dashboard-Karte verbergen“ (Standard: aus).
+  Die Karte zeigt dann Punkte, bis eine Zeile angetippt wird; danach sind Name und
+  Nummer 15 Sekunden lesbar. Gilt für Anrufliste, Anrufbeantworter und
+  Telefonbuch, nicht für den Anrufmonitor. Pro Karte überschreibbar mit `privacy`
+  (`auto`, `on`, `off`). Es ist nur eine Anzeigeoption: Sensor-Attribute,
+  Logbuch und Automationen enthalten weiter die echten Daten.
 - Karte: Ist die FRITZ!Box nicht erreichbar und die Sensoren werden
   „nicht verfügbar“, bleibt die zuletzt gesehene Liste sichtbar. Ein Hinweis
   „Verbindung zur FRITZ!Box unterbrochen – Stand …“ zeigt, wie alt sie ist.

@@ -21,6 +21,8 @@ const DEFAULT_ROWS = 8;
 // A signed recording URL is valid for an hour; reuse it for a bit less.
 const SIGN_EXPIRES_SECONDS = 3600;
 const SIGN_REUSE_MS = 50 * 60 * 1000;
+// How long a tapped row in privacy mode stays readable.
+const REVEAL_MS = 15 * 1000;
 
 const TEXTS = {
   de: {
@@ -123,6 +125,11 @@ const TEXTS = {
     e_tap_action: "Antippen einer Zeile",
     e_tap_expand: "Details aufklappen",
     e_tap_more_info: "Entität öffnen",
+    e_privacy: "Namen und Nummern verbergen",
+    e_privacy_auto: "Wie in der Integration eingestellt",
+    e_privacy_on: "Immer verbergen",
+    e_privacy_off: "Nie verbergen",
+    hidden: "Verdeckt - zum Anzeigen antippen",
   },
   en: {
     choose_entity:
@@ -224,6 +231,11 @@ const TEXTS = {
     e_tap_action: "Tapping a row",
     e_tap_expand: "Expand details",
     e_tap_more_info: "Open the entity",
+    e_privacy: "Hide names and numbers",
+    e_privacy_auto: "As set in the integration",
+    e_privacy_on: "Always hide",
+    e_privacy_off: "Never hide",
+    hidden: "Hidden - tap to show",
   },
 };
 
@@ -392,6 +404,10 @@ const STYLE_CSS = `
   .fb-vm .fb-main { cursor: pointer; border-radius: 6px; margin: -2px -4px; padding: 2px 4px; }
   .fb-vm .fb-main:hover { background: var(--secondary-background-color); }
 
+  .fb-sr {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);
+    white-space: nowrap;
+  }
   .fb-details {
     grid-column: 1 / -1; display: none; font-size: 11.5px; color: var(--secondary-text-color);
     padding: 6px 4px 2px 40px; line-height: 1.7;
@@ -753,12 +769,20 @@ function buildDetails(items) {
   return box;
 }
 
-function buildNameLine(t, text, isSpam) {
+function buildNameLine(t, text, isSpam, masked = false) {
   const wrap = document.createElement("div");
   wrap.className = "fb-name-row";
   const name = document.createElement("span");
   name.className = "fb-name";
-  name.textContent = text;
+  if (masked) {
+    const dots = textSpan("••••••");
+    dots.setAttribute("aria-hidden", "true");
+    const hint = textSpan(t("hidden"));
+    hint.className = "fb-sr";
+    name.append(dots, hint);
+  } else {
+    name.textContent = text;
+  }
   wrap.appendChild(name);
   if (isSpam) {
     const badge = document.createElement("span");
@@ -776,6 +800,9 @@ class FritzboxPhoneCard extends HTMLElement {
     // The last list seen per entity, shown (as stale) while the entity is
     // unavailable (see _current).
     this._lastGood = new Map();
+    // Privacy mode: rows the user tapped open for a moment (key -> timer).
+    this._privacyOn = false;
+    this._revealed = new Map();
     // Entities whose list is currently drawn from _lastGood: actions that
     // need the box are disabled for them.
     this._offline = new Set();
@@ -816,6 +843,7 @@ class FritzboxPhoneCard extends HTMLElement {
       show_stats: true,
       show_dial: true,
       tap_action: "expand",
+      privacy: "auto",
       ...config,
     };
     this._lastStateObj = undefined;
@@ -863,6 +891,8 @@ class FritzboxPhoneCard extends HTMLElement {
 
   disconnectedCallback() {
     this._stopCallMonitorTimer();
+    for (const timer of this._revealed.values()) clearTimeout(timer);
+    this._revealed.clear();
     // A card that left the page must not keep playing.
     for (const player of this._players.values()) player.pause();
     this._players.clear();
@@ -934,6 +964,8 @@ class FritzboxPhoneCard extends HTMLElement {
       ? stale.reduce((a, b) => (Date.parse(a) <= Date.parse(b) ? a : b))
       : null;
 
+    this._privacyOn = this._privacyEnabled(current, tamCurrent);
+
     const card = document.createElement("ha-card");
     const attrs = (current && current.attributes) || {};
     const kind = this._entityKind(current);
@@ -994,6 +1026,45 @@ class FritzboxPhoneCard extends HTMLElement {
     this.shadowRoot.appendChild(card);
   }
 
+  // Privacy mode: names and numbers are replaced by dots until a row is
+  // tapped, then readable for REVEAL_MS. The card option wins over the
+  // integration's setting (`privacy_mode` attribute of its sensors).
+  _privacyEnabled(...states) {
+    const setting = this._config.privacy;
+    if (setting === true || setting === "on") return true;
+    if (setting === false || setting === "off") return false;
+    return states.some((stateObj) => stateObj && stateObj.attributes.privacy_mode === true);
+  }
+
+  _isMasked(key) {
+    return this._privacyOn && !this._revealed.has(key);
+  }
+
+  _reveal(key) {
+    clearTimeout(this._revealed.get(key));
+    this._revealed.set(
+      key,
+      setTimeout(() => {
+        this._revealed.delete(key);
+        this._ui.expanded.delete(key);
+        this._redraw();
+      }, REVEAL_MS)
+    );
+    this._redraw(key);
+  }
+
+  // Draws everything again, e.g. after the privacy state of a row changed,
+  // and gives the focus back to the row that was in use.
+  _redraw(focusKey) {
+    this._lastStateObj = undefined;
+    this._render();
+    if (!focusKey || !this.shadowRoot) return;
+    const rows = [...this.shadowRoot.querySelectorAll(".fb-row")];
+    const row = rows.find((candidate) => candidate.dataset.key === focusKey);
+    const main = row && row.querySelector(".fb-main");
+    if (main) main.focus();
+  }
+
   // The state to draw for an entity: the live one, or - when it is
   // unavailable and a list was seen before - the last good one, in which
   // case its timestamp is added to `stale`.
@@ -1040,7 +1111,11 @@ class FritzboxPhoneCard extends HTMLElement {
     main.tabIndex = 0;
     main.setAttribute("aria-expanded", String(row.classList.contains("is-expanded")));
     const activate = () => {
-      if (this._config.tap_action === "more-info") {
+      if (this._isMasked(key)) {
+        // First tap in privacy mode only uncovers the row.
+        if (this._config.tap_action !== "more-info") this._ui.expanded.add(key);
+        this._reveal(key);
+      } else if (this._config.tap_action === "more-info") {
         this.dispatchEvent(
           new CustomEvent("hass-more-info", {
             detail: { entityId },
@@ -1379,6 +1454,7 @@ class FritzboxPhoneCard extends HTMLElement {
     }${this._ui.expanded.has(key) ? " is-expanded" : ""}`;
     row.dataset.type = cls;
     row.dataset.key = key;
+    const masked = this._isMasked(key);
 
     const iconEl = document.createElement("div");
     iconEl.className = `fb-icon ${cls}`;
@@ -1391,7 +1467,8 @@ class FritzboxPhoneCard extends HTMLElement {
       buildNameLine(
         t,
         displayName(t, call.name, call.reverse_name, callNumber(call)),
-        call.is_spam
+        call.is_spam,
+        masked
       )
     );
     main.appendChild(
@@ -1417,9 +1494,11 @@ class FritzboxPhoneCard extends HTMLElement {
       row.appendChild(chevron);
     }
 
-    const details = buildDetails(callDetails(t, call, tamMessage));
+    const details = masked
+      ? buildDetails([])
+      : buildDetails(callDetails(t, call, tamMessage));
     const number = dialableNumber(callNumber(call));
-    if (this._config.show_dial !== false && number && !call.is_fax) {
+    if (!masked && this._config.show_dial !== false && number && !call.is_fax) {
       details.appendChild(
         this._buildDialButton(number, entityId, call.type === "outgoing" ? "redial" : "callback")
       );
@@ -1525,6 +1604,7 @@ class FritzboxPhoneCard extends HTMLElement {
     row.className =
       "fb-row fb-vm" + (message.new ? " is-new" : "") + (this._ui.expanded.has(key) ? " is-expanded" : "");
     row.dataset.key = key;
+    const masked = this._isMasked(key);
 
     const iconEl = document.createElement("div");
     iconEl.className = "fb-icon";
@@ -1537,7 +1617,8 @@ class FritzboxPhoneCard extends HTMLElement {
       buildNameLine(
         t,
         displayName(t, message.name, message.reverse_name, message.number),
-        message.is_spam
+        message.is_spam,
+        masked
       )
     );
     main.appendChild(metaLine([formatDatum(message.date, t), message.duration]));
@@ -1545,9 +1626,9 @@ class FritzboxPhoneCard extends HTMLElement {
     this._makeToggle(main, row, key, entityId);
 
     this._appendTamActions(row, entityId, message, key);
-    const details = buildDetails(messageDetails(t, message));
+    const details = masked ? buildDetails([]) : buildDetails(messageDetails(t, message));
     const number = dialableNumber(message.number);
-    if (this._config.show_dial !== false && number) {
+    if (!masked && this._config.show_dial !== false && number) {
       details.appendChild(this._buildDialButton(number, entityId));
     }
     row.appendChild(details);
@@ -1871,6 +1952,9 @@ class FritzboxPhoneCard extends HTMLElement {
   _buildContactRow(contact, entityId) {
     const row = document.createElement("div");
     row.className = "fb-row fb-contact";
+    const key = `contact:${entityId}:${contact.uniqueid || contact.name}`;
+    row.dataset.key = key;
+    const masked = this._isMasked(key);
 
     const iconEl = document.createElement("div");
     iconEl.className = "fb-icon";
@@ -1883,7 +1967,15 @@ class FritzboxPhoneCard extends HTMLElement {
     nameRow.className = "fb-name-row";
     const name = document.createElement("span");
     name.className = "fb-name";
-    name.textContent = contact.name;
+    if (masked) {
+      const dots = textSpan("••••••");
+      dots.setAttribute("aria-hidden", "true");
+      const hint = textSpan(this._t("hidden"));
+      hint.className = "fb-sr";
+      name.append(dots, hint);
+    } else {
+      name.textContent = contact.name;
+    }
     nameRow.appendChild(name);
     if (contact.vip) {
       const badge = document.createElement("span");
@@ -1895,7 +1987,7 @@ class FritzboxPhoneCard extends HTMLElement {
 
     const numbers = document.createElement("div");
     numbers.className = "fb-numbers";
-    for (const entry of contact.numbers) {
+    for (const entry of masked ? [] : contact.numbers) {
       const line = document.createElement("div");
       line.className = "fb-number-line";
       line.appendChild(textSpan(entry.type ? `${entry.type}: ${entry.number}` : entry.number));
@@ -1907,6 +1999,17 @@ class FritzboxPhoneCard extends HTMLElement {
     }
     main.appendChild(numbers);
     row.appendChild(main);
+    if (masked) {
+      main.setAttribute("role", "button");
+      main.tabIndex = 0;
+      main.addEventListener("click", () => this._reveal(key));
+      main.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          this._reveal(key);
+        }
+      });
+    }
     return row;
   }
 }
@@ -1961,6 +2064,21 @@ class FritzboxPhoneCardEditor extends HTMLElement {
     if (["calls", "messages", "phonebook"].includes(kind)) {
       schema.push({ name: "show_dial", selector: { boolean: {} } });
     }
+    if (["calls", "messages", "phonebook"].includes(kind)) {
+      schema.push({
+        name: "privacy",
+        selector: {
+          select: {
+            mode: "dropdown",
+            options: [
+              { value: "auto", label: t("e_privacy_auto") },
+              { value: "on", label: t("e_privacy_on") },
+              { value: "off", label: t("e_privacy_off") },
+            ],
+          },
+        },
+      });
+    }
     if (["calls", "messages"].includes(kind)) {
       schema.push({
         name: "tap_action",
@@ -2007,6 +2125,7 @@ class FritzboxPhoneCardEditor extends HTMLElement {
       show_stats: true,
       show_dial: true,
       tap_action: "expand",
+      privacy: "auto",
       ...this._config,
     };
     form.computeLabel = (schemaItem) => t(`e_${schemaItem.name}`);

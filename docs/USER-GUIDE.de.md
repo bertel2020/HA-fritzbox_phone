@@ -129,6 +129,7 @@ gespeicherten Zugangsdaten ab, fragt Home Assistant selbst nach neuen
 | PhoneBlock-Benutzername / -Kennwort | leer | Zugangsdaten eines kostenlosen Accounts auf [phoneblock.net](https://phoneblock.net). Das gespeicherte Kennwort wird nie wieder ins Formular geladen - ein leeres Feld lässt es unverändert |
 | Spam-Schwellwert | 50 % | ab welcher PhoneBlock-Spam-Wahrscheinlichkeit `is_spam` gesetzt wird |
 | Online-Rückwärtssuche (Tellows) aktivieren | aus | schaltet die Namensauflösung unbekannter Nummern über Tellows an/aus, siehe unten |
+| Namen und Rufnummern in der Dashboard-Karte verbergen | aus | die Karte zeigt Punkte statt Namen und Nummern, bis eine Zeile angetippt wird (dann 15 Sekunden lesbar); gedacht für Wandtablets. Reine Anzeige: Sensoren, Logbuch und Automationen behalten die echten Daten. Pro Karte überschreibbar mit der Kartenoption `privacy` (`auto`, `on`, `off`); der Anrufmonitor bleibt unverdeckt |
 
 ## Spam-Erkennung (PhoneBlock)
 
