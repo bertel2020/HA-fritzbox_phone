@@ -924,7 +924,7 @@ class FritzboxPhoneCard extends HTMLElement {
     const entityId = this._config && this._config.entity;
     const stateObj = this._hass && entityId && this._hass.states[entityId];
     if (stateObj && CALLMONITOR_STATES.includes(stateObj.state)) {
-      return 1;
+      return 2;
     }
     const rows = (this._config && this._config.rows) || DEFAULT_ROWS;
     const extra = this._config && this._config.tam_entity ? 2 : 0;
@@ -936,7 +936,9 @@ class FritzboxPhoneCard extends HTMLElement {
     const entityId = this._config && this._config.entity;
     const stateObj = this._hass && entityId && this._hass.states[entityId];
     if (stateObj && CALLMONITOR_STATES.includes(stateObj.state)) {
-      return { columns: 12, rows: 1, min_columns: 6, min_rows: 1 };
+      // "auto": a fixed single row clips the title, the caller and the timer
+      // and the card below paints over them.
+      return { columns: 12, rows: "auto", min_columns: 6 };
     }
     return { columns: 12, min_columns: 6, min_rows: 2 };
   }
