@@ -2,6 +2,14 @@
 
 Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
+## 2.1.1 – 2026-11-05
+
+### Behoben
+
+- Karte: Der Anrufmonitor wurde in der Sections-Ansicht auf eine Zeile Höhe
+  gekürzt und von der Karte darunter überdeckt, sodass ein laufender Anruf
+  nicht zu sehen war. Er richtet seine Höhe jetzt nach dem Inhalt.
+
 ## 2.1.0 – 2026-11-01
 
 ### Hinzugefügt
