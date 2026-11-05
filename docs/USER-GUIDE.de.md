@@ -19,6 +19,7 @@ Aktuelle Integrationsversion: **2.1.1** (siehe
 ## Inhalt
 
 - [Voraussetzungen auf der FRITZ!Box](#voraussetzungen-auf-der-fritzbox)
+- [Unterstützte Geräte](#unterstützte-geräte)
 - [Installation](#installation)
 - [Update](#update)
 - [Integration entfernen](#integration-entfernen)
@@ -27,6 +28,8 @@ Aktuelle Integrationsversion: **2.1.1** (siehe
 - [Rückwärtssuche (Tellows)](#rückwärtssuche-tellows)
 - [Orts-/Länderkennung (offline)](#orts-länderkennung-offline)
 - [Entitäten](#entitäten)
+- [Datenaktualisierung](#datenaktualisierung)
+- [Bekannte Einschränkungen](#bekannte-einschränkungen)
 - [Logbuch und Ereignisse](#logbuch-und-ereignisse)
 - [Aktionen (Services)](#aktionen-services)
 - [Blueprints](#blueprints)
@@ -47,6 +50,25 @@ Aktuelle Integrationsversion: **2.1.1** (siehe
 | 2 | Eigener FRITZ!Box-Benutzer für Home Assistant | System → FRITZ!Box-Benutzer → Berechtigung „FRITZ!Box-Einstellungen" (enthält den Zugriff auf Telefonie, Anrufliste und Sprachnachrichten) |
 | 3 | Mindestens ein eingerichteter Anrufbeantworter (nur für TAM-Sensoren nötig) | Telefonie → Anrufbeantworter |
 | 4 | CallMonitor aktivieren (nur für den Anrufmonitor-Sensor nötig) | einmalig `#96*5*` von einem angeschlossenen Telefon wählen (`#96*4*` deaktiviert wieder) |
+
+## Unterstützte Geräte
+
+Die Integration spricht jede FRITZ!Box an, die TR-064 anbietet und deren
+Telefonie-Funktionen eingerichtet sind. Sie benötigt folgende Dienste der
+Box; fehlt einer, entfallen nur die zugehörigen Entitäten:
+
+| Funktion | Benötigter Dienst der Box |
+|----------|---------------------------|
+| Telefonbuch, Anrufliste, Anrufen, Rufsperre | TR-064 `X_AVM-DE_OnTel`, `X_VoIP` |
+| Anrufbeantworter | TR-064 `X_AVM-DE_TAM` |
+| Rufumleitungen | TR-064 `X_AVM-DE_OnTel` (Rufumleitung) |
+| Anrufmonitor (Echtzeit) | CallMonitor auf Port 1012 (`#96*5*`) |
+
+Eine Liste einzeln getesteter Modelle und FRITZ!OS-Versionen gibt es nicht.
+Wer die Integration mit einer bestimmten Box nutzt, kann das gern in einem
+[Issue](https://github.com/bertel2020/HA-fritzbox_phone/issues) melden, damit
+die Liste hier wachsen kann. FRITZ!Repeater und andere AVM-Geräte ohne
+Telefonie-Funktionen bieten die genannten Dienste nicht an.
 
 ## Installation
 
@@ -265,7 +287,7 @@ und Firmware). Namen und Symbole sind übersetzt (Deutsch/Englisch).
 | `sensor.*_anrufmonitor` | `idle` / `ringing` / `dialing` / `talking`; `unavailable`, solange die Verbindung zum CallMonitor nicht steht | je nach Zustand `from`/`to`/`with`, `from_name`/`to_name`/`with_name`, `vip`, `area_name` (Ort/Land, offline), `device`, `duration`, bei unbekannten eingehenden Anrufen zusätzlich PhoneBlock-Spamfelder und `reverse_name`/`reverse_category` (Tellows, jeweils falls aktiviert); im Zustand `idle` bleiben die Felder des zuletzt beendeten Gesprächs erhalten, ergänzt um `initiated` (Klingel-/Wählbeginn), `accepted` (Annahmezeitpunkt), `started` (Gesprächsbeginn = `accepted`, falls vorhanden), `closed` (Auflegen), `duration_formatted` (exakte Gesprächsdauer inkl. Sekunden, z. B. `1:09:18`) und `ring_duration_formatted` (Klingeldauer bis zur Annahme, z. B. `0:11`, nur falls der Anruf angenommen wurde) |
 | `binary_sensor.*_klingelt` | an, solange ein Anruf klingelt | `number`, `name`, `is_spam` |
 | `event.*_anruf` | letzter Anruf-Vorgang | Ereignistyp `ringing` / `dialing` / `talking` / `ended` / `updated`; Attribute wie das Ereignis `fritzbox_phone_call` |
-| Sensoren „PhoneBlock“ und „Online-Rückwärtssuche“ (Kategorie Diagnose, nur bei eingeschaltetem Dienst) | `ok` / `error` / `unknown`: `error` nach drei fehlgeschlagenen Abfragen in Folge (z. B. abgelehnte PhoneBlock-Zugangsdaten), `unknown`, solange noch keine Abfrage gelang | `consecutive_failures`, `last_success`, `last_error` (nur Fehlerart, z. B. `ClientResponseError 401`). Aktualisiert sich mit jeder Abfrage der Box. Die Integration schreibt bei einem Ausfall einmal eine Warnung ins Protokoll; lehnt PhoneBlock die Anmeldung ab, erscheint zusätzlich ein Hinweis unter Einstellungen → Reparaturen |
+| Sensoren „PhoneBlock“ und „Online-Rückwärtssuche“ (Kategorie Diagnose, standardmäßig deaktiviert, nur bei eingeschaltetem Dienst) | `ok` / `error` / `unknown`: `error` nach drei fehlgeschlagenen Abfragen in Folge (z. B. abgelehnte PhoneBlock-Zugangsdaten), `unknown`, solange noch keine Abfrage gelang | `consecutive_failures`, `last_success`, `last_error` (nur Fehlerart, z. B. `ClientResponseError 401`). Aktualisiert sich mit jeder Abfrage der Box. Die Integration schreibt bei einem Ausfall einmal eine Warnung ins Protokoll; lehnt PhoneBlock die Anmeldung ab, erscheint zusätzlich ein Hinweis unter Einstellungen → Reparaturen |
 
 Neue Telefonbücher und Anrufbeantworter erscheinen automatisch (ein
 Telefonbuch spätestens nach 15 Minuten, siehe unten); verschwindet eines,
@@ -294,6 +316,44 @@ Wählen), nach dem Auflegen eines Gesprächs bleibt ein noch klingelnder
 Anruf sichtbar. Verweigert die Box die Verbindung (CallMonitor nicht
 aktiviert, Neustart), versucht die Integration es mit wachsendem Abstand
 erneut (30 s bis 5 min), statt aufzugeben.
+
+## Datenaktualisierung
+
+| Daten | Wie sie aktuell bleiben |
+|-------|-------------------------|
+| Anrufliste, Anrufbeantworter, Rufumleitungen, Statistik | Abfrage der Box im Abfrageintervall (Standard 120 s, einstellbar unter Optionen) |
+| Telefonbuch | Neu laden alle 15 Minuten, unabhängig vom Abfrageintervall |
+| Anrufmonitor, Klingeln, Ereignis „Anruf“ | Push: dauerhafte Socket-Verbindung zum CallMonitor (Port 1012), Zustandswechsel kommen sofort, ohne auf die nächste Abfrage zu warten |
+| Status PhoneBlock / Rückwärtssuche | Mit jeder Abfrage der Box |
+
+Schalten Sie einen Anrufbeantworter oder eine Rufumleitung um, wird die Box
+sofort danach neu abgefragt. Ist die Box nicht erreichbar, werden die
+Entitäten „nicht verfügbar"; die Integration meldet das einmal im Protokoll
+und einmal beim Wiederkehren. Reißt die CallMonitor-Verbindung ab, wird sie
+mit wachsendem Abstand (30 s bis 5 min) neu aufgebaut.
+
+## Bekannte Einschränkungen
+
+- **Die Klingelsperre** der Box ist über deren Schnittstelle nicht
+  erreichbar und deshalb nicht als Schalter enthalten.
+- **Der Anrufmonitor** funktioniert nur, solange der CallMonitor auf der Box
+  aktiviert ist (`#96*5*`); die Verbindung ist unverschlüsselt und nur im
+  lokalen Netz gedacht.
+- **Die Box rundet** die Gesprächsdauer in der Anrufliste auf die Minute auf;
+  die Sekundengenauigkeit liefert nur der Anrufmonitor.
+- **Das Telefonbuch** wird nur alle 15 Minuten geladen; ein neuer Kontakt in
+  der Box ist deshalb erst danach sichtbar.
+- **Verschwundene Telefonbücher oder Anrufbeantworter** bleiben als „nicht
+  verfügbar" stehen und müssen in der Oberfläche gelöscht werden.
+- **Die Status-Sensoren** für PhoneBlock und Rückwärtssuche sind bei neuen
+  Installationen standardmäßig deaktiviert (Einstellungen → Geräte & Dienste →
+  Entitäten → „Deaktivierte anzeigen"). Ein Ausfall erscheint auch als
+  Reparaturhinweis und im Protokoll.
+- **Die Bibliothek `fritzconnection`** arbeitet synchron und läuft daher im
+  Hintergrund-Thread von Home Assistant; Sperr-, Wähl- und
+  Schaltaktionen werden nacheinander ausgeführt.
+- **Online-Dienste** (PhoneBlock, Tellows) sind auf deren Verfügbarkeit und
+  Anfragelimits angewiesen; ohne sie bleibt der Rest voll funktionsfähig.
 
 ## Logbuch und Ereignisse
 

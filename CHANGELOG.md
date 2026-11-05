@@ -2,6 +2,20 @@
 
 Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
+## Unveröffentlicht
+
+### Geändert
+
+- Die Diagnose-Sensoren „PhoneBlock“ und „Online-Rückwärtssuche“ sind bei neuen
+  Installationen standardmäßig deaktiviert. Bestehende Installationen behalten
+  sie eingeschaltet; ein Ausfall erscheint weiterhin als Reparaturhinweis.
+
+### Dokumentation
+
+- Anleitung: neue Abschnitte „Unterstützte Geräte“, „Datenaktualisierung“ und
+  „Bekannte Einschränkungen“. Die Selbsteinschätzung zur Qualitätsskala deckt
+  damit alle Gold-Regeln ab.
+
 ## 2.1.1 – 2026-11-05
 
 ### Behoben

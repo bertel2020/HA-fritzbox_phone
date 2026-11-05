@@ -525,6 +525,9 @@ class FritzBoxLookupStatusSensor(FritzBoxPhoneEntity, SensorEntity):
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_options = [STATUS_OK, STATUS_ERROR, STATUS_UNKNOWN]
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    # A failing lookup also raises a repair issue and a log warning, so the
+    # sensor is opt-in; entries that already have it keep it enabled.
+    _attr_entity_registry_enabled_default = False
 
     def __init__(
         self,

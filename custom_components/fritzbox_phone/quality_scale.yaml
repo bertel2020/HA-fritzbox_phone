@@ -39,33 +39,29 @@ rules:
   diagnostics: done
   discovery-update-info: done
   discovery: done
-  docs-data-update:
-    status: todo
-    comment: Polling interval is documented; the call monitor push path is only partly.
+  docs-data-update: done
   docs-examples: done
-  docs-known-limitations:
-    status: todo
-    comment: No dedicated section yet.
-  docs-supported-devices:
-    status: todo
-    comment: No list of tested FRITZ!Box models.
+  docs-known-limitations: done
+  docs-supported-devices: done
   docs-supported-functions: done
   docs-troubleshooting: done
   docs-use-cases: done
   dynamic-devices: done
   entity-category: done
   entity-device-class: done
-  entity-disabled-by-default:
-    status: todo
-    comment: No entity is disabled by default yet; diagnostic sensors could be.
+  entity-disabled-by-default: done
   entity-translations: done
   exception-translations: done
   icon-translations: done
   reconfiguration-flow: done
   repair-issues: done
   stale-devices:
-    status: todo
-    comment: Removed answering machines and phonebooks are not cleaned from the registry.
+    status: exempt
+    comment: >-
+      Every config entry has exactly one device (the FRITZ!Box); phonebooks,
+      answering machines and forwarding rules are entities of it, not devices.
+      The device goes away with its entry. Vanished entities stay unavailable
+      on purpose so a box that merely hiccuped does not lose their history.
 
   # Platinum
   async-dependency:

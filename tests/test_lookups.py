@@ -1,6 +1,8 @@
 """PhoneBlock / Tellows clients, the lookup cache and coordinator enrichment."""
 from __future__ import annotations
 
+from unittest.mock import patch
+
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
@@ -20,7 +22,7 @@ from custom_components.fritzbox_phone.phoneblock import API_URL as PHONEBLOCK_UR
 from custom_components.fritzbox_phone.phoneblock import PhoneBlockClient
 from custom_components.fritzbox_phone.tellows import MAX_RESPONSE_BYTES, TellowsClient
 
-from .common import FakeBox, entity_id, get_coordinator, make_call, make_message, make_tam, setup_integration
+from .common import FakeBox, build_client_class, entity_id, get_coordinator, make_call, make_message, make_tam, setup_integration
 
 TELLOWS_URL = "https://www.tellows.de/basic/num/+4930123456"
 TELLOWS_XML = (
@@ -182,6 +184,17 @@ async def test_coordinator_enriches_unknown_callers(hass: HomeAssistant, aioclie
     assert aioclient_mock.call_count == 2
 
 
+async def _enable_status_sensor(hass: HomeAssistant, entry, key: str, box: FakeBox) -> None:
+    """The status sensors are disabled by default; switch one on like a user would."""
+    registry = er.async_get(hass)
+    registry.async_update_entity(entity_id(hass, entry, key), disabled_by=None)
+    with patch(
+        "custom_components.fritzbox_phone.FritzBoxPhoneClient", build_client_class(box)
+    ):
+        await hass.config_entries.async_reload(entry.entry_id)
+        await hass.async_block_till_done()
+
+
 async def test_status_sensors_exist_only_for_enabled_lookups(
     hass: HomeAssistant, aioclient_mock
 ) -> None:
@@ -190,9 +203,10 @@ async def test_status_sensors_exist_only_for_enabled_lookups(
     for key in ("phoneblock_status", "reverse_lookup_status"):
         assert registry.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_{key}") is None
 
+    other_box = FakeBox(serial="OTHER")
     entry = await setup_integration(
         hass,
-        FakeBox(serial="OTHER"),
+        other_box,
         {
             CONF_PHONEBLOCK_ENABLED: True,
             CONF_PHONEBLOCK_USERNAME: "u",
@@ -200,6 +214,11 @@ async def test_status_sensors_exist_only_for_enabled_lookups(
         },
     )
     assert entity_id(hass, entry, "phoneblock_status")
+    assert (
+        registry.async_get(entity_id(hass, entry, "phoneblock_status")).disabled_by
+        is er.RegistryEntryDisabler.INTEGRATION
+    )
+    await _enable_status_sensor(hass, entry, "phoneblock_status", other_box)
     assert registry.async_get_entity_id(
         "sensor", DOMAIN, f"{entry.entry_id}_reverse_lookup_status"
     ) is None
@@ -224,6 +243,7 @@ async def test_status_sensor_shows_rejected_credentials(
             CONF_PHONEBLOCK_PASSWORD: "wrong",
         },
     )
+    await _enable_status_sensor(hass, entry, "phoneblock_status", box)
     state = hass.states.get(entity_id(hass, entry, "phoneblock_status"))
     assert state.state == "error"
     assert state.attributes["consecutive_failures"] == 3
@@ -277,5 +297,6 @@ async def test_an_outage_is_not_a_credentials_repair(hass: HomeAssistant, aiocli
             CONF_PHONEBLOCK_PASSWORD: "pw",
         },
     )
+    await _enable_status_sensor(hass, entry, "phoneblock_status", box)
     assert hass.states.get(entity_id(hass, entry, "phoneblock_status")).state == "error"
     assert ir.async_get(hass).async_get_issue(DOMAIN, f"phoneblock_credentials_{entry.entry_id}") is None
