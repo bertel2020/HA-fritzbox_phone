@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import json
+from pathlib import Path
 
 from fritzconnection.core.exceptions import FritzConnectionException, FritzServiceError
 import pytest
@@ -28,6 +30,11 @@ from .common import (
     setup_integration,
 )
 
+MANIFEST_VERSION = json.loads(
+    (
+        Path(__file__).parents[1] / "custom_components" / "fritzbox_phone" / "manifest.json"
+    ).read_text()
+)["version"]
 NOW = "2026-01-10T11:00:00+00:00"  # 12:00 in Berlin, a Saturday
 
 
@@ -97,7 +104,7 @@ async def test_entries(hass: HomeAssistant, hass_ws_client) -> None:
             "call_list_max": 80,
             "privacy_mode": True,
             "history_days": 0,
-            "version": "2.2.0",
+            "version": MANIFEST_VERSION,
         }
     ]
 
