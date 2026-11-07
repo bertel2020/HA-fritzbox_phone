@@ -2,6 +2,37 @@
 
 Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
+## Unveröffentlicht
+
+### Hinzugefügt
+
+- Websocket-API für Panels (nur für Administratoren): `fritzbox_phone/entries`,
+  `phonebooks`, `contacts`, `calls`, `tams`, `blocklist` und `stats` liefern
+  Einträge, Telefonbücher, Kontakte, Anrufe (mit Blättern), Anrufbeantworter,
+  Rufsperre und Statistik, ohne dass das Panel Entitäts-IDs oder Attributnamen
+  kennen muss. Die Seite „Box > Telefon“ der Integration `fritzbox_network`
+  nutzt sie. Die Option „Namen und Rufnummern verbergen“ wird mitgegeben.
+- Optionaler Anrufverlauf („Anrufverlauf auf dem Datenträger führen“, Tage,
+  0 = aus, höchstens 365): führt die Anruflisten zu einem längeren Verlauf für
+  die Statistik zusammen, ohne Doppelte. Standardmäßig aus; eingeschaltet
+  liegen die Anrufe (Nummern, Namen, Zeiten) in `.storage` und damit in
+  Backups. Mit 0 wird der gespeicherte Verlauf gelöscht.
+- Neue Attribute: der Anrufmonitor-Sensor nennt `call_list_days`,
+  `call_list_max` und `call_history_days`, das Telefonbuch `phonebook_id`, der
+  Schalter des Anrufbeantworters `tam_index`.
+
+### Geändert
+
+- Intern: die Umwandlung von Anrufen, Kontakten und Nachrichten steht in
+  `payloads.py` und wird von den Sensoren und der Websocket-API gemeinsam
+  genutzt. Die Attribute der Sensoren bleiben gleich.
+- Die Integration hängt nun von `websocket_api` ab.
+
+### Dokumentation
+
+- Anleitung: neue Abschnitte „Anrufverlauf (optional)“ und „Websocket-API für
+  Panels“; die READMEs nennen beides.
+
 ## 2.2.0 – 2026-11-05
 
 ### Geändert
