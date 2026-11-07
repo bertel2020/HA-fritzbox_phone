@@ -144,6 +144,40 @@ add_contact:
           max: 999
           mode: box
 
+add_number_to_contact:
+  target:
+    entity:
+      integration: fritzbox_phone
+  fields:
+    contact_id:
+      required: true
+      example: "12"
+      selector:
+        text:
+    number:
+      required: true
+      example: "030 123456"
+      selector:
+        text:
+    number_type:
+      required: false
+      default: home
+      selector:
+        select:
+          options:
+            - home
+            - mobile
+            - work
+            - other
+    phonebook_id:
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 999
+          mode: box
+
 block_number:
   target:
     entity:

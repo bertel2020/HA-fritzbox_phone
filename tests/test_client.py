@@ -113,6 +113,57 @@ def test_add_contact_sends_a_phonebook_entry() -> None:
     assert contact.findtext("telephony/number") == "030 5"
 
 
+ENTRY = (
+    "<contact><category>1</category><person><realName>Maria</realName>"
+    "<imageURL>/i.jpg</imageURL></person>"
+    '<telephony nid="1"><number type="mobile" prio="1">0160 1</number></telephony>'
+    "<mod_time>5</mod_time><uniqueid>12</uniqueid></contact>"
+)
+
+
+def test_add_number_to_contact_writes_the_whole_entry_back_with_its_id() -> None:
+    client, box = _client(
+        {
+            "GetPhonebookEntryUID": {"NewPhonebookEntryData": ENTRY},
+            "SetPhonebookEntryUID": {"NewPhonebookEntryUniqueID": "12"},
+        }
+    )
+    client.add_number_to_contact("12", "030 77", "home", 2)
+    assert [a for _, a, _ in box.actions] == ["GetPhonebookEntryUID", "SetPhonebookEntryUID"]
+    _, _, arguments = box.actions[-1]
+    assert arguments["NewPhonebookID"] == 2
+    contact = ET.fromstring(arguments["NewPhonebookEntryData"])
+    assert contact.findtext("uniqueid") == "12"
+    assert contact.findtext("category") == "1"
+    assert contact.findtext("person/imageURL") == "/i.jpg"
+    assert [(n.get("type"), n.text) for n in contact.findall("telephony/number")] == [
+        ("mobile", "0160 1"),
+        ("home", "030 77"),
+    ]
+    assert contact.find("telephony").get("nid") == "2"
+
+
+def test_add_number_to_contact_undoes_a_new_entry_the_box_made_instead() -> None:
+    client, box = _client(
+        {
+            "GetPhonebookEntryUID": {"NewPhonebookEntryData": ENTRY},
+            "SetPhonebookEntryUID": {"NewPhonebookEntryUniqueID": "99"},
+            "DeletePhonebookEntryUID": {},
+        }
+    )
+    with pytest.raises(FritzActionError):
+        client.add_number_to_contact("12", "030 77")
+    _, action, arguments = box.actions[-1]
+    assert (action, arguments["NewPhonebookEntryUniqueID"]) == ("DeletePhonebookEntryUID", "99")
+
+
+def test_add_number_to_contact_fails_when_the_box_has_no_such_entry() -> None:
+    client, box = _client({"GetPhonebookEntryUID": {"NewPhonebookEntryData": ""}})
+    with pytest.raises(FritzActionError):
+        client.add_number_to_contact("12", "030 77")
+    assert [a for _, a, _ in box.actions] == ["GetPhonebookEntryUID"]
+
+
 # --- call list ------------------------------------------------------------
 
 CALLS = """<root>

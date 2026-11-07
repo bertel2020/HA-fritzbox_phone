@@ -180,6 +180,11 @@ def build_client_class(box: FakeBox):
             box.calls_log.append(("add_contact", number, name, phonebook_id))
             return "uid"
 
+        def add_number_to_contact(
+            self, contact_id: str, number: str, number_type: str = "home", phonebook_id: int = 0
+        ) -> None:
+            box.calls_log.append(("add_number", contact_id, number, number_type, phonebook_id))
+
         def block_number(self, number: str, name: str | None = None) -> bool:
             box.calls_log.append(("block", number, name))
             if number in box.blocked:

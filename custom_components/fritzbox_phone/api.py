@@ -323,6 +323,51 @@ class FritzBoxPhoneClient:
         )
         return info.get("NewPhonebookEntryUniqueID")
 
+    def add_number_to_contact(
+        self, contact_id: str, number: str, number_type: str = "home", phonebook_id: int = 0
+    ) -> None:
+        """Add one more number to a contact that is already in a phonebook.
+
+        The entry is read from the box as it is, the number is added to it and the whole entry is
+        written back with its unique id, so nothing else of the contact (e-mail, image, VIP
+        mark, its other numbers) is lost. If the box answers with another id it made a new
+        entry instead of changing the old one: that one is deleted again and the call fails.
+        """
+        info = self._call(
+            ONTEL_SERVICE,
+            "GetPhonebookEntryUID",
+            NewPhonebookID=phonebook_id,
+            NewPhonebookEntryUniqueID=contact_id,
+        )
+        data = info.get("NewPhonebookEntryData")
+        contact = ET.fromstring(data) if data else None
+        if contact is None or contact.tag != "contact":
+            raise FritzActionError(f"The box did not return the contact {contact_id}")
+        telephony = contact.find("telephony")
+        if telephony is None:
+            telephony = ET.SubElement(contact, "telephony")
+        ET.SubElement(telephony, "number", type=number_type).text = number
+        telephony.set("nid", str(len(telephony.findall("number"))))
+        uniqueid = contact.find("uniqueid")
+        if uniqueid is None:
+            uniqueid = ET.SubElement(contact, "uniqueid")
+        uniqueid.text = contact_id
+        answer = self._call(
+            ONTEL_SERVICE,
+            "SetPhonebookEntryUID",
+            NewPhonebookID=phonebook_id,
+            NewPhonebookEntryData=ET.tostring(contact, encoding="unicode"),
+        )
+        new_id = answer.get("NewPhonebookEntryUniqueID")
+        if new_id and str(new_id) != str(contact_id):
+            self._call(
+                ONTEL_SERVICE,
+                "DeletePhonebookEntryUID",
+                NewPhonebookID=phonebook_id,
+                NewPhonebookEntryUniqueID=new_id,
+            )
+            raise FritzActionError("The box made a new entry instead of changing the contact")
+
     # ------------------------------------------------------------------
     # Call forwarding (Rufumleitung)
     # ------------------------------------------------------------------

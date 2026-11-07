@@ -291,6 +291,30 @@ async def test_add_contact(hass: HomeAssistant) -> None:
     assert box.calls_log[-1] == ("add_contact", "040 888", "Carla", 2)
 
 
+async def test_add_number_to_contact(hass: HomeAssistant) -> None:
+    box = FakeBox(phonebooks=[make_phonebook(("Anna", "030123456"))])
+    await _setup(hass, box)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "add_number_to_contact",
+        {"contact_id": "0", "number": "040 999", "number_type": "mobile"},
+        blocking=True,
+    )
+    assert box.calls_log == [("add_number", "0", "040 999", "mobile", 0)]
+
+    # a number that is known, and a contact that is not in the phonebook, are refused
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN, "add_number_to_contact", {"contact_id": "0", "number": "+49 30 123456"}, blocking=True
+        )
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN, "add_number_to_contact", {"contact_id": "77", "number": "040 111"}, blocking=True
+        )
+    assert len(box.calls_log) == 1
+
+
 async def test_add_contact_refuses_a_known_number_in_any_spelling(hass: HomeAssistant) -> None:
     box = FakeBox(phonebooks=[make_phonebook(("Anna", "030123456"))])
     await _setup(hass, box)

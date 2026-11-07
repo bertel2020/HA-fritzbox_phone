@@ -318,6 +318,28 @@
         }
       }
     },
+    "add_number_to_contact": {
+      "name": "Add a number to a contact",
+      "description": "Adds one more number to a contact that is already in a FRITZ!Box phonebook, for example the landline of someone who is saved with the mobile number. The rest of the contact stays as it is. Numbers that are already in a phonebook are refused.",
+      "fields": {
+        "contact_id": {
+          "name": "Contact",
+          "description": "The unique id of the contact (attribute uniqueid of the contacts, or uniqueid in the websocket command contacts)."
+        },
+        "number": {
+          "name": "Phone number",
+          "description": "The number that is added."
+        },
+        "number_type": {
+          "name": "Type",
+          "description": "Home, mobile, work or other."
+        },
+        "phonebook_id": {
+          "name": "Phonebook",
+          "description": "Number of the phonebook the contact is in (0 is the main phonebook)."
+        }
+      }
+    },
     "add_contact": {
       "name": "Add a contact",
       "description": "Adds a contact with one number to a FRITZ!Box phonebook, e.g. for a caller the call list shows as unknown. Numbers that are already in a phonebook are refused.",
@@ -358,6 +380,9 @@
     },
     "no_internal_url": {
       "message": "No internal Home Assistant URL is set, so a speaker cannot fetch the recording. Set it under Settings > System > Network."
+    },
+    "contact_unknown": {
+      "message": "The contact {contact} is not in that phonebook."
     },
     "contact_exists": {
       "message": "{number} is already in the phonebook as {name}."

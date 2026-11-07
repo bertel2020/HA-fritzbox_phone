@@ -318,6 +318,28 @@
         }
       }
     },
+    "add_number_to_contact": {
+      "name": "Nummer zu einem Kontakt hinzufügen",
+      "description": "Fügt einem Kontakt, der schon in einem FRITZ!Box-Telefonbuch steht, eine weitere Nummer hinzu, zum Beispiel den Festnetzanschluss von jemandem, der mit der Handynummer gespeichert ist. Der Rest des Kontakts bleibt unverändert. Nummern, die schon in einem Telefonbuch stehen, werden abgelehnt.",
+      "fields": {
+        "contact_id": {
+          "name": "Kontakt",
+          "description": "Die eindeutige Kennung des Kontakts (Attribut uniqueid der Kontakte oder uniqueid im Websocket-Befehl contacts)."
+        },
+        "number": {
+          "name": "Rufnummer",
+          "description": "Die Nummer, die hinzukommt."
+        },
+        "number_type": {
+          "name": "Art",
+          "description": "Privat, mobil, geschäftlich oder sonstige."
+        },
+        "phonebook_id": {
+          "name": "Telefonbuch",
+          "description": "Nummer des Telefonbuchs, in dem der Kontakt steht (0 ist das Haupttelefonbuch)."
+        }
+      }
+    },
     "add_contact": {
       "name": "Kontakt anlegen",
       "description": "Legt einen Kontakt mit einer Nummer in einem FRITZ!Box-Telefonbuch an, z. B. für einen Anrufer, der in der Anrufliste als unbekannt erscheint. Nummern, die schon in einem Telefonbuch stehen, werden abgelehnt.",
@@ -358,6 +380,9 @@
     },
     "no_internal_url": {
       "message": "Es ist keine interne Home-Assistant-Adresse eingestellt, daher kann ein Lautsprecher die Aufnahme nicht abrufen. Sie lässt sich unter Einstellungen > System > Netzwerk festlegen."
+    },
+    "contact_unknown": {
+      "message": "Der Kontakt {contact} steht nicht in diesem Telefonbuch."
     },
     "contact_exists": {
       "message": "{number} steht bereits als {name} im Telefonbuch."

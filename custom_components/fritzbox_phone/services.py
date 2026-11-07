@@ -15,18 +15,22 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_registry as er, service
 
 from .const import (
+    ATTR_CONTACT_ID,
     ATTR_FILENAME,
     ATTR_MEDIA_PLAYER,
     ATTR_MESSAGE_KEY,
     ATTR_MESSAGE_INDEX,
     ATTR_NAME,
     ATTR_NUMBER,
+    ATTR_NUMBER_TYPE,
     ATTR_PHONEBOOK_ID,
     ATTR_READ,
     DOMAIN,
     EVENT_NUMBER_BLOCKED,
     EVENT_NUMBER_UNBLOCKED,
+    NUMBER_TYPES,
     SERVICE_ADD_CONTACT,
+    SERVICE_ADD_NUMBER,
     SERVICE_BLOCK_NUMBER,
     SERVICE_DELETE_MESSAGE,
     SERVICE_DIAL,
@@ -208,6 +212,55 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             coordinator.invalidate_phonebooks()
             await coordinator.async_request_refresh()
 
+    async def add_number_to_contact(call: ServiceCall) -> None:
+        number = call.data[ATTR_NUMBER]
+        contact_id = call.data[ATTR_CONTACT_ID]
+        book_id = call.data[ATTR_PHONEBOOK_ID]
+        for coordinator in _coordinators(hass, call):
+            if (known := coordinator.resolve_contact(number)[0]) is not None:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="contact_exists",
+                    translation_placeholders={"number": number, "name": known},
+                )
+            books = coordinator.data.phonebooks if coordinator.data else []
+            if not any(
+                book.id == book_id and any(c.uniqueid == contact_id for c in book.contacts)
+                for book in books
+            ):
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="contact_unknown",
+                    translation_placeholders={"contact": contact_id},
+                )
+            await _async_run(
+                hass,
+                coordinator,
+                coordinator.client.add_number_to_contact,
+                contact_id,
+                number,
+                call.data[ATTR_NUMBER_TYPE],
+                book_id,
+            )
+            coordinator.invalidate_phonebooks()
+            await coordinator.async_request_refresh()
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_ADD_NUMBER,
+        add_number_to_contact,
+        schema=vol.Schema(
+            {
+                **_DEVICE_FIELD,
+                vol.Required(ATTR_NUMBER): _number,
+                vol.Required(ATTR_CONTACT_ID): vol.All(cv.string, vol.Strip, vol.Length(min=1, max=32)),
+                vol.Optional(ATTR_NUMBER_TYPE, default="home"): vol.In(NUMBER_TYPES),
+                vol.Optional(ATTR_PHONEBOOK_ID, default=0): vol.All(
+                    vol.Coerce(int), vol.Range(min=0, max=999)
+                ),
+            }
+        ),
+    )
     hass.services.async_register(
         DOMAIN,
         SERVICE_ADD_CONTACT,

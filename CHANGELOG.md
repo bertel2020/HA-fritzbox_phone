@@ -21,6 +21,13 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
   `call_list_max` und `call_history_days`, das Telefonbuch `phonebook_id`, der
   Schalter des Anrufbeantworters `tam_index`.
 
+- Neue Aktion `add_number_to_contact`: fügt einem Kontakt im Telefonbuch eine
+  weitere Nummer hinzu (`contact_id`, `number`, optional `number_type` und
+  `phonebook_id`). Der Eintrag wird gelesen, ergänzt und mit seiner Kennung
+  zurückgeschrieben, damit nichts vom Kontakt verloren geht. Legt die Box dabei
+  einen neuen Eintrag an, wird er wieder gelöscht und die Aktion schlägt fehl.
+  Mit einer echten Box noch nicht ausprobiert.
+
 ### Geändert
 
 - Intern: die Umwandlung von Anrufen, Kontakten und Nachrichten steht in

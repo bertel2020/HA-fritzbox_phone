@@ -112,6 +112,9 @@
     },
     "add_contact": {
       "service": "mdi:account-plus"
+    },
+    "add_number_to_contact": {
+      "service": "mdi:phone-plus"
     }
   }
 }
