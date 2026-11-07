@@ -26,6 +26,7 @@ from .common import (
     make_message,
     make_phonebook,
     make_tam,
+    get_device,
     setup_integration,
 )
 
@@ -36,7 +37,7 @@ _setup = setup_integration
 async def test_dial_and_hangup(hass: HomeAssistant) -> None:
     box = FakeBox()
     entry = await _setup(hass, box)
-    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    device = get_device(hass, entry)
 
     await hass.services.async_call(
         DOMAIN, "dial", {"number": "030 123456", "device_id": device.id}, blocking=True
@@ -99,7 +100,7 @@ async def test_dial_accepts_entity_and_area_targets(hass: HomeAssistant) -> None
     await hass.services.async_call(DOMAIN, "dial", {"number": "1", "entity_id": sensor}, blocking=True)
 
     area = ar.async_get(hass).async_create("Flur")
-    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    device = get_device(hass, entry)
     dr.async_get(hass).async_update_device(device.id, area_id=area.id)
     await hass.services.async_call(DOMAIN, "dial", {"number": "2", "area_id": area.id}, blocking=True)
     assert box.calls_log == [("dial", "1"), ("dial", "2")]

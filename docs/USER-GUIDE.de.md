@@ -32,6 +32,8 @@ Aktuelle Integrationsversion: **2.2.0** (siehe
 - [Bekannte Einschränkungen](#bekannte-einschränkungen)
 - [Logbuch und Ereignisse](#logbuch-und-ereignisse)
 - [Aktionen (Services)](#aktionen-services)
+- [Anrufverlauf (optional)](#anrufverlauf-optional)
+- [Websocket-API für Panels](#websocket-api-für-panels)
 - [Blueprints](#blueprints)
 - [Dashboard-Karte: fritzbox-phone-card](#dashboard-karte-fritzbox-phone-card)
 - [Datenschutz und Sicherheit](#datenschutz-und-sicherheit)
@@ -146,6 +148,9 @@ neue Datei).
    manuellen Installation den Ordner `custom_components/fritzbox_phone/`
    löschen. Danach Home Assistant neu starten.
 
+War der [Anrufverlauf](#anrufverlauf-optional) eingeschaltet, wird seine Datei in
+`.storage` beim Löschen des Eintrags mit entfernt.
+
 Auf der FRITZ!Box bleibt nichts zurück, was die Integration angelegt hätte,
 außer dem, was du selbst über die Aktionen `block_number` und `add_contact`
 eingetragen hast (Rufsperren und Telefonbucheinträge). Den dafür angelegten
@@ -166,6 +171,7 @@ gespeicherten Zugangsdaten ab, fragt Home Assistant selbst nach neuen
 | Abfrageintervall | 120 s | Polling-Takt für Telefonbuch/Anrufliste/Anrufbeantworter |
 | Anruflisten-Zeitraum | 7 Tage | wie weit `sensor.*_anrufliste` zurückschaut |
 | Maximale Anzahl Anrufe | 50 | Obergrenze der geladenen Anrufliste |
+| Anrufverlauf auf dem Datenträger behalten | 0 (aus) | Tage (höchstens 365), die der [Anrufverlauf](#anrufverlauf-optional) Anrufe aufbewahrt. **Legt Anrufdaten in `.storage` ab**, 0 löscht sie |
 | Anrufmonitor aktivieren | an | schaltet `sensor.*_anrufmonitor` komplett ab/an |
 | Anrufmonitor-Port | 1012 | CallMonitor-Port |
 | Vorwahl-Präfixe | leer | kommagetrennt, z. B. `+49`; überschreibt das Land aus der Home-Assistant-Konfiguration. Ohne Eintrag gilt das dort eingestellte Land. Rufnummern werden für den Telefonbuchabgleich, PhoneBlock und Tellows einheitlich auf E.164 (`+4930123456`) gebracht - egal, ob die Box sie national, international oder (aus dem eigenen Ortsnetz) ohne Vorwahl meldet |
@@ -415,7 +421,7 @@ actions:
 | `fritzbox_phone.dial` | Anruf über die Wählhilfe der Box starten: das dort gewählte Telefon klingelt zuerst, die Nummer wird nach dem Abheben gewählt | Gerät (bei nur einer Box optional); `number` |
 | `fritzbox_phone.hangup` | Einen noch nicht angenommenen Wählvorgang abbrechen | Gerät (optional) |
 | `fritzbox_phone.lookup_number` | Antwortet mit dem, was zu einer Nummer bekannt ist | Gerät (optional); `number` |
-| `fritzbox_phone.add_contact` | Kontakt mit einer Nummer in einem Telefonbuch der Box anlegen, z. B. für einen unbekannten Anrufer. Nummern, die schon in einem Telefonbuch stehen (auch in anderer Schreibweise), werden abgelehnt | Gerät (optional); `number`, `name`, optional `phonebook_id` (Standard 0) |
+| `fritzbox_phone.add_contact` | Kontakt mit einer Nummer in einem Telefonbuch der Box anlegen, z. B. für einen unbekannten Anrufer. Nummern, die schon in einem Telefonbuch stehen (auch in anderer Schreibweise), werden abgelehnt | Gerät (optional); `number`, `name`, optional `phonebook_id` (Standard 0 = erstes Telefonbuch; die Nummer steht als Attribut `phonebook_id` am Telefonbuch-Sensor und als `id` im Websocket-Befehl `fritzbox_phone/phonebooks`) |
 | `fritzbox_phone.block_number` | Nummer in die Rufsperre der Box eintragen: Anrufe von ihr werden von der Box abgewiesen. Steht sie schon drin, passiert nichts | Gerät (optional); `number`, optional `name` (Bezeichnung in der Sperrliste) |
 | `fritzbox_phone.unblock_number` | Nummer aus der Rufsperre entfernen; meldet einen Fehler, wenn sie nicht gesperrt war | Gerät (optional); `number` |
 
@@ -599,6 +605,122 @@ FRITZ!Box liefert sowohl den Anrufzeitpunkt als auch die Dauer selbst nur
 auf die Minute genau – die Dauer im Format `hh:mm`, aufgerundet; Ende wird
 daraus berechnet).
 
+## Anrufverlauf (optional)
+
+Die FRITZ!Box hält nur eine begrenzte Anrufliste, und die Integration fragt
+davon nur das Fenster aus den Optionen ab (Standard 7 Tage, 50 Anrufe). Für
+eine Statistik über Wochen oder ein Jahr kann die Integration die Anrufe
+selbst aufbewahren: Option **Anrufverlauf auf dem Datenträger behalten**
+(Tage, 0 = aus, höchstens 365).
+
+- **Standardmäßig aus.** Dann wird nichts gespeichert; eine Datei aus einer
+  früheren Einstellung wird beim nächsten Start des Eintrags gelöscht.
+- **Eingeschaltet** wird jede neu gelesene Anrufliste in den Verlauf
+  übernommen. Derselbe Anruf zählt nur einmal (stabile Anruf-ID, siehe
+  unten); spätere Spam- oder Namensangaben ersetzen die alten. Anrufe, die
+  älter als die eingestellte Zahl Tage sind, werden entfernt.
+- **Gespeichert** wird pro Eintrag in
+  `.storage/fritzbox_phone.call_history.<entry_id>`, mit Rufnummern, Namen
+  und Zeiten. Die Datei landet damit auch in den Backups von Home Assistant.
+  Wer die Datenträger oder Backups sehen kann, sieht diese Anrufe.
+- **Gelesen** wird der Verlauf nur von den Websocket-Befehlen
+  `fritzbox_phone/calls` und `fritzbox_phone/stats` (unten). Sensoren, Karte
+  und Logbuch bleiben unverändert.
+- Beim Löschen des Eintrags wird die Datei entfernt. Ein Kürzen des
+  Zeitraums wirkt beim nächsten Start des Eintrags (Optionen speichern lädt
+  ihn neu).
+
+## Websocket-API für Panels
+
+Für Panels (etwa die Seite „Box > Telefon“ der Integration
+`fritzbox_network`) gibt es Websocket-Befehle, die nicht von Entitäts-IDs
+oder Attributnamen abhängen. Neue Felder können dazukommen; vorhandene
+werden nicht umbenannt.
+
+- **Nur für Administratoren** (`unauthorized` sonst). Die Antworten enthalten
+  die echten Namen und Nummern; `privacy_mode` gibt die Option „Namen und
+  Rufnummern verbergen“ weiter, damit das Panel sie wie die Karte befolgt.
+- **Fehler:** `not_found` für einen unbekannten oder nicht geladenen Eintrag
+  (bei `contacts` auch für ein unbekanntes Telefonbuch), `box_request_failed`,
+  wenn die Box nicht antwortet. Ins Protokoll gelangen keine Nummern oder
+  Namen.
+- **Zeiten:** `datetime`, `oldest`, `newest` sind ISO 8601 mit der
+  Zeitverschiebung der Zeitzone von Home Assistant
+  (`2026-01-10T09:15:00+01:00`), `date` in `per_day` ist `JJJJ-MM-TT`.
+  Dauern sind Minuten; die Box liefert sie als `h:mm` und rundet auf.
+
+| Befehl | Felder | Antwort |
+|--------|--------|---------|
+| `fritzbox_phone/entries` | – | `entries`: je Eintrag `entry_id`, `title`, `host`, `serial` (Seriennummer der Box oder `null`), `loaded`, `call_list_days`, `call_list_max`, `privacy_mode`, `history_days` (0 = Verlauf aus), `version` |
+| `fritzbox_phone/phonebooks` | `entry_id` | `phonebooks`: `id` (für `add_contact` als `phonebook_id`), `name`, `count` |
+| `fritzbox_phone/contacts` | `entry_id`, `phonebook_id`, optional `query` (Teil des Namens oder Ziffern der Nummer) | `contacts`: `uniqueid`, `name`, `vip`, `has_image`, `numbers` (`number`, `type`); `privacy_mode` |
+| `fritzbox_phone/calls` | `entry_id`, optional `days`, `limit` (beide Standard: Anruflisten-Fenster der Optionen, 0 = ohne Grenze), `offset` | `calls` (neueste zuerst), `window` (`days`, `max`, `offset`, `oldest`, `source`: `list` oder `history`), `total` (Anzahl im Zeitraum vor dem Blättern), `privacy_mode` |
+| `fritzbox_phone/tams` | `entry_id` | `tams`: `index`, `name`, `enabled`, `running`, `capacity_minutes_remaining`, `new_count`, `total`, `messages` |
+| `fritzbox_phone/blocklist` | `entry_id` | `numbers` (Rufsperre der Box, bei jedem Aufruf frisch gelesen), `entries` (`uniqueid`, `name`, `numbers`), `supported`; ohne Rufsperre (Box oder Benutzer ohne die Funktion) `numbers: []`, `supported: false` |
+| `fritzbox_phone/stats` | `entry_id`, `days` (`7`, `30`, `90`, `365`, `0` = alles Vorhandene) | `window`, `per_day`, `heat`, `totals`, `previous`, `compare`, `top_callers`, `top_called`, `per_line` |
+
+**Anrufe** haben die Felder des Attributs `calls` des Anruflisten-Sensors und
+zusätzlich: `id` (stabile Anruf-ID), `box_id` (laufende Nummer der Box, vorher
+`id`), `datetime`, `vip` (aus dem Telefonbuch) und `in_list` (steht noch in der
+Anrufliste der Box). Nur bei `in_list: true` lässt sich eine Aufnahme abspielen;
+für ältere Einträge aus dem Verlauf ist `has_recording` false.
+
+**Quelle der Anrufe:** Ohne Verlauf antwortet immer die aktuelle Anrufliste.
+Mit Verlauf antwortet `calls` aus dem Verlauf, wenn `days` 0 ist oder größer
+als der Anruflisten-Zeitraum; `stats` rechnet mit Verlauf immer aus dem
+Verlauf. `window.source` sagt, welche Quelle es war.
+
+**Stabile Anruf-ID:** ein Hash aus der Nummer, die die Box dem Eintrag gibt,
+und der Startzeit. Er bleibt über Abfragen und Neustarts gleich, auch wenn ein
+laufender Anruf (`active_*`) zum fertigen Eintrag wird, und kollidiert nicht,
+wenn die Box nach dem Löschen ihrer Liste neu zu zählen beginnt. Einträge ohne
+Nummer der Box werden über Zeit, Nummern, Dauer und Art gehasht. Nachrichten
+auf dem Anrufbeantworter haben ebenfalls eine stabile `id` (aus Anrufbeantworter,
+Zeit und Nummer, wie `key`) und zusätzlich `tam_index`; `index` bleibt die
+Nummer der Nachricht auf der Box.
+
+**Statistik:** Tage sind Kalendertage in der Zeitzone von Home Assistant,
+heute eingeschlossen.
+
+- `window`: `days`, `from`, `to` (Tage), `oldest`, `newest` (ältester und
+  neuester vorhandener Anruf der Quelle), `count` (Anrufe im Zeitraum),
+  `undated` (Anrufe ohne lesbares Datum, nicht mitgezählt), `source`.
+- `per_day`: je Tag `date`, `incoming`, `outgoing`, `missed`, `spam`,
+  `talk_minutes`. Jeder Anruf zählt in genau einer Reihe: Spam vor
+  ausgehend vor verpasst (verpasst, abgewiesen oder vom Anrufbeantworter
+  angenommen) vor eingehend.
+- `heat`: 7 × 24 Anzahlen, Wochentag (Montag zuerst) × Stunde.
+- `totals`: `calls`, `incoming`, `outgoing`, `missed`, `spam`, `connected`,
+  `talk_minutes`, `avg_talk_minutes` (je verbundenem Gespräch, d. h.
+  eingehend oder ausgehend und nicht der Anrufbeantworter), `missed_rate`
+  (verpasst je ankommendem Anruf, 0 bis 1).
+- `previous`: dieselben Summen für den gleich langen Zeitraum davor, oder
+  `null`. `compare` sagt, wie weit die Daten zurückreichen: `kind` `full`,
+  `partial` (mindestens die Hälfte des Zeitraums davor ist abgedeckt,
+  `cover_days` Tage) oder `none`; bei `days: 0` immer `none`.
+- `top_callers` / `top_called`: die fünf häufigsten Nummern ankommend bzw.
+  ausgehend, mit `number`, `name`, `vip`, `count`, `talk_minutes`, `spam`.
+- `per_line`: Anrufe je eigener Nummer (`own_number`, `count`).
+
+Beispiel (Entwicklerwerkzeuge oder ein eigenes Panel):
+
+```js
+const { entries } = await hass.callWS({ type: "fritzbox_phone/entries" });
+const stats = await hass.callWS({
+  type: "fritzbox_phone/stats",
+  entry_id: entries[0].entry_id,
+  days: 30,
+});
+```
+
+Aufnahmen spielt ein Panel weiter wie die Karte ab: `recording_path` einer
+Nachricht mit `auth/sign_path` signieren und die signierte Adresse laden.
+
+Zusätzlich tragen die Entitäten jetzt, was ein Panel zum Zuordnen braucht:
+`call_list_days`, `call_list_max` und `call_history_days` am
+Anruflisten-Sensor, `phonebook_id` an jedem Telefonbuch-Sensor und
+`tam_index` am Anrufbeantworter-Schalter (der Sensor hatte ihn schon).
+
 ## Blueprints
 
 Im Ordner [`blueprints/automation/fritzbox_phone/`](blueprints/automation/fritzbox_phone)
@@ -631,6 +753,10 @@ Blueprint importieren** die Adresse der Datei auf GitHub eintragen:
 - **Sitzungskennung der Box:** Die Download-Adressen der Box enthalten eine
   gültige Sitzungskennung (`sid=`). Sie steht weder in Entitätsattributen noch
   in der Datenbank; Aufnahmen laufen über die angemeldete Home-Assistant-Adresse.
+- **Anrufverlauf:** nur wenn eingeschaltet (Standard aus); dann liegen Anrufe
+  mit Nummern und Namen in `.storage` und in den Backups, siehe
+  [Anrufverlauf](#anrufverlauf-optional). Die Websocket-Befehle geben
+  Nummern nur an Administratoren.
 - **Zugriffsrechte:** Jeder angemeldete Home-Assistant-Benutzer, der die
   Anrufbeantworter-Sensoren sieht, kann die Aufnahmen abspielen.
   Berücksichtige das bei Benutzerrechten und Backups.
@@ -654,6 +780,8 @@ Die Integrationsdateien liegen im Repository unter
 | `config_flow.py` | Einrichtung, Entdeckung (SSDP), Neu-Anmeldung, Neu-Konfiguration, Optionen |
 | `views.py` | angemeldete Auslieferung der Anrufbeantworter-Aufnahmen |
 | `services.py` / `services.yaml` | Aktionen |
+| `websocket.py` | Websocket-Befehle für Panels |
+| `history.py` / `payloads.py` | optionaler Anrufverlauf und Statistik / gemeinsame Form von Anrufen, Nachrichten und Kontakten |
 | `logbook.py` | Klartext-Begründungen im Logbuch („Was ist passiert“) |
 | `sensor.py` / `binary_sensor.py` / `event.py` / `switch.py` | Entitäten |
 | `diagnostics.py` | Diagnosedaten ohne Zugangsdaten und Rufnummern |

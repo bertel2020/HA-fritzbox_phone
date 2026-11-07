@@ -149,6 +149,24 @@ async def test_options_offer_the_privacy_mode(hass: HomeAssistant) -> None:
     assert result["data"]["privacy_mode"] is True
 
 
+async def test_options_offer_the_call_history(hass: HomeAssistant) -> None:
+    """Off by default, at most a year."""
+    entry = MockConfigEntry(domain=DOMAIN, unique_id="ABC123", data=USER_INPUT)
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    schema = result["data_schema"]
+    key = next(key for key in schema.schema if str(key) == "call_history_days")
+    assert key.default() == 0
+    with pytest.raises(vol.Invalid):
+        schema({"call_history_days": 366})
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"call_history_days": 90}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"]["call_history_days"] == 90
+
+
 async def test_reauth_updates_credentials(hass: HomeAssistant) -> None:
     entry = MockConfigEntry(domain=DOMAIN, unique_id="ABC123", data=USER_INPUT)
     entry.add_to_hass(hass)

@@ -64,6 +64,7 @@ The integration talks to the FRITZ!Box locally (TR-064 and the CallMonitor on po
 - **Call forwarding**: every forwarding rule of the box as a switch, e.g. for "forward to my mobile at night".
 - **Call barring**: the services `block_number` and `unblock_number` add numbers to the box's call barring or remove them.
 - **Statistics**: calls today, missed calls, talk time and (with PhoneBlock) spam calls as sensors.
+- **Websocket API and call history**: commands for panels (calls, phonebooks, answering machines, call barring, statistics), admin only; optionally a call history beyond the window of the box (see the [user guide](docs/USER-GUIDE.de.md#websocket-api-für-panels), German).
 - **Blueprints**: notification for a missed call, a warning for spam calls, and actions on ringing, VIP callers and new answering machine messages.
 - **Easy setup**: the box is found automatically on the network; new credentials or a new address without setting up again; diagnostics to share when asking for help.
 
@@ -93,6 +94,7 @@ tam_entity: sensor.YOUR_ANSWERING_MACHINE  # optional
 - Communication with the FRITZ!Box stays on your local network.
 - PhoneBlock and Tellows are optional and can be switched off. Only SHA-1 hashes of the number go to PhoneBlock.
 - Calls, phonebook and messages appear as entity attributes in Home Assistant; whoever has access there can see them.
+- The optional call history is off by default. When switched on it keeps calls with numbers and names in `.storage` (and so in backups).
 
 ## Changelog
 

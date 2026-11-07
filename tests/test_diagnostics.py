@@ -39,6 +39,7 @@ async def test_diagnostics(hass: HomeAssistant, hass_client) -> None:
     assert result["coordinator"]["last_error"] is None
     assert result["coordinator"]["lookups"]["phoneblock"] is None  # not enabled
     assert result["coordinator"]["lookups"]["reverse_lookup"] is None
+    assert result["coordinator"]["call_history"] is None  # off by default
     assert result["call_monitor"] is None
 
     dump = json.dumps(result)

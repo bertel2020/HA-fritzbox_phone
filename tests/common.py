@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.fritzbox_phone.api import (
@@ -106,6 +106,8 @@ class FakeBox:
     calls_log: list[tuple] = field(default_factory=list)
     blocked: list[str] = field(default_factory=list)
     deflections: list[Deflection] = field(default_factory=list)
+    # Raised by get_blocked_numbers (e.g. a box without call barring).
+    blocklist_error: Exception | None = None
 
 
 def build_client_class(box: FakeBox):
@@ -185,6 +187,20 @@ def build_client_class(box: FakeBox):
             box.blocked.append(number)
             return True
 
+        def get_blocked_numbers(self):
+            if box.blocklist_error is not None:
+                raise box.blocklist_error
+            return [
+                PhonebookContact(
+                    name=f"Gesperrt {i}",
+                    uniqueid=f"b{i}",
+                    vip=False,
+                    image_url=None,
+                    numbers=[PhonebookNumber(number=number)],
+                )
+                for i, number in enumerate(box.blocked)
+            ]
+
         def unblock_number(self, number: str) -> int:
             box.calls_log.append(("unblock", number))
             if number not in box.blocked:
@@ -223,3 +239,10 @@ def entity_id(hass: HomeAssistant, entry: MockConfigEntry, suffix: str, domain: 
     found = registry.async_get_entity_id(domain, DOMAIN, f"{entry.entry_id}_{suffix}")
     assert found, f"no {domain} entity with unique id suffix {suffix}"
     return found
+
+
+def get_device(hass: HomeAssistant, entry: MockConfigEntry) -> dr.DeviceEntry:
+    """The box's device (works before and after HA deprecated async_get_device)."""
+    devices = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
+    assert len(devices) == 1
+    return devices[0]

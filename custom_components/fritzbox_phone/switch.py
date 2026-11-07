@@ -75,6 +75,11 @@ class FritzBoxTamSwitch(FritzBoxPhoneEntity, SwitchEntity):
         tam = self._tam
         return tam.enabled if tam else None
 
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        # Ties the switch to its answering machine sensor (same tam_index).
+        return {"tam_index": self._tam_index}
+
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self._async_set_enable(True)
 

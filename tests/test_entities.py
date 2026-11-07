@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr
 
 from custom_components.fritzbox_phone.const import DOMAIN
 from custom_components.fritzbox_phone.sensor import (
@@ -19,13 +18,14 @@ from .common import (
     make_message,
     make_phonebook,
     make_tam,
+    get_device,
     setup_integration,
 )
 
 
 async def test_device_info_comes_from_the_box(hass: HomeAssistant) -> None:
     entry = await setup_integration(hass, FakeBox())
-    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, entry.entry_id)})
+    device = get_device(hass, entry)
     assert device.manufacturer == "AVM"
     assert device.model == "FRITZ!Box 7590"
     assert device.serial_number == "ABC123"

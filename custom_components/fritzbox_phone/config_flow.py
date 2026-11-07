@@ -31,6 +31,7 @@ from homeassistant.helpers.service_info.ssdp import (
 
 from .api import FritzBoxPhoneClient
 from .const import (
+    CONF_CALL_HISTORY_DAYS,
     CONF_CALL_LIST_DAYS,
     CONF_CALL_LIST_MAX,
     CONF_CALLMONITOR_PORT,
@@ -44,6 +45,7 @@ from .const import (
     CONF_REVERSE_LOOKUP_ENABLED,
     CONF_SCAN_INTERVAL,
     CONF_USE_TLS,
+    DEFAULT_CALL_HISTORY_DAYS,
     DEFAULT_CALL_LIST_DAYS,
     DEFAULT_CALL_LIST_MAX,
     DEFAULT_CALLMONITOR_PORT,
@@ -54,6 +56,7 @@ from .const import (
     DEFAULT_REVERSE_LOOKUP_ENABLED,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    MAX_CALL_HISTORY_DAYS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -335,6 +338,10 @@ class FritzBoxPhoneOptionsFlow(config_entries.OptionsFlow):
                     CONF_CALL_LIST_MAX,
                     default=options.get(CONF_CALL_LIST_MAX, DEFAULT_CALL_LIST_MAX),
                 ): vol.All(int, vol.Range(min=0, max=999)),
+                vol.Optional(
+                    CONF_CALL_HISTORY_DAYS,
+                    default=options.get(CONF_CALL_HISTORY_DAYS, DEFAULT_CALL_HISTORY_DAYS),
+                ): vol.All(int, vol.Range(min=0, max=MAX_CALL_HISTORY_DAYS)),
                 vol.Optional(
                     CONF_ENABLE_CALLMONITOR,
                     default=options.get(CONF_ENABLE_CALLMONITOR, DEFAULT_ENABLE_CALLMONITOR),

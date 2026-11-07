@@ -23,9 +23,15 @@ from homeassistant.util import dt as dt_util
 from .api import CallEntry, Phonebook, Tam
 from .callmonitor import FritzCallMonitor
 from .const import (
+    CONF_CALL_HISTORY_DAYS,
+    CONF_CALL_LIST_DAYS,
+    CONF_CALL_LIST_MAX,
     CONTEXT_KEY_CALL_LIST,
     CONTEXT_KEY_MISSED_CALLS,
     CONTEXT_KEY_TAM,
+    DEFAULT_CALL_HISTORY_DAYS,
+    DEFAULT_CALL_LIST_DAYS,
+    DEFAULT_CALL_LIST_MAX,
     DOMAIN,
     MISSED_CALL_TYPE,
     OUTGOING_CALL_TYPE,
@@ -34,6 +40,7 @@ from .coordinator import FritzBoxPhoneCoordinator
 from .runtime import FritzBoxPhoneConfigEntry
 from .entity import FritzBoxPhoneEntity
 from .health import STATUS_ERROR, STATUS_OK, STATUS_UNKNOWN, LookupHealth
+from .payloads import call_to_dict, contact_to_dict, message_to_dict
 from .views import recording_path
 
 _LOGGER = logging.getLogger(__name__)
@@ -101,34 +108,8 @@ async def async_setup_entry(
     entry.async_on_unload(coordinator.async_add_listener(_async_add_new_entities))
 
 
-def _call_to_dict(call: CallEntry) -> dict[str, Any]:
-    return {
-        "id": call.id,
-        "type": call.type_name,
-        "name": call.name,
-        "caller": call.caller,
-        "caller_number": call.caller_number,
-        "called": call.called,
-        "called_number": call.called_number,
-        "device": call.device,
-        "port": call.port,
-        "date": call.date,
-        "duration": call.duration,
-        "is_fax": call.is_fax,
-        "is_answering_machine": call.is_tam,
-        # The recording itself is delivered by views.py; the box's session
-        # id (part of the raw URL) must not end up in the state machine.
-        "has_recording": call.recording_url is not None,
-        "tam_index": call.tam_index,
-        "tam_message_index": call.tam_message_index,
-        "area_name": call.area_name,
-        "is_spam": call.is_spam,
-        "spam_confidence": call.spam_confidence,
-        "spam_rating": call.spam_rating,
-        "spam_location": call.spam_location,
-        "reverse_name": call.reverse_name,
-        "reverse_category": call.reverse_category,
-    }
+# Kept under its old name for code that imported it from here.
+_call_to_dict = call_to_dict
 
 
 class FritzBoxCallListSensor(FritzBoxPhoneEntity, SensorEntity):
@@ -151,8 +132,13 @@ class FritzBoxCallListSensor(FritzBoxPhoneEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
+        options = self._entry.options
         return {
-            "calls": [_call_to_dict(call) for call in self.coordinator.data.calls],
+            "calls": [call_to_dict(call) for call in self.coordinator.data.calls],
+            # The window the box was asked for, so a dashboard can name it.
+            "call_list_days": options.get(CONF_CALL_LIST_DAYS, DEFAULT_CALL_LIST_DAYS),
+            "call_list_max": options.get(CONF_CALL_LIST_MAX, DEFAULT_CALL_LIST_MAX),
+            "call_history_days": options.get(CONF_CALL_HISTORY_DAYS, DEFAULT_CALL_HISTORY_DAYS),
             **self._privacy_attributes,
         }
 
@@ -178,7 +164,7 @@ class FritzBoxMissedCallsSensor(FritzBoxPhoneEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        return {"calls": [_call_to_dict(call) for call in self._missed]}
+        return {"calls": [call_to_dict(call) for call in self._missed]}
 
 
 _AVM_DATE_FORMAT = "%d.%m.%y %H:%M"
@@ -346,19 +332,8 @@ class FritzBoxPhonebookSensor(FritzBoxPhoneEntity, SensorEntity):
         if phonebook is None:
             return {}
         return {
-            "contacts": [
-                {
-                    "name": contact.name,
-                    "vip": contact.vip,
-                    "uniqueid": contact.uniqueid,
-                    "has_image": contact.image_url is not None,
-                    "numbers": [
-                        {"number": number.number, "type": number.type}
-                        for number in contact.numbers
-                    ],
-                }
-                for contact in phonebook.contacts
-            ],
+            "phonebook_id": phonebook.id,
+            "contacts": [contact_to_dict(contact) for contact in phonebook.contacts],
             **self._privacy_attributes,
         }
 
@@ -410,35 +385,12 @@ class FritzBoxTamSensor(FritzBoxPhoneEntity, SensorEntity):
             "total_messages": len(tam.messages),
             **self._privacy_attributes,
             "messages": [
-                {
-                    "index": message.index,
-                    "name": message.name,
-                    "number": message.number,
-                    "called": message.called,
-                    "date": message.date,
-                    "key": self.coordinator.message_key(message),
-                    "duration": message.duration,
-                    "new": message.new,
-                    "in_phonebook": message.inbook,
-                    "has_recording": message.download_url is not None,
-                    "recording_path": (
-                        recording_path(
-                            self._entry.entry_id,
-                            self._tam_index,
-                            message.index,
-                            self.coordinator.message_key(message),
-                        )
-                        if message.download_url
-                        else None
-                    ),
-                    "area_name": message.area_name,
-                    "is_spam": message.is_spam,
-                    "spam_confidence": message.spam_confidence,
-                    "spam_rating": message.spam_rating,
-                    "spam_location": message.spam_location,
-                    "reverse_name": message.reverse_name,
-                    "reverse_category": message.reverse_category,
-                }
+                message_to_dict(
+                    self._entry.entry_id,
+                    self._tam_index,
+                    message,
+                    self.coordinator.message_key(message),
+                )
                 for message in tam.messages
             ],
         }

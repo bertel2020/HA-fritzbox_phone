@@ -28,6 +28,8 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import CallEntry, Deflection, FritzBoxPhoneClient, Phonebook, Tam, TamMessage, path_key
 from .callmonitor import normalize_number
 from .geocoding import describe_number
+from .history import CallHistory
+from .payloads import call_record
 from .phone_numbers import normalize as normalize_phone_number
 from .const import (
     CONF_CALL_LIST_DAYS,
@@ -117,6 +119,8 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         self._known_missed_ids: set[str] | None = None
         self._known_new_messages: dict[int, set[str]] | None = None
         self._pending_contexts: dict[str, Context] = {}
+        # The opt-in call history (history.py); set up by async_setup_entry.
+        self.history: CallHistory | None = None
         scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         super().__init__(
             hass,
@@ -216,6 +220,8 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             # as new again.
             raise UpdateFailed(f"{type(err).__name__}: {err}") from err
         await self._async_enrich_online(data)
+        if self.history is not None:
+            self.history.async_merge(call_record(call) for call in data.calls)
         self.async_update_repairs()
         # Fire before returning: the coordinator notifies its entities the
         # moment this returns, and they need the Contexts to already be

@@ -65,6 +65,12 @@ async def async_get_config_entry_diagnostics(
                     1 for call in data.calls if call.tam_message_index is not None
                 ),
             },
+            # Only how many calls the opt-in history holds, never the calls.
+            "call_history": (
+                None
+                if coordinator.history is None
+                else {"days": coordinator.history.days, "calls": len(coordinator.history)}
+            ),
             "answering_machines": [
                 {
                     "index": tam.index,

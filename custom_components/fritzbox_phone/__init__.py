@@ -24,17 +24,21 @@ from .callmonitor import FritzCallMonitor
 from .const import (
     CARD_JS_FILENAME,
     CARD_JS_URL,
+    CONF_CALL_HISTORY_DAYS,
     CONF_CALLMONITOR_PORT,
     CONF_ENABLE_CALLMONITOR,
     CONF_USE_TLS,
+    DEFAULT_CALL_HISTORY_DAYS,
     DEFAULT_CALLMONITOR_PORT,
     DEFAULT_ENABLE_CALLMONITOR,
     DOMAIN,
 )
 from .coordinator import FritzBoxPhoneCoordinator
+from .history import CallHistory
 from .services import async_setup_services
 from .runtime import FritzBoxPhoneConfigEntry, FritzBoxPhoneRuntimeData
 from .views import FritzBoxRecordingView
+from .websocket import async_setup_websocket
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,6 +59,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.http.register_view(FritzBoxRecordingView())
 
     await async_setup_services(hass)
+    async_setup_websocket(hass)
     return True
 
 
@@ -79,6 +84,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: FritzBoxPhoneConfigEntry
         ) from err
 
     coordinator = FritzBoxPhoneCoordinator(hass, entry, client)
+    # The call history is opt-in: with the option at 0 nothing stays on
+    # disk, and a file left from an earlier setting is removed.
+    history_days = entry.options.get(CONF_CALL_HISTORY_DAYS, DEFAULT_CALL_HISTORY_DAYS)
+    if history_days:
+        coordinator.history = CallHistory(hass, entry.entry_id, history_days)
+        await coordinator.history.async_load()
+    else:
+        await CallHistory.async_delete(hass, entry.entry_id)
     await coordinator.async_config_entry_first_refresh()
 
     await _async_register_frontend_resource(hass)
@@ -142,5 +155,14 @@ async def _async_update_listener(hass: HomeAssistant, entry: FritzBoxPhoneConfig
 async def async_unload_entry(hass: HomeAssistant, entry: FritzBoxPhoneConfigEntry) -> bool:
     """Unload a config entry."""
     # A reload re-raises the repair on the first poll if it still applies.
-    entry.runtime_data.coordinator.async_clear_repairs()
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    coordinator = entry.runtime_data.coordinator
+    coordinator.async_clear_repairs()
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded and coordinator.history is not None:
+        await coordinator.history.async_save()
+    return unloaded
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: FritzBoxPhoneConfigEntry) -> None:
+    """Delete what the entry kept on disk: the call history."""
+    await CallHistory.async_delete(hass, entry.entry_id)

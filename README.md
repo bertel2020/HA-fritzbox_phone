@@ -62,6 +62,7 @@ Die Integration arbeitet lokal mit der FRITZ!Box (TR-064 und CallMonitor, Port 1
 - **Rufumleitung**: jede Umleitung der Box als Schalter, z. B. für „nachts aufs Handy“.
 - **Rufsperre**: Services `block_number` und `unblock_number` tragen Nummern in die Rufsperre der Box ein oder entfernen sie.
 - **Statistik**: Anrufe heute, verpasste Anrufe, Gesprächszeit und (mit PhoneBlock) Spam-Anrufe als Sensoren.
+- **Websocket-API und Anrufverlauf**: Befehle für Panels (Anrufe, Telefonbücher, Anrufbeantworter, Rufsperre, Statistik), nur für Administratoren; optional ein Anrufverlauf über das Fenster der Box hinaus (siehe [Anleitung](docs/USER-GUIDE.de.md#websocket-api-für-panels)).
 - **Blueprints**: Benachrichtigung bei verpasstem Anruf, Warnung bei Spam-Anrufen sowie Aktionen beim Klingeln, bei VIP-Anrufern und bei neuen Nachrichten auf dem Anrufbeantworter.
 - **Einfache Einrichtung**: automatische Erkennung der FRITZ!Box im Netzwerk, neue Anmeldung und neue Adresse ohne Neueinrichtung, Diagnosedaten zum Weitergeben.
 
@@ -91,6 +92,7 @@ Voraussetzung ist **Home Assistant 2025.10 oder neuer**. Alles Weitere (Optionen
 - Die Kommunikation mit der FRITZ!Box bleibt im lokalen Netz.
 - PhoneBlock und Tellows sind optional und abschaltbar. An PhoneBlock gehen nur SHA-1-Hashes der Nummer.
 - Anrufe, Telefonbuch und Nachrichten stehen als Entitätsattribute in Home Assistant. Wer dort Zugriff hat, sieht sie (siehe [Datenschutz und Sicherheit](docs/USER-GUIDE.de.md#datenschutz-und-sicherheit)).
+- Der optionale Anrufverlauf ist standardmäßig aus. Eingeschaltet legt er Anrufe mit Nummern und Namen in `.storage` (und damit in Backups) ab.
 
 ## Änderungsverlauf
 

@@ -9,7 +9,8 @@
   ],
   "config_flow": true,
   "dependencies": [
-    "http"
+    "http",
+    "websocket_api"
   ],
   "documentation": "https://github.com/bertel2020/HA-fritzbox_phone",
   "integration_type": "hub",
