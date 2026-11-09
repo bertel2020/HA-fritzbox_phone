@@ -2,6 +2,16 @@
 
 Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
+## 2.3.1 – 2026-11-09
+
+### Entfernt
+
+- Die Aktion `download_message` ist entfernt. Sie schrieb Aufnahmen nach
+  `config/www/fritzbox_tam/`, und alles unter `config/www` ist unter `/local/`
+  ohne Anmeldung abrufbar. Die Karte und `play_message` spielen Aufnahmen
+  weiterhin angemeldet (signierte Adressen) ab. Bereits exportierte Dateien in
+  `config/www/fritzbox_tam/` bleiben liegen und sollten gelöscht werden.
+
 ## 2.3.0 – 2026-11-07
 
 ### Hinzugefügt

@@ -233,24 +233,6 @@
         }
       }
     },
-    "download_message": {
-      "name": "Nachricht herunterladen",
-      "description": "Veraltet: speichert die Aufnahme als Datei unter config/www/fritzbox_tam/. Diese Dateien sind ohne Anmeldung abrufbar - die Karte spielt Aufnahmen stattdessen angemeldet direkt von der FRITZ!Box ab. Nur Dateinamen mit Endung .wav, .mp3 oder .ogg sind erlaubt.",
-      "fields": {
-        "message_index": {
-          "name": "Nachrichtenindex",
-          "description": "Index der Nachricht (siehe Attribut 'messages' des Anrufbeantworter-Sensors)."
-        },
-        "filename": {
-          "name": "Dateiname",
-          "description": "Zieldateiname, z. B. nachricht_3.mp3"
-        },
-        "message_key": {
-          "name": "Nachrichtenschlüssel",
-          "description": "Optional: der 'key' der Nachricht (gleiche Attributliste). Die Aktion wird abgelehnt, wenn die Box die Nachrichten neu nummeriert hat und der Schlüssel nicht mehr passt."
-        }
-      }
-    },
     "dial": {
       "name": "Nummer wählen",
       "description": "Startet einen Anruf über die Wählhilfe der FRITZ!Box: Das dort gewählte Telefon klingelt zuerst, die Nummer wird nach dem Abheben gewählt. Die Wählhilfe muss an der FRITZ!Box aktiviert sein.",

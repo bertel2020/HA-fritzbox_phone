@@ -94,11 +94,6 @@ class FritzBoxPhoneEntity(CoordinatorEntity[FritzBoxPhoneCoordinator]):
     ) -> None:
         raise self._not_an_answering_machine()
 
-    async def async_download_message(
-        self, message_index: int, filename: str, message_key: str | None = None
-    ) -> None:
-        raise self._not_an_answering_machine()
-
     async def async_play_message(
         self, message_index: int, media_player: str, message_key: str | None = None
     ) -> None:

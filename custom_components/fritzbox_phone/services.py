@@ -16,7 +16,6 @@ from homeassistant.helpers import config_validation as cv, device_registry as dr
 
 from .const import (
     ATTR_CONTACT_ID,
-    ATTR_FILENAME,
     ATTR_MEDIA_PLAYER,
     ATTR_MESSAGE_KEY,
     ATTR_MESSAGE_INDEX,
@@ -34,7 +33,6 @@ from .const import (
     SERVICE_BLOCK_NUMBER,
     SERVICE_DELETE_MESSAGE,
     SERVICE_DIAL,
-    SERVICE_DOWNLOAD_MESSAGE,
     SERVICE_HANGUP,
     SERVICE_LOOKUP_NUMBER,
     SERVICE_MARK_MESSAGE_READ,
@@ -122,15 +120,6 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 vol.Optional(ATTR_MESSAGE_KEY): cv.string,
             },
             "async_delete_message",
-        ),
-        (
-            SERVICE_DOWNLOAD_MESSAGE,
-            {
-                vol.Required(ATTR_MESSAGE_INDEX): vol.Coerce(int),
-                vol.Optional(ATTR_MESSAGE_KEY): cv.string,
-                vol.Required(ATTR_FILENAME): str,
-            },
-            "async_download_message",
         ),
         (
             SERVICE_PLAY_MESSAGE,

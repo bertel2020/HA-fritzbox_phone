@@ -10,7 +10,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 
 from custom_components.fritzbox_phone.const import DOMAIN
-from custom_components.fritzbox_phone.coordinator import validate_recording_filename
 
 from .common import (
     FakeBox,
@@ -113,19 +112,6 @@ async def test_message_services_only_work_on_answering_machines(hass: HomeAssist
     assert not any(call[0] == "delete_message" for call in box.calls_log)
 
 
-@pytest.mark.parametrize(
-    "name", ["../evil.wav", "/etc/passwd.wav", "", "..", ".hidden.wav", "page.html", "a/b.wav"]
-)
-def test_filename_validation_rejects(name) -> None:
-    with pytest.raises(ValueError):
-        validate_recording_filename(name)
-
-
-@pytest.mark.parametrize("name", ["nachricht_3.wav", "Anruf.MP3", "x.ogg"])
-def test_filename_validation_accepts(name) -> None:
-    assert validate_recording_filename(name) == name
-
-
 def _renumbered_box() -> FakeBox:
     """Message 3 was deleted elsewhere: the one that was 4 is now number 3."""
     return FakeBox(
@@ -194,22 +180,6 @@ async def test_recording_of_a_changed_message_is_404(
     path = f"/api/fritzbox_phone/recording/{entry.entry_id}/0/3"
     assert (await client.get(path, params={"key": "01.01.26 10:03|030123456"})).status == 200
     assert (await client.get(path, params={"key": "01.01.26 10:09|030000"})).status == 404
-
-
-async def test_download_warns_that_the_file_is_public(
-    hass: HomeAssistant, tmp_path, caplog
-) -> None:
-    entry = await setup_integration(hass, _box())
-    hass.config.config_dir = str(tmp_path)
-
-    await hass.services.async_call(
-        DOMAIN,
-        "download_message",
-        {"entity_id": entity_id(hass, entry, "tam_0"), "message_index": 3, "filename": "a.wav"},
-        blocking=True,
-    )
-    assert (tmp_path / "www" / "fritzbox_tam" / "a.wav").read_bytes() == b"RIFF"
-    assert "ohne Anmeldung unter /local/fritzbox_tam/a.wav" in caplog.text
 
 
 async def test_sensors_tell_the_card_about_the_privacy_mode(hass: HomeAssistant) -> None:

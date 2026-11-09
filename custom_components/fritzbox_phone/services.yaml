@@ -43,31 +43,6 @@ delete_message:
       selector:
         text:
 
-download_message:
-  target:
-    entity:
-      integration: fritzbox_phone
-      domain: sensor
-  fields:
-    message_index:
-      required: true
-      example: 3
-      selector:
-        number:
-          min: 0
-          max: 999
-          mode: box
-    message_key:
-      required: false
-      example: "01.01.26 10:00|0301234567"
-      selector:
-        text:
-    filename:
-      required: true
-      example: nachricht_3.mp3
-      selector:
-        text:
-
 play_message:
   target:
     entity:

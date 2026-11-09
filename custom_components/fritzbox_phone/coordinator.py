@@ -6,7 +6,6 @@ from datetime import timedelta
 import asyncio
 import logging
 import time
-from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree as ET
 
@@ -727,48 +726,3 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             )
         return self.client.download(message.download_url)
 
-    def download_message(
-        self,
-        tam_index: int,
-        message_index: int,
-        filename: str,
-        message_key: str | None = None,
-    ) -> str:
-        """Download a TAM recording into config/www/fritzbox_tam/<filename>.
-
-        Runs blocking I/O, must be called from an executor thread.
-        """
-        safe_filename = validate_recording_filename(filename)
-        audio = self.fetch_recording(tam_index, message_index, message_key)
-        dest_dir = Path(self.hass.config.path("www", "fritzbox_tam"))
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        dest_path = dest_dir / safe_filename
-        dest_path.write_bytes(audio)
-        _LOGGER.warning(
-            "Aufnahme gespeichert unter %s - sie ist ohne Anmeldung unter "
-            "/local/fritzbox_tam/%s abrufbar. Die Karte spielt Aufnahmen "
-            "angemeldet ab, ohne Export.",
-            dest_path,
-            safe_filename,
-        )
-        return str(dest_path)
-
-
-ALLOWED_RECORDING_SUFFIXES = (".wav", ".mp3", ".ogg")
-
-
-def validate_recording_filename(filename: str) -> str:
-    """A bare file name with an audio extension, or ValueError.
-
-    The name arrives from a service call and ends up in a folder that Home
-    Assistant serves without authentication, so anything that is not
-    plainly an audio file name is refused.
-    """
-    name = Path(str(filename)).name
-    if name != filename or name in ("", ".", "..") or name.startswith("."):
-        raise ValueError(f"Ungültiger Dateiname: {filename!r}")
-    if Path(name).suffix.lower() not in ALLOWED_RECORDING_SUFFIXES:
-        raise ValueError(
-            "Dateiname muss auf " + ", ".join(ALLOWED_RECORDING_SUFFIXES) + " enden"
-        )
-    return name

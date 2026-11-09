@@ -12,7 +12,7 @@ Dienste PhoneBlock und Tellows bauen Internetverbindungen auf. Technische
 Grundlage sind die [AVM-Schnittstellenbeschreibungen](https://fritz.com/pages/schnittstellen)
 für TR-064 (`X_AVM-DE_OnTel`, `X_AVM-DE_TAM`, `X_VoIP`).
 
-Aktuelle Integrationsversion: **2.3.0** (siehe
+Aktuelle Integrationsversion: **2.3.1** (siehe
 [`manifest.json`](../custom_components/fritzbox_phone/manifest.json) und den
 [Änderungsverlauf](../CHANGELOG.md)).
 
@@ -416,7 +416,6 @@ actions:
 |---------|-------|--------|
 | `fritzbox_phone.mark_message_read` | Anrufbeantworter-Nachricht als (un)gelesen markieren | `sensor.*_<anrufbeantworter>`; `message_index`, `read` |
 | `fritzbox_phone.delete_message` | Nachricht auf der Box löschen | `sensor.*_<anrufbeantworter>`; `message_index` |
-| `fritzbox_phone.download_message` | **Veraltet.** Sprachnachricht nach `config/www/fritzbox_tam/<Dateiname>` speichern. Die Datei ist danach **ohne Anmeldung** unter `/local/...` abrufbar; erlaubt sind nur Dateinamen mit Endung `.wav`, `.mp3` oder `.ogg` | `sensor.*_<anrufbeantworter>`; `message_index`, `filename` |
 | `fritzbox_phone.play_message` | Eine Anrufbeantworter-Aufnahme auf einem Mediaplayer abspielen (signierte Adresse, zehn Minuten gültig; der Lautsprecher muss Home Assistant unter der internen Adresse erreichen) | Entität: Anrufbeantworter-Sensor; `message_index`, `media_player`, optional `message_key` |
 | `fritzbox_phone.dial` | Anruf über die Wählhilfe der Box starten: das dort gewählte Telefon klingelt zuerst, die Nummer wird nach dem Abheben gewählt | Gerät (bei nur einer Box optional); `number` |
 | `fritzbox_phone.hangup` | Einen noch nicht angenommenen Wählvorgang abbrechen | Gerät (optional) |

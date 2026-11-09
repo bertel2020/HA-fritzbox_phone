@@ -233,24 +233,6 @@
         }
       }
     },
-    "download_message": {
-      "name": "Download message",
-      "description": "Deprecated: saves the recording as a file under config/www/fritzbox_tam/. These files can be fetched without logging in - the card plays recordings signed in, straight from the FRITZ!Box, instead. Only file names ending in .wav, .mp3 or .ogg are accepted.",
-      "fields": {
-        "message_index": {
-          "name": "Message index",
-          "description": "Index of the message (see the 'messages' attribute of the answering machine sensor)."
-        },
-        "filename": {
-          "name": "File name",
-          "description": "Target file name, e.g. message_3.wav"
-        },
-        "message_key": {
-          "name": "Message key",
-          "description": "Optional 'key' of the message (same attribute list). The action is refused if the box has renumbered its messages and the key no longer matches."
-        }
-      }
-    },
     "dial": {
       "name": "Dial a number",
       "description": "Starts a call with the FRITZ!Box dial help: the phone chosen there rings first, and the number is dialed once you pick up. The dial help must be enabled on the box.",

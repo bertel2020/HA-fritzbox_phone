@@ -452,18 +452,6 @@ class FritzBoxTamSensor(FritzBoxPhoneEntity, SensorEntity):
             context=self._context,
         )
 
-    async def async_download_message(
-        self, message_index: int, filename: str, message_key: str | None = None
-    ) -> None:
-        path = await self._async_box_call(
-            self.coordinator.download_message,
-            self._tam_index,
-            message_index,
-            filename,
-            message_key,
-        )
-        _LOGGER.info("Anrufbeantworter-Nachricht gespeichert unter %s", path)
-
 
 class FritzBoxLookupStatusSensor(FritzBoxPhoneEntity, SensorEntity):
     """Whether an online lookup (PhoneBlock, Tellows) is answering.

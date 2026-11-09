@@ -89,9 +89,6 @@
     "delete_message": {
       "service": "mdi:delete"
     },
-    "download_message": {
-      "service": "mdi:download"
-    },
     "dial": {
       "service": "mdi:phone-outgoing"
     },
