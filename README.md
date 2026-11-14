@@ -93,6 +93,7 @@ Voraussetzung ist **Home Assistant 2025.10 oder neuer**. Alles Weitere (Optionen
 - PhoneBlock und Tellows sind optional und abschaltbar. An PhoneBlock gehen nur SHA-1-Hashes der Nummer.
 - Anrufe, Telefonbuch und Nachrichten stehen als Entitätsattribute in Home Assistant. Wer dort Zugriff hat, sieht sie (siehe [Datenschutz und Sicherheit](docs/USER-GUIDE.de.md#datenschutz-und-sicherheit)).
 - Der optionale Anrufverlauf ist standardmäßig aus. Eingeschaltet legt er Anrufe mit Nummern und Namen in `.storage` (und damit in Backups) ab.
+- Die Ergebnisse von PhoneBlock und Tellows (geprüfte Rufnummern mit Bewertung) bleiben bis zu 6 Stunden auch über einen Neustart hinaus in `.storage` erhalten.
 
 ## Änderungsverlauf
 

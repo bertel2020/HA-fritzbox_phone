@@ -95,6 +95,7 @@ tam_entity: sensor.YOUR_ANSWERING_MACHINE  # optional
 - PhoneBlock and Tellows are optional and can be switched off. Only SHA-1 hashes of the number go to PhoneBlock.
 - Calls, phonebook and messages appear as entity attributes in Home Assistant; whoever has access there can see them.
 - The optional call history is off by default. When switched on it keeps calls with numbers and names in `.storage` (and so in backups).
+- The results of PhoneBlock and Tellows (checked numbers with their rating) are kept in `.storage` for up to 6 hours, also across a restart.
 
 ## Changelog
 

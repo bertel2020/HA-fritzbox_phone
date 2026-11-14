@@ -149,7 +149,8 @@ neue Datei).
    löschen. Danach Home Assistant neu starten.
 
 War der [Anrufverlauf](#anrufverlauf-optional) eingeschaltet, wird seine Datei in
-`.storage` beim Löschen des Eintrags mit entfernt.
+`.storage` beim Löschen des Eintrags mit entfernt, ebenso die gespeicherten
+Ergebnisse der Online-Abfragen.
 
 Auf der FRITZ!Box bleibt nichts zurück, was die Integration angelegt hätte,
 außer dem, was du selbst über die Aktionen `block_number` und `add_contact`
@@ -200,7 +201,10 @@ zwischengespeichert, um nicht bei jedem Abfragezyklus erneut nachzufragen;
 ein Fehlschlag (Timeout, Ausfall) wird nur 5 Minuten gemerkt. Mehrere
 unbekannte Nummern werden parallel abgefragt, ein Abfragezyklus wartet dabei
 höchstens 20 Sekunden (beim Start 5) - was dann noch aussteht, landet im
-Hintergrund im Zwischenspeicher.
+Hintergrund im Zwischenspeicher. Der Zwischenspeicher überlebt einen Neustart:
+die Ergebnisse (Nummern mit Bewertung, ohne Fehlschläge) liegen in `.storage`
+und damit in Backups. Ändern sich Spam-Schwelle oder Landesvorwahl, werden die
+gespeicherten PhoneBlock-Bewertungen verworfen.
 
 **Einrichten:**
 1. Kostenlosen Account auf [phoneblock.net](https://phoneblock.net) anlegen.
@@ -230,8 +234,8 @@ ohne Account erreichbaren Endpunkt `GET /basic/num/{nummer}?xml=1`.
 Rückwärtssuche und lässt sich technisch nicht vermeiden. Deshalb ist diese
 Option bewusst **getrennt** von der PhoneBlock-Option und standardmäßig
 deaktiviert. Angefragt wird nur bei Anrufen/Nachrichten ohne
-Telefonbuch-Namen; Ergebnisse werden 6 Stunden lokal zwischengespeichert (Fehlschläge 5
-Minuten). Die Antwort wird mit `defusedxml` ausgewertet und auf 64 KB
+Telefonbuch-Namen; Ergebnisse werden 6 Stunden lokal zwischengespeichert, auch über
+einen Neustart hinaus (Fehlschläge 5 Minuten, nicht gespeichert). Die Antwort wird mit `defusedxml` ausgewertet und auf 64 KB
 begrenzt.
 
 **Einrichten:** Einstellungen → Geräte & Dienste → FRITZ!Box Telefon →
@@ -321,7 +325,9 @@ verfolgt: angezeigt wird das wichtigste laufende (Gespräch vor Klingeln vor
 Wählen), nach dem Auflegen eines Gesprächs bleibt ein noch klingelnder
 Anruf sichtbar. Verweigert die Box die Verbindung (CallMonitor nicht
 aktiviert, Neustart), versucht die Integration es mit wachsendem Abstand
-erneut (30 s bis 5 min), statt aufzugeben.
+erneut (30 s bis 5 min), statt aufzugeben. Nach drei Fehlversuchen in Folge
+erscheint unter Einstellungen → Reparaturen ein Hinweis auf `#96*5*`; er
+verschwindet, sobald die Verbindung steht.
 
 ## Datenaktualisierung
 
