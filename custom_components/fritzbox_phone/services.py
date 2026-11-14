@@ -62,12 +62,18 @@ def _number(value: Any) -> str:
 async def _coordinators(hass: HomeAssistant, call: ServiceCall) -> list[FritzBoxPhoneCoordinator]:
     """The boxes a device-targeted service call is meant for."""
     entries: list[FritzBoxPhoneConfigEntry] = hass.config_entries.async_loaded_entries(DOMAIN)
-    if any(call.data.get(key) not in (None, "none", []) for key in ("entity_id", "device_id", "area_id", "floor_id", "label_id")):
+    targeted = any(
+        call.data.get(key) not in (None, "none", [])
+        for key in ("entity_id", "device_id", "area_id", "floor_id", "label_id")
+    )
+    if targeted:
         wanted = await service.async_extract_config_entry_ids(call)
         entries = [entry for entry in entries if entry.entry_id in wanted]
     elif len(entries) > 1:
         raise ServiceValidationError(
-            translation_domain=DOMAIN, translation_key="device_required"
+            translation_domain=DOMAIN,
+            translation_key="device_required",
+            translation_placeholders={"boxes": ", ".join(entry.title for entry in entries)},
         )
     if not entries:
         raise ServiceValidationError(translation_domain=DOMAIN, translation_key="no_box")

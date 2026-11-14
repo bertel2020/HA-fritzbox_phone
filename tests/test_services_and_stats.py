@@ -170,8 +170,10 @@ async def test_two_boxes_need_a_device(hass: HomeAssistant) -> None:
     first = FakeBox()
     await _setup(hass, first)
     await _setup(hass, FakeBox(serial="OTHER"))
-    with pytest.raises(ServiceValidationError):
+    with pytest.raises(ServiceValidationError) as err:
         await hass.services.async_call(DOMAIN, "hangup", {}, blocking=True)
+    # The message names the boxes to choose from.
+    assert str(err.value).count("Mock Title") == 2
 
 
 async def test_lookup_number_returns_what_is_known(hass: HomeAssistant, aioclient_mock) -> None:

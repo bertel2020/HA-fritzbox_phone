@@ -349,7 +349,7 @@
       "message": "Die FRITZ!Box hat die Anfrage nicht ausgeführt: {error}"
     },
     "device_required": {
-      "message": "Es sind mehrere FRITZ!Boxen eingerichtet - bitte das Gerät auswählen."
+      "message": "Es sind mehrere FRITZ!Boxen eingerichtet ({boxes}) - bitte das Gerät auswählen."
     },
     "no_box": {
       "message": "Es ist keine FRITZ!Box eingerichtet oder geladen."

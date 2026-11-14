@@ -349,7 +349,7 @@
       "message": "The FRITZ!Box did not carry out the request: {error}"
     },
     "device_required": {
-      "message": "More than one FRITZ!Box is set up - please choose the device."
+      "message": "More than one FRITZ!Box is set up ({boxes}) - please choose the device."
     },
     "no_box": {
       "message": "No FRITZ!Box is set up or loaded."
