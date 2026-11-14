@@ -2,6 +2,37 @@
 
 Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
+## 2.3.2 – 2026-11-14
+
+### Behoben
+
+- Der Spam-Gesamtzähler zählt alte Anrufe nicht mehr erneut, wenn die
+  Online-Abfrage nach einem Neustart erst später antwortet oder kurz ausfiel.
+  Alle Anrufe, die beim Start auf der Liste stehen, gelten als bekannt.
+- Reauth und Reconfigure scheitern nicht mehr mit „anderes Gerät“, wenn der
+  Eintrag unter dem Hostnamen angelegt wurde (Seriennummer war nicht lesbar).
+- Reauth und Reconfigure laden den Eintrag nicht mehr doppelt neu; das
+  vermeidet einen Fehler ab Home Assistant 2026.12.
+- Die Sitzungskennung (`sid`) der Box landet nicht mehr in Fehlermeldungen und
+  Protokoll; der Name der Abfrage-Aufgabe enthält keine Rufnummer mehr.
+- Die Aktionen akzeptieren alle Ziele der Zielauswahl, auch Etagen und Labels.
+- Ein zu langsamer Aufnahme-Download bricht nach 120 s ab, statt die
+  Verbindung zur Box dauerhaft zu belegen.
+- Der Anrufmonitor bemerkt den stillen Neuaufbau der Verbindung durch
+  FritzMonitor; ein dabei verpasstes Auflegen lässt ein Gespräch nicht mehr
+  dauerhaft als „talking“ stehen.
+- Ein leerer, übergebener Zwischenspeicher wurde von den Abfrage-Clients
+  stillschweigend ersetzt.
+
+### Hinzugefügt
+
+- Reparaturhinweis, wenn der CallMonitor der Box nach drei Versuchen in Folge
+  nicht erreichbar ist (mit dem Hinweis auf `#96*5*`).
+- Die Ergebnisse von PhoneBlock und Tellows bleiben über einen Neustart
+  erhalten (6 Stunden, in `.storage`, ohne Fehlschläge). Spam-Schwelle oder
+  Landesvorwahl geändert: die gespeicherten PhoneBlock-Bewertungen entfallen.
+- Eine Aktion ohne Ziel nennt bei mehreren Boxen die zur Wahl stehenden Boxen.
+
 ## 2.3.1 – 2026-11-09
 
 ### Entfernt
