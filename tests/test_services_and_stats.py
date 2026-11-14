@@ -223,6 +223,43 @@ async def test_spam_statistics(hass: HomeAssistant, freezer, aioclient_mock) -> 
     assert hass.states.get(total).state == "1"
 
 
+async def test_spam_total_ignores_late_ratings_of_old_calls(
+    hass: HomeAssistant, freezer, aioclient_mock
+) -> None:
+    """A lookup that fails at startup and recovers later must not recount old calls."""
+    freezer.move_to(datetime(2026, 10, 24, 12, 0))
+    aioclient_mock.get(PHONEBLOCK_URL, status=500)
+    box = FakeBox(calls=[make_call("1", 1, date="24.10.26 09:00")])
+    entry = await _setup(
+        hass,
+        box,
+        {
+            CONF_PHONEBLOCK_ENABLED: True,
+            CONF_PHONEBLOCK_USERNAME: "user",
+            CONF_PHONEBLOCK_PASSWORD: "pw",
+        },
+    )
+    total = entity_id(hass, entry, "spam_calls_total")
+    assert hass.states.get(total).state == "0"
+
+    # The provider answers again once the failure has expired from the cache.
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(PHONEBLOCK_URL, json={"spamConfidence": 90, "rating": "E_ADVERTISING"})
+    freezer.tick(301)
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(total).state == "0"
+
+    # A call that turns up afterwards is counted - once.
+    box.calls.append(make_call("2", 1, date="24.10.26 11:00", caller_number="0899"))
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(total).state == "1"
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(total).state == "1"
+
+
 async def test_spam_statistics_need_phoneblock(hass: HomeAssistant) -> None:
     entry = await _setup(hass, FakeBox())
     registry = er.async_get(hass)

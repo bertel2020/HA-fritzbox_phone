@@ -1,7 +1,7 @@
 """Config flow: credential validation and PhoneBlock option handling."""
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from fritzconnection.core.exceptions import (
     FritzAuthorizationError,
@@ -192,6 +192,66 @@ async def test_reauth_rejects_other_box(hass: HomeAssistant) -> None:
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "wrong_device"
     assert entry.data[CONF_PASSWORD] == "secret"
+
+
+async def test_reauth_with_serial_for_an_entry_stored_by_host(hass: HomeAssistant) -> None:
+    """The unique id fell back to the host (serial unreadable); a readable serial is no other box."""
+    entry = MockConfigEntry(domain=DOMAIN, unique_id="fritz.box", data=USER_INPUT)
+    entry.add_to_hass(hass)
+    result = await entry.start_reauth_flow(hass)
+    with patch(CLIENT, _client(serial="ABC123")):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_USERNAME: "admin", CONF_PASSWORD: "new"}
+        )
+    assert result["reason"] == "reauth_successful"
+    assert entry.data[CONF_USERNAME] == "admin"
+
+
+async def test_reconfigure_with_serial_for_an_entry_stored_by_host(hass: HomeAssistant) -> None:
+    entry = MockConfigEntry(domain=DOMAIN, unique_id="fritz.box", data=USER_INPUT)
+    entry.add_to_hass(hass)
+    result = await entry.start_reconfigure_flow(hass)
+    with patch(CLIENT, _client(serial="ABC123")):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {CONF_HOST: "192.168.178.1", CONF_USERNAME: "user", CONF_PASSWORD: "secret"},
+        )
+    assert result["reason"] == "reconfigure_successful"
+    assert entry.data[CONF_HOST] == "192.168.178.1"
+
+
+async def test_reauth_reloads_once_for_an_entry_with_update_listener(
+    hass: HomeAssistant,
+) -> None:
+    """The update listener reloads on a change; the flow must not schedule a second reload."""
+    entry = MockConfigEntry(domain=DOMAIN, unique_id="ABC123", data=USER_INPUT)
+    entry.add_to_hass(hass)
+    entry.add_update_listener(AsyncMock())
+    result = await entry.start_reauth_flow(hass)
+    with (
+        patch(CLIENT, _client()),
+        patch.object(hass.config_entries, "async_schedule_reload") as schedule,
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_USERNAME: "user", CONF_PASSWORD: "new"}
+        )
+    assert result["reason"] == "reauth_successful"
+    schedule.assert_not_called()
+
+
+async def test_reauth_with_unchanged_credentials_still_reloads(hass: HomeAssistant) -> None:
+    entry = MockConfigEntry(domain=DOMAIN, unique_id="ABC123", data=USER_INPUT)
+    entry.add_to_hass(hass)
+    result = await entry.start_reauth_flow(hass)
+    with (
+        patch(CLIENT, _client()),
+        patch.object(hass.config_entries, "async_schedule_reload") as schedule,
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_USERNAME: "user", CONF_PASSWORD: "secret"}
+        )
+    assert result["reason"] == "reauth_successful"
+    schedule.assert_called_once_with(entry.entry_id)
 
 
 async def test_reconfigure_changes_host(hass: HomeAssistant) -> None:

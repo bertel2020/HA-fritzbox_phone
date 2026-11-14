@@ -254,8 +254,12 @@ class FritzBoxSpamCallsTotalSensor(FritzBoxPhoneEntity, RestoreSensor):
     """Spam calls seen since the sensor exists - a counter for long-term statistics.
 
     The call list only holds what the box still lists, so this adds up the
-    calls that newly turn up as spam. What is on the list when Home
-    Assistant starts is not counted again after a restart.
+    calls that newly turn up as spam. Every call on the list when Home
+    Assistant starts counts as already known, whatever its rating is at
+    that moment: the online lookups are not cached across restarts and may
+    only deliver the rating a poll later, which must not count an old call
+    as new. A call is counted once; a failed lookup that later recovers does
+    not count it again.
     """
 
     _attr_translation_key = "spam_calls_total"
@@ -265,7 +269,8 @@ class FritzBoxSpamCallsTotalSensor(FritzBoxPhoneEntity, RestoreSensor):
         super().__init__(coordinator, entry)
         self._attr_unique_id = f"{entry.entry_id}_spam_calls_total"
         self._total = 0
-        self._seen: set[str] | None = None
+        # Ids that no longer count: the list at startup and calls already counted.
+        self._known: set[str] | None = None
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -277,10 +282,15 @@ class FritzBoxSpamCallsTotalSensor(FritzBoxPhoneEntity, RestoreSensor):
         self._count_new()
 
     def _count_new(self) -> None:
-        spam = {call.id for call in self.coordinator.data.calls if call.is_spam}
-        if self._seen is not None:
-            self._total += len(spam - self._seen)
-        self._seen = spam
+        calls = self.coordinator.data.calls
+        current = {call.id for call in calls}
+        if self._known is None:
+            self._known = current
+            return
+        spam = {call.id for call in calls if call.is_spam}
+        self._total += len(spam - self._known)
+        # Ids the box dropped from its list never come back: forget them.
+        self._known = (self._known | spam) & current
 
     @callback
     def _handle_coordinator_update(self) -> None:

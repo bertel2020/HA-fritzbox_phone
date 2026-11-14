@@ -153,6 +153,19 @@ def _serial_key(value: str | None) -> str:
     return "".join(ch for ch in (value or "") if ch.isalnum()).lower()
 
 
+def _is_other_box(entry: config_entries.ConfigEntry, serial: str | None) -> bool:
+    """True when the box answering has a different serial than the entry's box.
+
+    A box whose serial could not be read (user without the DeviceInfo right)
+    was stored under its host name; that is no serial to compare against.
+    """
+    if not entry.unique_id or not serial:
+        return False
+    if entry.unique_id == entry.data.get(CONF_HOST):
+        return False
+    return _serial_key(serial) != _serial_key(entry.unique_id)
+
+
 class FritzBoxPhoneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for FRITZ!Box phone."""
 
@@ -253,10 +266,10 @@ class FritzBoxPhoneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             info, error = await _try_validate(self.hass, data)
             if error:
                 errors["base"] = error
-            elif entry.unique_id and info["serial"] and info["serial"] != entry.unique_id:
+            elif _is_other_box(entry, info["serial"]):
                 return self.async_abort(reason="wrong_device")
             else:
-                return self.async_update_reload_and_abort(entry, data=data)
+                return self._update_and_abort(entry, data)
 
         return self.async_show_form(
             step_id="reauth_confirm",
@@ -283,16 +296,34 @@ class FritzBoxPhoneConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             info, error = await _try_validate(self.hass, data)
             if error:
                 errors["base"] = error
-            elif entry.unique_id and info["serial"] and info["serial"] != entry.unique_id:
+            elif _is_other_box(entry, info["serial"]):
                 return self.async_abort(reason="wrong_device")
             else:
-                return self.async_update_reload_and_abort(entry, data=data)
+                return self._update_and_abort(entry, data)
 
         suggested = user_input or dict(entry.data)
         return self.async_show_form(
             step_id="reconfigure",
             data_schema=self.add_suggested_values_to_schema(STEP_USER_DATA_SCHEMA, suggested),
             errors=errors,
+        )
+
+    def _update_and_abort(
+        self, entry: config_entries.ConfigEntry, data: dict[str, Any]
+    ) -> ConfigFlowResult:
+        """Store new data. The entry's update listener reloads it on a change.
+
+        Reloading here as well would reload twice, so the flow only
+        schedules a reload itself when nothing changed (a reauth with the
+        same credentials still has to retry the setup).
+        """
+        if entry.data != data:
+            return self.async_update_and_abort(entry, data=data)
+        self.hass.config_entries.async_schedule_reload(entry.entry_id)
+        return self.async_abort(
+            reason="reconfigure_successful"
+            if self.source == config_entries.SOURCE_RECONFIGURE
+            else "reauth_successful"
         )
 
     @staticmethod
