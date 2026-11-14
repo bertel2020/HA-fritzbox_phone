@@ -82,6 +82,40 @@ async def test_unblocking_a_number_that_is_not_blocked_is_refused(hass: HomeAssi
         )
 
 
+async def test_services_resolve_floors_and_labels(hass: HomeAssistant) -> None:
+    from homeassistant.helpers import area_registry as ar
+    from homeassistant.helpers import floor_registry as fr
+    from homeassistant.helpers import label_registry as lr
+
+    box = FakeBox()
+    entry = await _setup(hass, box)
+    device = get_device(hass, entry)
+    floor = fr.async_get(hass).async_create("Erdgeschoss")
+    area = ar.async_get(hass).async_create("Flur", floor_id=floor.floor_id)
+    label = lr.async_get(hass).async_create("Telefon")
+    dr.async_get(hass).async_update_device(device.id, area_id=area.id, labels={label.label_id})
+
+    await hass.services.async_call(
+        DOMAIN, "dial", {"number": "1", "floor_id": floor.floor_id}, blocking=True
+    )
+    await hass.services.async_call(
+        DOMAIN, "dial", {"number": "2", "label_id": label.label_id}, blocking=True
+    )
+    assert box.calls_log == [("dial", "1"), ("dial", "2")]
+
+
+async def test_service_errors_do_not_carry_the_session_id(hass: HomeAssistant) -> None:
+    from fritzconnection.core.exceptions import FritzActionError
+
+    entry = await _setup(hass, FakeBox())
+    entry.runtime_data.coordinator.client.dial = lambda number: (_ for _ in ()).throw(
+        FritzActionError("failed: /x.lua?sid=0123456789abcdef")
+    )
+    with pytest.raises(HomeAssistantError) as err:
+        await hass.services.async_call(DOMAIN, "dial", {"number": "1"}, blocking=True)
+    assert "0123456789abcdef" not in str(err.value)
+
+
 @pytest.mark.parametrize("number", ["", "abc", "0900;rm", "1" * 40])
 async def test_block_rejects_what_is_not_a_phone_number(hass: HomeAssistant, number) -> None:
     box = FakeBox()

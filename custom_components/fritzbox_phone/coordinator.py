@@ -24,7 +24,16 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import CallEntry, Deflection, FritzBoxPhoneClient, Phonebook, Tam, TamMessage, path_key
+from .api import (
+    CallEntry,
+    Deflection,
+    FritzBoxPhoneClient,
+    Phonebook,
+    Tam,
+    TamMessage,
+    path_key,
+    redact,
+)
 from .callmonitor import normalize_number
 from .geocoding import describe_number
 from .history import CallHistory
@@ -205,7 +214,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         try:
             data = await self.hass.async_add_executor_job(self._update)
         except (FritzAuthorizationError, FritzSecurityError) as err:
-            raise ConfigEntryAuthFailed(str(err)) from err
+            raise ConfigEntryAuthFailed(redact(err)) from err
         except (
             FritzConnectionException,
             requests.RequestException,
@@ -217,7 +226,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             # poll must never look like an empty call list, or the change
             # detection below would report every call as removed and then
             # as new again.
-            raise UpdateFailed(f"{type(err).__name__}: {err}") from err
+            raise UpdateFailed(f"{type(err).__name__}: {redact(err)}") from err
         await self._async_enrich_online(data)
         if self.history is not None:
             self.history.async_merge(call_record(call) for call in data.calls)
@@ -562,7 +571,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
 
         tasks = [
             self.entry.async_create_background_task(
-                self.hass, lookup(number), f"{DOMAIN} lookup {number}"
+                self.hass, lookup(number), f"{DOMAIN} number lookup"
             )
             for number in numbers
         ]

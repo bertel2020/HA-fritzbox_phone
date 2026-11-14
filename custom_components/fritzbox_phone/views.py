@@ -21,7 +21,7 @@ from homeassistant.components.http import HomeAssistantView
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 
-from .api import RecordingTooLarge
+from .api import RecordingTooLarge, redact
 from .const import DOMAIN, RECORDING_URL_TEMPLATE, RECORDING_URL_PATTERN
 
 _LOGGER = logging.getLogger(__name__)
@@ -87,7 +87,7 @@ class FritzBoxRecordingView(HomeAssistantView):
         except ValueError:
             return web.Response(status=HTTPStatus.NOT_FOUND)
         except (FritzConnectionException, requests.RequestException, OSError) as err:
-            _LOGGER.debug("Aufnahme konnte nicht geladen werden: %s", err)
+            _LOGGER.debug("Aufnahme konnte nicht geladen werden: %s", redact(err))
             return web.Response(status=HTTPStatus.BAD_GATEWAY)
 
         return web.Response(

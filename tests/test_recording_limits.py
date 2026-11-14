@@ -69,3 +69,37 @@ async def test_view_answers_413_for_an_oversize_recording(
     ):
         response = await client.get(f"/api/fritzbox_phone/recording/{entry.entry_id}/0/3")
     assert response.status == 413
+
+
+def test_download_gives_up_on_a_trickling_box() -> None:
+    import requests
+
+    with patch.object(api, "DOWNLOAD_DEADLINE", -1):
+        with pytest.raises(requests.exceptions.Timeout):
+            _client(_Response([b"x", b"y"])).download("http://fritz.box/rec")
+
+
+def test_redact_hides_the_session_id() -> None:
+    text = "Unable to get a connection: /calllist.lua?sid=0123456789abcdef&max=5"
+    assert api.redact(RuntimeError(text)) == (
+        "Unable to get a connection: /calllist.lua?sid=***&max=5"
+    )
+    assert api.redact("nothing to hide") == "nothing to hide"
+
+
+async def test_view_answers_502_when_the_box_fails_and_keeps_the_sid_out_of_the_log(
+    hass: HomeAssistant, hass_client, caplog
+) -> None:
+    import logging
+
+    box = FakeBox(tams=[make_tam([make_message(3, download_url="http://fritz.box/rec")])])
+    entry = await setup_integration(hass, box)
+    client = await hass_client()
+    caplog.set_level(logging.DEBUG)
+    with patch(
+        "custom_components.fritzbox_phone.coordinator.FritzBoxPhoneCoordinator.fetch_recording",
+        side_effect=OSError("failed: http://fritz.box/rec?sid=0123456789abcdef"),
+    ):
+        response = await client.get(f"/api/fritzbox_phone/recording/{entry.entry_id}/0/3")
+    assert response.status == 502
+    assert "0123456789abcdef" not in caplog.text

@@ -12,7 +12,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import logging
+import re
 import threading
+import time
 from typing import Any
 from urllib.parse import parse_qs, parse_qsl, urlparse
 from xml.etree import ElementTree as ET
@@ -35,6 +37,21 @@ _LOGGER = logging.getLogger(__name__)
 # call list.
 # Also missing permissions (TR-064 error 606): a box user without the right
 # for a feature should lose the feature, not the whole integration.
+# Upper bound for one recording download (seconds).
+DOWNLOAD_DEADLINE = 120
+
+_SID_IN_TEXT = re.compile(r"(sid=)[0-9a-fA-F]+")
+
+
+def redact(error: object) -> str:
+    """An error text without the session id the box puts into its URLs.
+
+    Messages of the HTTP layer quote the full URL (".../calllist.lua?sid=..."),
+    and the sid is a login for as long as it lives.
+    """
+    return _SID_IN_TEXT.sub(r"\1***", str(error))
+
+
 class RecordingTooLarge(ValueError):
     """The box offered a recording bigger than MAX_RECORDING_BYTES."""
 
@@ -636,8 +653,13 @@ class FritzBoxPhoneClient:
         declared = response.headers.get("Content-Length", "")
         if declared.isdigit() and int(declared) > MAX_RECORDING_BYTES:
             raise too_large
+        # The request timeout applies to each socket read, not to the whole
+        # transfer; a box trickling data would hold the client lock for good.
+        deadline = time.monotonic() + DOWNLOAD_DEADLINE
         body = bytearray()
         for chunk in response.iter_content(chunk_size=64 * 1024):
+            if time.monotonic() > deadline:
+                raise requests.exceptions.Timeout("Die Aufnahme wird zu langsam übertragen")
             body += chunk
             if len(body) > MAX_RECORDING_BYTES:
                 raise too_large

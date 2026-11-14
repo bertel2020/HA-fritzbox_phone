@@ -287,6 +287,7 @@ class FritzCallMonitor:
         with self._conn_lock:
             self._disconnect()
             monitor = FritzMonitor(address=self._host, port=self._port)
+            self._watch_reconnects(monitor)
             event_queue = monitor.start(
                 reconnect_tries=MONITOR_RECONNECT_TRIES, reconnect_delay=MONITOR_RECONNECT_DELAY
             )
@@ -303,6 +304,42 @@ class FritzCallMonitor:
                 daemon=True,
             )
             self._reader.start()
+
+    def _watch_reconnects(self, monitor: FritzMonitor) -> None:
+        """Learn about FritzMonitor's own reconnects (it runs them silently).
+
+        While it reconnects its thread stays alive, so `is_alive` alone
+        would show a lost connection as a working one, and a DISCONNECT
+        missed in the gap would keep a call "talking" forever.
+        """
+        reconnect = getattr(monitor, "_reconnect_socket", None)
+        if reconnect is None:
+            return
+
+        def watched(*args: Any, **kwargs: Any) -> Any:
+            self.hass.loop.call_soon_threadsafe(self._on_socket_lost, monitor)
+            sock = reconnect(*args, **kwargs)
+            if sock is not None:
+                self.hass.loop.call_soon_threadsafe(self._on_socket_restored, monitor)
+            return sock
+
+        monitor._reconnect_socket = watched
+
+    @callback
+    def _on_socket_lost(self, monitor: FritzMonitor) -> None:
+        if monitor is not self._monitor or self._stopped.is_set():
+            return
+        _LOGGER.debug("Anrufmonitor: Verbindung zur FRITZ!Box %s abgerissen, verbinde neu", self._host)
+        self.connected = False
+        self._forget_calls()
+        self._notify()
+
+    @callback
+    def _on_socket_restored(self, monitor: FritzMonitor) -> None:
+        if monitor is not self._monitor or self._stopped.is_set():
+            return
+        self.connected = True
+        self._notify()
 
     def _disconnect(self) -> None:
         """Blocking: stop the reader and close the socket."""

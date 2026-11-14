@@ -308,6 +308,34 @@ async def test_call_lost_with_the_connection_does_not_stay_forever(
     assert hass.states.get(sensor).state == "idle"
 
 
+async def test_silent_reconnect_of_fritzmonitor_is_noticed(
+    hass: HomeAssistant, fake_monitor
+) -> None:
+    """FritzMonitor reconnects on its own and keeps its thread alive; a DISCONNECT
+    missed in that gap must not leave the call "talking" forever."""
+    entry, monitor = await setup_monitor(hass)
+    sensor = entity_id(hass, entry, "call_monitor")
+    monitor.async_handle_line(line("24.10.26 10:00:00;RING;1;0301;0300;SIP0;"))
+    monitor.async_handle_line(line("24.10.26 10:00:03;CONNECT;1;1;0301;"))
+    await hass.async_block_till_done()
+    assert hass.states.get(sensor).state == "talking"
+
+    # FritzMonitor's thread runs the reconnect; do the same in an executor job.
+    await hass.async_add_executor_job(fake_monitor.instances[-1]._reconnect_socket)
+    await wait_for(lambda: monitor.connected)
+    await hass.async_block_till_done()
+    assert hass.states.get(sensor).state == "idle"
+
+
+async def test_failed_silent_reconnect_marks_the_monitor_disconnected(
+    hass: HomeAssistant, fake_monitor
+) -> None:
+    entry, monitor = await setup_monitor(hass)
+    fake_monitor.instances[-1].reconnect_result = None
+    await hass.async_add_executor_job(fake_monitor.instances[-1]._reconnect_socket)
+    await wait_for(lambda: not monitor.connected)
+
+
 async def test_lookup_result_is_not_applied_to_a_reused_connection_id(
     hass: HomeAssistant, fake_monitor
 ) -> None:

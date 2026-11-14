@@ -15,6 +15,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONF_PRIVACY_MODE, CONF_USE_TLS, DEFAULT_PRIVACY_MODE, DOMAIN
+from .api import redact
 from .coordinator import FritzBoxPhoneCoordinator
 
 
@@ -76,7 +77,7 @@ class FritzBoxPhoneEntity(CoordinatorEntity[FritzBoxPhoneCoordinator]):
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="box_request_failed",
-                translation_placeholders={"error": str(err)},
+                translation_placeholders={"error": redact(err)},
             ) from err
 
     # The answering machine services are registered for every sensor of the

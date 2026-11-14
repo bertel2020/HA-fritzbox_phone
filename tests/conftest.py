@@ -37,6 +37,12 @@ class FakeMonitor:
         self.alive = True
         return self.queue
 
+    def _reconnect_socket(self, *args, **kwargs):
+        """FritzMonitor's silent reconnect; the result is what a test sets."""
+        return self.reconnect_result
+
+    reconnect_result: object | None = object()
+
     @property
     def is_alive(self) -> bool:
         return self.alive
