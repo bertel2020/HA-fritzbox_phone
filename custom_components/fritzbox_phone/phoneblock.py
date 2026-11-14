@@ -95,7 +95,7 @@ class PhoneBlockClient:
         self._country_prefix = country_prefix
         self._spam_threshold = spam_threshold
         self._timeout = aiohttp.ClientTimeout(total=timeout)
-        self._cache: LookupCache[PhoneBlockInfo] = cache or LookupCache()
+        self._cache: LookupCache[PhoneBlockInfo] = cache if cache is not None else LookupCache()
         self.health = LookupHealth("PhoneBlock")
 
     async def check(self, number: str | None) -> PhoneBlockInfo | None:

@@ -1,7 +1,7 @@
 """DataUpdateCoordinator for the FRITZ!Box phone integration."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import timedelta
 import asyncio
 import logging
@@ -22,6 +22,7 @@ from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import (
@@ -34,6 +35,7 @@ from .api import (
     path_key,
     redact,
 )
+from .cache import LookupCache
 from .callmonitor import normalize_number
 from .geocoding import describe_number
 from .history import CallHistory
@@ -73,6 +75,13 @@ from .tellows import TellowsClient, TellowsInfo
 
 _LOGGER = logging.getLogger(__name__)
 
+LOOKUP_STORAGE_VERSION = 1
+LOOKUP_SAVE_DELAY = 60  # seconds
+
+
+def lookup_storage_key(entry_id: str) -> str:
+    return f"{DOMAIN}.lookups.{entry_id}"
+
 # Upper bound on how many changed entries travel inside a single event.
 # One poll cycle normally brings one or two; only a long connection gap
 # can pile them up, and the recorder should not have to store (nor the
@@ -109,6 +118,15 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         # Recording downloads wait here instead of piling up on executor
         # threads (the box answers one request at a time anyway).
         self.recording_slots = asyncio.Semaphore(MAX_PARALLEL_RECORDINGS)
+        # What the online lookups found survives a restart (see
+        # async_load_lookups), so the first poll after it is not blind.
+        self._lookup_store: Store[dict[str, Any]] = Store(
+            hass, LOOKUP_STORAGE_VERSION, lookup_storage_key(entry.entry_id), private=True
+        )
+        self._phoneblock_cache: LookupCache[PhoneBlockInfo] = LookupCache()
+        self._tellows_cache: LookupCache[TellowsInfo] = LookupCache()
+        for cache in (self._phoneblock_cache, self._tellows_cache):
+            cache.on_change = self._schedule_lookup_save
         self.phoneblock = self._build_phoneblock_client()
         self.tellows = self._build_tellows_client()
         self._own_area_code: str | None = None
@@ -201,6 +219,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             password=password,
             country_prefix=self._country_prefix(),
             spam_threshold=threshold,
+            cache=self._phoneblock_cache,
         )
 
     def _build_tellows_client(self) -> TellowsClient | None:
@@ -208,7 +227,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         if not options.get(CONF_REVERSE_LOOKUP_ENABLED, DEFAULT_REVERSE_LOOKUP_ENABLED):
             return None
         # No account/credentials needed - Tellows' /basic/num API is public.
-        return TellowsClient(session=async_get_clientsession(self.hass))
+        return TellowsClient(session=async_get_clientsession(self.hass), cache=self._tellows_cache)
 
     async def _async_update_data(self) -> FritzBoxPhoneData:
         try:
@@ -236,6 +255,46 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         # parked when they write their new state.
         self._async_report_changes(data)
         return data
+
+    @property
+    def _lookup_settings(self) -> dict[str, Any]:
+        """What the stored ratings depend on; a change makes them stale."""
+        options = self.entry.options
+        return {
+            "threshold": options.get(CONF_PHONEBLOCK_THRESHOLD, DEFAULT_PHONEBLOCK_THRESHOLD),
+            "country": self._country_prefix(),
+        }
+
+    def _lookup_data(self) -> dict[str, Any]:
+        return {
+            "settings": self._lookup_settings,
+            "phoneblock": self._phoneblock_cache.dump(asdict),
+            "tellows": self._tellows_cache.dump(asdict),
+        }
+
+    @callback
+    def _schedule_lookup_save(self) -> None:
+        self._lookup_store.async_delay_save(self._lookup_data, LOOKUP_SAVE_DELAY)
+
+    async def async_load_lookups(self) -> None:
+        """Take back the lookup results of the last run (if still valid)."""
+        data = await self._lookup_store.async_load()
+        if not isinstance(data, dict):
+            return
+        if self.phoneblock is not None and data.get("settings") == self._lookup_settings:
+            self._phoneblock_cache.load(data.get("phoneblock"), lambda raw: PhoneBlockInfo(**raw))
+        if self.tellows is not None:
+            self._tellows_cache.load(data.get("tellows"), lambda raw: TellowsInfo(**raw))
+
+    async def async_save_lookups(self) -> None:
+        """Write now (on unload) instead of waiting for the delayed save."""
+        await self._lookup_store.async_save(self._lookup_data())
+
+    @staticmethod
+    async def async_delete_lookups(hass: HomeAssistant, entry_id: str) -> None:
+        await Store(
+            hass, LOOKUP_STORAGE_VERSION, lookup_storage_key(entry_id), private=True
+        ).async_remove()
 
     @property
     def _phoneblock_issue_id(self) -> str:

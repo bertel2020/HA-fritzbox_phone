@@ -92,6 +92,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: FritzBoxPhoneConfigEntry
         await coordinator.history.async_load()
     else:
         await CallHistory.async_delete(hass, entry.entry_id)
+    await coordinator.async_load_lookups()
     await coordinator.async_config_entry_first_refresh()
 
     await _async_register_frontend_resource(hass)
@@ -160,9 +161,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: FritzBoxPhoneConfigEntr
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded and coordinator.history is not None:
         await coordinator.history.async_save()
+    if unloaded:
+        await coordinator.async_save_lookups()
     return unloaded
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: FritzBoxPhoneConfigEntry) -> None:
-    """Delete what the entry kept on disk: the call history."""
+    """Delete what the entry kept on disk: the call history and the lookup cache."""
     await CallHistory.async_delete(hass, entry.entry_id)
+    await FritzBoxPhoneCoordinator.async_delete_lookups(hass, entry.entry_id)

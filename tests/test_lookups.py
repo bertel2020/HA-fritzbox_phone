@@ -1,6 +1,7 @@
 """PhoneBlock / Tellows clients, the lookup cache and coordinator enrichment."""
 from __future__ import annotations
 
+from datetime import datetime
 from unittest.mock import patch
 
 from homeassistant.const import EntityCategory
@@ -300,3 +301,98 @@ async def test_an_outage_is_not_a_credentials_repair(hass: HomeAssistant, aiocli
     await _enable_status_sensor(hass, entry, "phoneblock_status", box)
     assert hass.states.get(entity_id(hass, entry, "phoneblock_status")).state == "error"
     assert ir.async_get(hass).async_get_issue(DOMAIN, f"phoneblock_credentials_{entry.entry_id}") is None
+
+
+def test_cache_dump_and_load_keep_results_but_not_failures() -> None:
+    cache: LookupCache[str] = LookupCache()
+    cache.set("a", "value")
+    cache.set("none", None)  # looked up, nothing known
+    cache.set("down", None, failed=True)
+    rows = cache.dump(lambda value: {"v": value})
+
+    assert {row[0] for row in rows} == {"a", "none"}
+    restored: LookupCache[str] = LookupCache()
+    restored.load(rows, lambda raw: raw["v"])
+    assert restored.get("a") == (True, "value")
+    assert restored.get("none") == (True, None)
+    assert restored.get("down") == (False, None)
+
+
+def test_cache_load_skips_expired_and_broken_rows() -> None:
+    import time
+
+    cache: LookupCache[str] = LookupCache()
+    rows = [
+        ["old", time.time() - 5, "x"],
+        ["broken"],
+        [7, time.time() + 100, "x"],
+        ["ok", time.time() + 100, "y"],
+    ]
+    cache.load(rows, lambda raw: raw)
+    cache.load("not a list", lambda raw: raw)
+    assert len(cache) == 1
+    assert cache.get("ok") == (True, "y")
+
+
+_PHONEBLOCK_OPTIONS = {
+    CONF_PHONEBLOCK_ENABLED: True,
+    CONF_PHONEBLOCK_USERNAME: "user",
+    CONF_PHONEBLOCK_PASSWORD: "pw",
+}
+
+
+async def test_lookup_results_survive_a_reload(
+    hass: HomeAssistant, aioclient_mock, hass_storage, freezer
+) -> None:
+    aioclient_mock.get(PHONEBLOCK_URL, json={"spamConfidence": 90, "rating": "E_ADVERTISING"})
+    freezer.move_to(datetime(2026, 10, 24, 12, 0))
+    box = FakeBox(calls=[make_call("1", 1, date="24.10.26 09:00")])
+    entry = await setup_integration(hass, box, _PHONEBLOCK_OPTIONS)
+    assert aioclient_mock.call_count == 1
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    with patch(
+        "custom_components.fritzbox_phone.FritzBoxPhoneClient", build_client_class(box)
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    # The rating came from disk, not from PhoneBlock.
+    assert aioclient_mock.call_count == 1
+    assert hass.states.get(entity_id(hass, entry, "spam_calls_today")).state == "1"
+
+
+async def test_stored_ratings_are_dropped_when_the_threshold_changes(
+    hass: HomeAssistant, aioclient_mock, hass_storage, freezer
+) -> None:
+    aioclient_mock.get(PHONEBLOCK_URL, json={"spamConfidence": 60, "rating": "E_ADVERTISING"})
+    freezer.move_to(datetime(2026, 10, 24, 12, 0))
+    box = FakeBox(calls=[make_call("1", 1, date="24.10.26 09:00")])
+    entry = await setup_integration(hass, box, _PHONEBLOCK_OPTIONS)
+    assert hass.states.get(entity_id(hass, entry, "spam_calls_today")).state == "1"
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    hass.config_entries.async_update_entry(
+        entry, options={**entry.options, "phoneblock_spam_threshold": 95}
+    )
+    with patch(
+        "custom_components.fritzbox_phone.FritzBoxPhoneClient", build_client_class(box)
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert aioclient_mock.call_count == 2  # asked again, with the new threshold
+    assert hass.states.get(entity_id(hass, entry, "spam_calls_today")).state == "0"
+
+
+async def test_removing_the_entry_deletes_the_stored_lookups(
+    hass: HomeAssistant, aioclient_mock, hass_storage, freezer
+) -> None:
+    aioclient_mock.get(PHONEBLOCK_URL, json={"spamConfidence": 90, "rating": "E_ADVERTISING"})
+    entry = await setup_integration(hass, FakeBox(calls=[make_call("1", 1)]), _PHONEBLOCK_OPTIONS)
+    key = f"{DOMAIN}.lookups.{entry.entry_id}"
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    assert key in hass_storage
+
+    await hass.config_entries.async_remove(entry.entry_id)
+    assert key not in hass_storage

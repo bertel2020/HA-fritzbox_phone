@@ -87,7 +87,7 @@ class TellowsClient:
         self._session = session
         self._spam_score_threshold = spam_score_threshold
         self._timeout = aiohttp.ClientTimeout(total=timeout)
-        self._cache: LookupCache[TellowsInfo] = cache or LookupCache()
+        self._cache: LookupCache[TellowsInfo] = cache if cache is not None else LookupCache()
         self.health = LookupHealth("Tellows")
 
     async def lookup(self, number: str | None) -> TellowsInfo | None:
