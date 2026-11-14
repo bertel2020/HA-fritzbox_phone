@@ -374,6 +374,10 @@
     "phoneblock_credentials_rejected": {
       "title": "PhoneBlock lehnt die Anmeldung ab",
       "description": "PhoneBlock hat Benutzername oder Kennwort mehrere Anfragen in Folge nicht akzeptiert, deshalb werden keine Spam-Bewertungen abgerufen. Öffne die Optionen der Integration (Einstellungen → Geräte & Dienste → FRITZ!Box Telefon → Konfigurieren) und prüfe Benutzername und Kennwort für PhoneBlock oder schalte die Spam-Erkennung aus."
+    },
+    "callmonitor_unreachable": {
+      "title": "Der Anrufmonitor ist nicht erreichbar",
+      "description": "Die FRITZ!Box unter {host} nimmt auf Port {port} keine Verbindung an, deshalb werden eingehende und ausgehende Anrufe nicht live gemeldet. Vermutlich ist der Anrufmonitor an der Box ausgeschaltet: Wähle an einem angeschlossenen Telefon #96*5* (mit #96*4* wird er wieder ausgeschaltet). Wenn du den Live-Anrufmonitor nicht brauchst, schalte ihn in den Optionen der Integration aus (Einstellungen → Geräte & Dienste → FRITZ!Box Telefon → Konfigurieren)."
     }
   }
 }

@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING, Any
 from fritzconnection.core.fritzmonitor import FritzMonitor
 
 from homeassistant.core import Context, HomeAssistant, callback
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_call_later
 
 from .const import (
@@ -58,6 +59,9 @@ _DATE_FORMAT_IN = "%d.%m.%y %H:%M:%S"
 # Seconds between attempts to open the socket while the box refuses it
 # (CallMonitor not activated, box rebooting); the last value repeats.
 RETRY_DELAYS = (30, 60, 120, 300)
+# Failed attempts in a row before the user is told in Repairs (the first
+# retries cover a box that is still starting up).
+ISSUE_AFTER_FAILURES = 3
 # FritzMonitor's own reconnect behaviour once a connection existed.
 MONITOR_RECONNECT_TRIES = 10
 MONITOR_RECONNECT_DELAY = 120
@@ -193,6 +197,30 @@ class FritzCallMonitor:
         self._tasks: set[asyncio.Task] = set()
 
     @property
+    def _issue_id(self) -> str:
+        return f"callmonitor_unreachable_{self._coordinator.entry.entry_id}"
+
+    @callback
+    def _update_issue(self) -> None:
+        """Repairs entry while the CallMonitor port stays unreachable.
+
+        The usual cause is that the box has the CallMonitor switched off,
+        which only the user can change (dialling #96*5* on a phone).
+        """
+        if self._failures >= ISSUE_AFTER_FAILURES and not self._stopped.is_set():
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                self._issue_id,
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="callmonitor_unreachable",
+                translation_placeholders={"host": self._host, "port": str(self._port)},
+            )
+        else:
+            ir.async_delete_issue(self.hass, DOMAIN, self._issue_id)
+
+    @property
     def failures(self) -> int:
         """Connection attempts in a row that failed (0 while connected)."""
         return self._failures
@@ -239,6 +267,7 @@ class FritzCallMonitor:
         for task in list(self._tasks):
             task.cancel()
         await self.hass.async_add_executor_job(self._disconnect)
+        ir.async_delete_issue(self.hass, DOMAIN, self._issue_id)
         if self.connected:
             self.connected = False
             self._notify()
@@ -250,6 +279,7 @@ class FritzCallMonitor:
             await self.hass.async_add_executor_job(self._connect)
         except OSError as err:
             self._failures += 1
+            self._update_issue()
             delay = RETRY_DELAYS[min(self._failures - 1, len(RETRY_DELAYS) - 1)]
             # Say it loudly once; every later retry is routine.
             log = _LOGGER.warning if self._failures == 1 else _LOGGER.debug
@@ -274,6 +304,7 @@ class FritzCallMonitor:
         if self._failures:
             _LOGGER.info("Anrufmonitor: Verbindung zu %s:%s hergestellt", self._host, self._port)
         self._failures = 0
+        self._update_issue()
         self.connected = True
         self._forget_calls()
         self._notify()

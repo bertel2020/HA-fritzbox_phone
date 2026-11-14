@@ -242,6 +242,32 @@ async def test_refused_connection_is_retried(hass: HomeAssistant, fake_monitor) 
     assert hass.states.get(sensor).state == "idle"
 
 
+async def test_unreachable_call_monitor_raises_a_repair_until_it_connects(
+    hass: HomeAssistant, fake_monitor
+) -> None:
+    from homeassistant.helpers import issue_registry as ir
+
+    fake_monitor.fail_times = 3
+    entry = await setup_integration(hass, FakeBox(), {CONF_ENABLE_CALLMONITOR: True})
+    monitor = entry.runtime_data.call_monitor
+    issue_id = f"callmonitor_unreachable_{entry.entry_id}"
+    registry = ir.async_get(hass)
+
+    await wait_for(lambda: monitor._failures == 1)
+    assert registry.async_get_issue("fritzbox_phone", issue_id) is None  # may still be starting
+    for failures, wait in ((2, 31), (3, 61)):
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=wait))
+        await wait_for(lambda failures=failures: monitor._failures == failures)
+    issue = registry.async_get_issue("fritzbox_phone", issue_id)
+    assert issue is not None
+    assert issue.translation_key == "callmonitor_unreachable"
+    assert issue.translation_placeholders["port"] == "1012"
+
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=200))
+    await wait_for(lambda: monitor.connected)
+    assert registry.async_get_issue("fritzbox_phone", issue_id) is None
+
+
 async def test_lost_connection_is_noticed_and_retried(
     hass: HomeAssistant, fake_monitor
 ) -> None:
