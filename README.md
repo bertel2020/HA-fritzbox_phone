@@ -23,7 +23,7 @@
   <a href="https://paypal.me/RobertoMartins"><img src="https://img.shields.io/badge/PayPal-donate-00457C?logo=paypal&logoColor=white" alt="PayPal"></a>
 </p>
 
-<p align="center"><em><a href="https://github.com/bertel2020/HA-fritzbox_phone/blob/main/README.en.md">English version</a></em></p>
+<p align="center"><em><a href="https://github.com/bertel2020/HA-fritzbox_phone/blob/main/README.en.md">English version</a>: FRITZ!Box phone integration for Home Assistant with phonebook, call list, answering machine, real-time call monitor, spam check and reverse lookup.</em></p>
 
 **FRITZ!Box Telefon** bringt die Telefonie deiner FRITZ!Box in Home Assistant: das Telefonbuch, die Anrufliste, die Nachrichten des Anrufbeantworters und einen Anrufmonitor, der Klingeln, Gespräche und Wählvorgänge in Echtzeit meldet. Dazu kommen eine eigene Dashboard-Karte, Services zum Wählen und Auflegen sowie fertige Blueprints.
 
