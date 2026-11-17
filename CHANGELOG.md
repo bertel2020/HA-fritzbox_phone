@@ -10,9 +10,10 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
   eines Kontakts ändern) und `delete_contact`. `add_contact` nimmt jetzt mehrere
   Nummern (`numbers`, je mit Art, auch `fax_work`), E-Mail-Adressen (`emails`) und
   die VIP-Markierung (`vip`). Die Kontakte (Attribut und Websocket-Befehl
-  `contacts`) nennen jetzt auch ihre E-Mail-Adressen. `add_contact` (mit
-  mehreren Nummern, E-Mail und VIP), `update_contact`, `delete_contact` und
-  `add_number_to_contact` sind an einer echten FRITZ!Box ausprobiert.
+  `contacts`) nennen jetzt auch ihre E-Mail-Adressen. Alle vier Aktionen sind an
+  einer echten FRITZ!Box ausprobiert. Die Box vergibt beim Ändern eines Kontakts
+  mitunter eine neue `uniqueid`; wer eine Kennung fest hinterlegt hat, liest sie
+  nach einer Änderung neu aus dem Attribut `contacts`.
 
 ### Behoben
 
@@ -85,8 +86,9 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 - Neue Aktion `add_number_to_contact`: fügt einem Kontakt im Telefonbuch eine
   weitere Nummer hinzu (`contact_id`, `number`, optional `number_type` und
   `phonebook_id`). Der Eintrag wird gelesen, ergänzt und mit seiner Kennung
-  zurückgeschrieben, damit nichts vom Kontakt verloren geht. Legt die Box dabei
-  einen neuen Eintrag an, wird er wieder gelöscht und die Aktion schlägt fehl.
+  zurückgeschrieben, damit nichts vom Kontakt verloren geht. (Seit 2.3.3 gilt: Gibt
+  die Box dem Eintrag dabei eine neue Kennung, ist das in Ordnung; ein zweiter
+  Eintrag wird bereinigt.)
 
 ### Geändert
 

@@ -62,6 +62,7 @@ The integration talks to the FRITZ!Box locally (TR-064 and the CallMonitor on po
 - **Place and country**: the origin of a number is determined offline.
 - **Dial and hang up**: the services `dial` and `hangup`, plus a call-back button in the card.
 - **Call forwarding**: every forwarding rule of the box as a switch, e.g. for "forward to my mobile at night".
+- **Editing the phone book**: the services `add_contact`, `update_contact`, `delete_contact` and `add_number_to_contact` create contacts (with several numbers, e-mail and VIP), change or delete them, or add one more number.
 - **Call barring**: the services `block_number` and `unblock_number` add numbers to the box's call barring or remove them.
 - **Statistics**: calls today, missed calls, talk time and (with PhoneBlock) spam calls as sensors.
 - **Websocket API and call history**: commands for panels (calls, phonebooks, answering machines, call barring, statistics), admin only; optionally a call history beyond the window of the box (see the [user guide](docs/USER-GUIDE.de.md#websocket-api-für-panels), German).
