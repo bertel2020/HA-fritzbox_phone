@@ -2,7 +2,7 @@
 
 Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
-## Unveröffentlicht
+## 2.3.3 – 2026-11-17
 
 ### Neu
 
@@ -10,9 +10,9 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
   eines Kontakts ändern) und `delete_contact`. `add_contact` nimmt jetzt mehrere
   Nummern (`numbers`, je mit Art, auch `fax_work`), E-Mail-Adressen (`emails`) und
   die VIP-Markierung (`vip`). Die Kontakte (Attribut und Websocket-Befehl
-  `contacts`) nennen jetzt auch ihre E-Mail-Adressen. `update_contact`,
-  `delete_contact` und `add_number_to_contact` sind an einer echten FRITZ!Box
-  ausprobiert.
+  `contacts`) nennen jetzt auch ihre E-Mail-Adressen. `add_contact` (mit
+  mehreren Nummern, E-Mail und VIP), `update_contact`, `delete_contact` und
+  `add_number_to_contact` sind an einer echten FRITZ!Box ausprobiert.
 
 ### Behoben
 
