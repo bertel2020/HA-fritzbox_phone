@@ -394,11 +394,17 @@ class FritzBoxPhoneClient:
         return contact
 
     def _write_contact(self, contact: ET.Element, contact_id: str, phonebook_id: int) -> None:
-        """Write an entry back with its unique id; undo and fail if the box made a new one."""
-        uniqueid = contact.find("uniqueid")
-        if uniqueid is None:
-            uniqueid = ET.SubElement(contact, "uniqueid")
-        uniqueid.text = contact_id
+        """Replace an entry: the changed one is added as a new entry, then the old one is deleted.
+
+        A real box answered a write-back with the old unique id by adding a second entry instead
+        of changing the first. So nothing is written "in place": the new entry is added first
+        (if that fails the old one is untouched), and only when it is there is the old one
+        deleted (if that fails the new one is taken away again). The unique id of the contact
+        changes with this. If the box does change the entry in place (same id back) nothing is
+        deleted.
+        """
+        for old in contact.findall("uniqueid"):
+            contact.remove(old)
         answer = self._call(
             ONTEL_SERVICE,
             "SetPhonebookEntryUID",
@@ -406,14 +412,23 @@ class FritzBoxPhoneClient:
             NewPhonebookEntryData=ET.tostring(contact, encoding="unicode"),
         )
         new_id = answer.get("NewPhonebookEntryUniqueID")
-        if new_id and str(new_id) != str(contact_id):
+        if not new_id or str(new_id) == str(contact_id):
+            return
+        try:
+            self._call(
+                ONTEL_SERVICE,
+                "DeletePhonebookEntryUID",
+                NewPhonebookID=phonebook_id,
+                NewPhonebookEntryUniqueID=contact_id,
+            )
+        except Exception:
             self._call(
                 ONTEL_SERVICE,
                 "DeletePhonebookEntryUID",
                 NewPhonebookID=phonebook_id,
                 NewPhonebookEntryUniqueID=new_id,
             )
-            raise FritzActionError("The box made a new entry instead of changing the contact")
+            raise
 
     def update_contact(
         self,
@@ -427,7 +442,7 @@ class FritzBoxPhoneClient:
         """Change name, numbers, e-mail addresses and VIP mark of a contact.
 
         The entry is read from the box and only these parts are replaced; everything else in it
-        (image, other fields) is written back as it was.
+        (image, other fields) is written back as it was. The contact gets a new unique id.
         """
         contact = self._read_contact(contact_id, phonebook_id)
         person = contact.find("person")

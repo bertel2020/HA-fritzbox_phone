@@ -15,6 +15,7 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Behoben
 
+- Ein Kontakt wird nicht mehr „an Ort und Stelle“ zurückgeschrieben: Die Box legte dabei einen zweiten Eintrag an. `add_number_to_contact` und `update_contact` legen den geänderten Eintrag jetzt neu an und löschen danach den alten; der Kontakt bekommt eine neue `uniqueid`.
 - `add_number_to_contact` lehnte einen Kontakt ab, den die Box zwar hat, der aber
   noch nicht im zuletzt abgerufenen Telefonbuch stand („steht nicht in diesem
   Telefonbuch“). Die Box wird jetzt selbst nach dem Eintrag gefragt.

@@ -25,6 +25,8 @@ class _Box:
     def call_action(self, service: str, action: str, **arguments):
         self.actions.append((service, action, arguments))
         answer = self.answers.get(action, {})
+        if isinstance(answer, list):  # one answer per call, in order
+            answer = answer.pop(0)
         if isinstance(answer, Exception):
             raise answer
         return answer
@@ -121,19 +123,25 @@ ENTRY = (
 )
 
 
-def test_add_number_to_contact_writes_the_whole_entry_back_with_its_id() -> None:
+def test_add_number_to_contact_adds_the_whole_entry_anew_and_deletes_the_old_one() -> None:
     client, box = _client(
         {
             "GetPhonebookEntryUID": {"NewPhonebookEntryData": ENTRY},
-            "SetPhonebookEntryUID": {"NewPhonebookEntryUniqueID": "12"},
+            "SetPhonebookEntryUID": {"NewPhonebookEntryUniqueID": "99"},
+            "DeletePhonebookEntryUID": {},
         }
     )
     client.add_number_to_contact("12", "030 77", "home", 2)
-    assert [a for _, a, _ in box.actions] == ["GetPhonebookEntryUID", "SetPhonebookEntryUID"]
-    _, _, arguments = box.actions[-1]
+    assert [a for _, a, _ in box.actions] == [
+        "GetPhonebookEntryUID",
+        "SetPhonebookEntryUID",
+        "DeletePhonebookEntryUID",
+    ]
+    assert box.actions[-1][2]["NewPhonebookEntryUniqueID"] == "12"
+    _, _, arguments = box.actions[1]
     assert arguments["NewPhonebookID"] == 2
     contact = ET.fromstring(arguments["NewPhonebookEntryData"])
-    assert contact.findtext("uniqueid") == "12"
+    assert contact.find("uniqueid") is None
     assert contact.findtext("category") == "1"
     assert contact.findtext("person/imageURL") == "/i.jpg"
     assert [(n.get("type"), n.text) for n in contact.findall("telephony/number")] == [
@@ -143,18 +151,19 @@ def test_add_number_to_contact_writes_the_whole_entry_back_with_its_id() -> None
     assert contact.find("telephony").get("nid") == "2"
 
 
-def test_add_number_to_contact_undoes_a_new_entry_the_box_made_instead() -> None:
+def test_a_failed_delete_of_the_old_entry_takes_the_new_one_away_again() -> None:
+    delete_old = FritzActionError("no")
     client, box = _client(
         {
             "GetPhonebookEntryUID": {"NewPhonebookEntryData": ENTRY},
             "SetPhonebookEntryUID": {"NewPhonebookEntryUniqueID": "99"},
-            "DeletePhonebookEntryUID": {},
+            "DeletePhonebookEntryUID": [delete_old, {}],
         }
     )
     with pytest.raises(FritzActionError):
         client.add_number_to_contact("12", "030 77")
-    _, action, arguments = box.actions[-1]
-    assert (action, arguments["NewPhonebookEntryUniqueID"]) == ("DeletePhonebookEntryUID", "99")
+    deleted = [a["NewPhonebookEntryUniqueID"] for _, n, a in box.actions if n == "DeletePhonebookEntryUID"]
+    assert deleted == ["12", "99"]
 
 
 def test_add_number_to_contact_fails_when_the_box_has_no_such_entry() -> None:
@@ -170,11 +179,11 @@ def test_update_contact_replaces_the_given_parts_and_keeps_the_rest() -> None:
             "GetPhonebookEntryUID": {"NewPhonebookEntryData": ENTRY},
             "SetPhonebookEntryUID": {"NewPhonebookEntryUniqueID": "12"},
         }
-    )
+    )  # the box that does change in place: nothing is deleted
     client.update_contact("12", "Maria S", [("030 1", "work"), ("0160 1", "mobile")], ["m@x.de"], False, 2)
     _, _, arguments = box.actions[-1]
     contact = ET.fromstring(arguments["NewPhonebookEntryData"])
-    assert contact.findtext("uniqueid") == "12"
+    assert contact.find("uniqueid") is None
     assert contact.findtext("category") == "0"
     assert contact.findtext("person/realName") == "Maria S"
     assert contact.findtext("person/imageURL") == "/i.jpg"
@@ -188,19 +197,6 @@ def test_update_contact_replaces_the_given_parts_and_keeps_the_rest() -> None:
     client.update_contact("12", "Maria S", [("030 1", "work")], [], True, 2)
     contact = ET.fromstring(box.actions[-1][2]["NewPhonebookEntryData"])
     assert contact.find("services") is None and contact.findtext("category") == "1"
-
-
-def test_update_contact_undoes_a_new_entry_the_box_made_instead() -> None:
-    client, box = _client(
-        {
-            "GetPhonebookEntryUID": {"NewPhonebookEntryData": ENTRY},
-            "SetPhonebookEntryUID": {"NewPhonebookEntryUniqueID": "99"},
-            "DeletePhonebookEntryUID": {},
-        }
-    )
-    with pytest.raises(FritzActionError):
-        client.update_contact("12", "M", [("1", "home")], [], False)
-    assert box.actions[-1][1:] [0] == "DeletePhonebookEntryUID"
 
 
 def test_delete_contact_and_add_contact_with_everything() -> None:
