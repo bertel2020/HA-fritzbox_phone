@@ -17,14 +17,17 @@ from homeassistant.helpers import config_validation as cv, service
 from .api import redact
 from .const import (
     ATTR_CONTACT_ID,
+    ATTR_EMAILS,
     ATTR_MEDIA_PLAYER,
     ATTR_MESSAGE_KEY,
     ATTR_MESSAGE_INDEX,
     ATTR_NAME,
     ATTR_NUMBER,
     ATTR_NUMBER_TYPE,
+    ATTR_NUMBERS,
     ATTR_PHONEBOOK_ID,
     ATTR_READ,
+    ATTR_VIP,
     DOMAIN,
     EVENT_NUMBER_BLOCKED,
     EVENT_NUMBER_UNBLOCKED,
@@ -32,6 +35,7 @@ from .const import (
     SERVICE_ADD_CONTACT,
     SERVICE_ADD_NUMBER,
     SERVICE_BLOCK_NUMBER,
+    SERVICE_DELETE_CONTACT,
     SERVICE_DELETE_MESSAGE,
     SERVICE_DIAL,
     SERVICE_HANGUP,
@@ -39,6 +43,7 @@ from .const import (
     SERVICE_MARK_MESSAGE_READ,
     SERVICE_PLAY_MESSAGE,
     SERVICE_UNBLOCK_NUMBER,
+    SERVICE_UPDATE_CONTACT,
 )
 from .coordinator import FritzBoxPhoneCoordinator
 from .runtime import FritzBoxPhoneConfigEntry
@@ -57,6 +62,25 @@ def _number(value: Any) -> str:
     if not _DIAL_NUMBER.match(value):
         raise vol.Invalid("not a phone number")
     return value
+
+
+def _contact_number(value: Any) -> tuple[str, str]:
+    """One number of a contact: {number, type} -> (number, type)."""
+    if not isinstance(value, dict):
+        raise vol.Invalid("expected number and type")
+    kind = value.get("type", "home")
+    if kind not in NUMBER_TYPES:
+        raise vol.Invalid("unknown number type")
+    return _number(value.get("number")), kind
+
+
+_NUMBERS = vol.All(cv.ensure_list, [_contact_number], vol.Length(max=10))
+_EMAILS = vol.All(
+    cv.ensure_list, [vol.All(cv.string, vol.Strip, vol.Length(min=3, max=128))], vol.Length(max=10)
+)
+_CONTACT_NAME = vol.All(cv.string, vol.Strip, vol.Length(min=1, max=64))
+_CONTACT_ID = vol.All(cv.string, vol.Strip, vol.Length(min=1, max=32))
+_BOOK_ID = vol.All(vol.Coerce(int), vol.Range(min=0, max=999))
 
 
 async def _coordinators(hass: HomeAssistant, call: ServiceCall) -> list[FritzBoxPhoneCoordinator]:
@@ -172,59 +196,101 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 )
             _announce(call, coordinator, EVENT_NUMBER_UNBLOCKED, number=number)
 
-    async def add_contact(call: ServiceCall) -> None:
-        number, name = call.data[ATTR_NUMBER], call.data[ATTR_NAME]
-        for coordinator in await _coordinators(hass, call):
+    def _check_new_numbers(coordinator: FritzBoxPhoneCoordinator, numbers: list[str]) -> None:
+        for number in numbers:
             if (known := coordinator.resolve_contact(number)[0]) is not None:
                 raise ServiceValidationError(
                     translation_domain=DOMAIN,
                     translation_key="contact_exists",
                     translation_placeholders={"number": number, "name": known},
                 )
+
+    async def _contact_done(coordinator: FritzBoxPhoneCoordinator) -> None:
+        coordinator.invalidate_phonebooks()
+        await coordinator.async_request_refresh()
+
+    async def add_contact(call: ServiceCall) -> None:
+        numbers = list(call.data.get(ATTR_NUMBERS) or [])
+        if (single := call.data.get(ATTR_NUMBER)) and not numbers:
+            numbers = [(single, "home")]
+        if not numbers:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="contact_no_number"
+            )
+        for coordinator in await _coordinators(hass, call):
+            _check_new_numbers(coordinator, [number for number, _ in numbers])
             await _async_run(
                 hass,
                 coordinator,
                 coordinator.client.add_contact,
-                number,
-                name,
+                numbers[0][0],
+                call.data[ATTR_NAME],
                 call.data[ATTR_PHONEBOOK_ID],
+                numbers,
+                call.data[ATTR_EMAILS],
+                call.data[ATTR_VIP],
             )
-            coordinator.invalidate_phonebooks()
-            await coordinator.async_request_refresh()
+            await _contact_done(coordinator)
 
     async def add_number_to_contact(call: ServiceCall) -> None:
         number = call.data[ATTR_NUMBER]
-        contact_id = call.data[ATTR_CONTACT_ID]
-        book_id = call.data[ATTR_PHONEBOOK_ID]
         for coordinator in await _coordinators(hass, call):
-            if (known := coordinator.resolve_contact(number)[0]) is not None:
-                raise ServiceValidationError(
-                    translation_domain=DOMAIN,
-                    translation_key="contact_exists",
-                    translation_placeholders={"number": number, "name": known},
-                )
-            books = coordinator.data.phonebooks if coordinator.data else []
-            if not any(
-                book.id == book_id and any(c.uniqueid == contact_id for c in book.contacts)
-                for book in books
-            ):
-                raise ServiceValidationError(
-                    translation_domain=DOMAIN,
-                    translation_key="contact_unknown",
-                    translation_placeholders={"contact": contact_id},
-                )
+            _check_new_numbers(coordinator, [number])
+            # The box is asked for the entry itself, not for the polled copy: a contact made a
+            # moment ago on the box's own pages is not in that copy yet.
             await _async_run(
                 hass,
                 coordinator,
                 coordinator.client.add_number_to_contact,
-                contact_id,
+                call.data[ATTR_CONTACT_ID],
                 number,
                 call.data[ATTR_NUMBER_TYPE],
-                book_id,
+                call.data[ATTR_PHONEBOOK_ID],
             )
-            coordinator.invalidate_phonebooks()
-            await coordinator.async_request_refresh()
+            await _contact_done(coordinator)
 
+    async def update_contact(call: ServiceCall) -> None:
+        for coordinator in await _coordinators(hass, call):
+            await _async_run(
+                hass,
+                coordinator,
+                coordinator.client.update_contact,
+                call.data[ATTR_CONTACT_ID],
+                call.data[ATTR_NAME],
+                call.data[ATTR_NUMBERS],
+                call.data[ATTR_EMAILS],
+                call.data[ATTR_VIP],
+                call.data[ATTR_PHONEBOOK_ID],
+            )
+            await _contact_done(coordinator)
+
+    async def delete_contact(call: ServiceCall) -> None:
+        for coordinator in await _coordinators(hass, call):
+            await _async_run(
+                hass,
+                coordinator,
+                coordinator.client.delete_contact,
+                call.data[ATTR_CONTACT_ID],
+                call.data[ATTR_PHONEBOOK_ID],
+            )
+            await _contact_done(coordinator)
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_ADD_CONTACT,
+        add_contact,
+        schema=vol.Schema(
+            {
+                **_DEVICE_FIELD,
+                vol.Optional(ATTR_NUMBER): _number,
+                vol.Optional(ATTR_NUMBERS): _NUMBERS,
+                vol.Required(ATTR_NAME): _CONTACT_NAME,
+                vol.Optional(ATTR_EMAILS, default=list): _EMAILS,
+                vol.Optional(ATTR_VIP, default=False): cv.boolean,
+                vol.Optional(ATTR_PHONEBOOK_ID, default=0): _BOOK_ID,
+            }
+        ),
+    )
     hass.services.async_register(
         DOMAIN,
         SERVICE_ADD_NUMBER,
@@ -233,26 +299,37 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             {
                 **_DEVICE_FIELD,
                 vol.Required(ATTR_NUMBER): _number,
-                vol.Required(ATTR_CONTACT_ID): vol.All(cv.string, vol.Strip, vol.Length(min=1, max=32)),
+                vol.Required(ATTR_CONTACT_ID): _CONTACT_ID,
                 vol.Optional(ATTR_NUMBER_TYPE, default="home"): vol.In(NUMBER_TYPES),
-                vol.Optional(ATTR_PHONEBOOK_ID, default=0): vol.All(
-                    vol.Coerce(int), vol.Range(min=0, max=999)
-                ),
+                vol.Optional(ATTR_PHONEBOOK_ID, default=0): _BOOK_ID,
             }
         ),
     )
     hass.services.async_register(
         DOMAIN,
-        SERVICE_ADD_CONTACT,
-        add_contact,
+        SERVICE_UPDATE_CONTACT,
+        update_contact,
         schema=vol.Schema(
             {
                 **_DEVICE_FIELD,
-                vol.Required(ATTR_NUMBER): _number,
-                vol.Required(ATTR_NAME): vol.All(cv.string, vol.Strip, vol.Length(min=1, max=64)),
-                vol.Optional(ATTR_PHONEBOOK_ID, default=0): vol.All(
-                    vol.Coerce(int), vol.Range(min=0, max=999)
-                ),
+                vol.Required(ATTR_CONTACT_ID): _CONTACT_ID,
+                vol.Required(ATTR_NAME): _CONTACT_NAME,
+                vol.Required(ATTR_NUMBERS): vol.All(_NUMBERS, vol.Length(min=1)),
+                vol.Optional(ATTR_EMAILS, default=list): _EMAILS,
+                vol.Optional(ATTR_VIP, default=False): cv.boolean,
+                vol.Optional(ATTR_PHONEBOOK_ID, default=0): _BOOK_ID,
+            }
+        ),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_DELETE_CONTACT,
+        delete_contact,
+        schema=vol.Schema(
+            {
+                **_DEVICE_FIELD,
+                vol.Required(ATTR_CONTACT_ID): _CONTACT_ID,
+                vol.Optional(ATTR_PHONEBOOK_ID, default=0): _BOOK_ID,
             }
         ),
     )

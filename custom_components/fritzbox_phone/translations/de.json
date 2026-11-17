@@ -314,7 +314,7 @@
         },
         "number_type": {
           "name": "Art",
-          "description": "Privat, mobil, geschäftlich oder sonstige."
+          "description": "Privat, mobil, geschäftlich, Fax geschäftlich oder sonstige."
         },
         "phonebook_id": {
           "name": "Telefonbuch",
@@ -324,15 +324,71 @@
     },
     "add_contact": {
       "name": "Kontakt anlegen",
-      "description": "Legt einen Kontakt mit einer Nummer in einem FRITZ!Box-Telefonbuch an, z. B. für einen Anrufer, der in der Anrufliste als unbekannt erscheint. Nummern, die schon in einem Telefonbuch stehen, werden abgelehnt.",
+      "description": "Legt einen Kontakt in einem FRITZ!Box-Telefonbuch an, mit einer oder mehreren Nummern, E-Mail-Adressen und der VIP-Markierung. Nummern, die schon in einem Telefonbuch stehen, werden abgelehnt.",
       "fields": {
+        "name": {
+          "name": "Name",
+          "description": "Der Name, den der Kontakt im Telefonbuch bekommt."
+        },
         "number": {
           "name": "Rufnummer",
-          "description": "Die Nummer des Kontakts."
+          "description": "Eine Nummer des Kontakts (privat). Für mehrere oder andere Arten numbers verwenden."
+        },
+        "numbers": {
+          "name": "Nummern",
+          "description": "Liste der Nummern, jede mit number und type (home, mobile, work, fax_work, other)."
+        },
+        "emails": {
+          "name": "E-Mail-Adressen",
+          "description": "Liste der E-Mail-Adressen."
+        },
+        "vip": {
+          "name": "VIP",
+          "description": "Markiert den Kontakt als VIP."
+        },
+        "phonebook_id": {
+          "name": "Telefonbuch",
+          "description": "Nummer des Telefonbuchs (0 ist das Haupttelefonbuch)."
+        }
+      }
+    },
+    "update_contact": {
+      "name": "Kontakt bearbeiten",
+      "description": "Ändert Name, Nummern, E-Mail-Adressen und VIP-Markierung eines Kontakts in einem FRITZ!Box-Telefonbuch. Die angegebenen Nummern und E-Mail-Adressen ersetzen die bisherigen; der Rest des Eintrags (zum Beispiel das Bild) bleibt erhalten.",
+      "fields": {
+        "contact_id": {
+          "name": "Kontakt",
+          "description": "Die eindeutige Kennung des Kontakts (Attribut uniqueid der Kontakte oder uniqueid im Websocket-Befehl contacts)."
         },
         "name": {
           "name": "Name",
           "description": "Der Name, den der Kontakt im Telefonbuch bekommt."
+        },
+        "numbers": {
+          "name": "Nummern",
+          "description": "Alle Nummern, die der Kontakt danach haben soll, jede mit number und type."
+        },
+        "emails": {
+          "name": "E-Mail-Adressen",
+          "description": "Alle E-Mail-Adressen, die der Kontakt danach haben soll."
+        },
+        "vip": {
+          "name": "VIP",
+          "description": "Markiert den Kontakt als VIP."
+        },
+        "phonebook_id": {
+          "name": "Telefonbuch",
+          "description": "Nummer des Telefonbuchs (0 ist das Haupttelefonbuch)."
+        }
+      }
+    },
+    "delete_contact": {
+      "name": "Kontakt löschen",
+      "description": "Löscht einen Kontakt aus einem FRITZ!Box-Telefonbuch. Das lässt sich nicht rückgängig machen.",
+      "fields": {
+        "contact_id": {
+          "name": "Kontakt",
+          "description": "Die eindeutige Kennung des Kontakts (Attribut uniqueid der Kontakte oder uniqueid im Websocket-Befehl contacts)."
         },
         "phonebook_id": {
           "name": "Telefonbuch",
@@ -368,6 +424,9 @@
     },
     "contact_exists": {
       "message": "{number} steht bereits als {name} im Telefonbuch."
+    },
+    "contact_no_number": {
+      "message": "Ein Kontakt braucht mindestens eine Nummer."
     }
   },
   "issues": {

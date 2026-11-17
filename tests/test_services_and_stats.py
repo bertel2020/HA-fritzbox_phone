@@ -353,7 +353,7 @@ async def test_add_contact(hass: HomeAssistant) -> None:
     await hass.services.async_call(
         DOMAIN, "add_contact", {"number": "040 999", "name": "  Bob  "}, blocking=True
     )
-    assert box.calls_log == [("add_contact", "040 999", "Bob", 0)]
+    assert box.calls_log == [("add_contact", "040 999", "Bob", 0, [("040 999", "home")], [], False)]
 
     await hass.services.async_call(
         DOMAIN,
@@ -361,7 +361,7 @@ async def test_add_contact(hass: HomeAssistant) -> None:
         {"number": "040 888", "name": "Carla", "phonebook_id": 2},
         blocking=True,
     )
-    assert box.calls_log[-1] == ("add_contact", "040 888", "Carla", 2)
+    assert box.calls_log[-1] == ("add_contact", "040 888", "Carla", 2, [("040 888", "home")], [], False)
 
 
 async def test_add_number_to_contact(hass: HomeAssistant) -> None:
@@ -376,16 +376,67 @@ async def test_add_number_to_contact(hass: HomeAssistant) -> None:
     )
     assert box.calls_log == [("add_number", "0", "040 999", "mobile", 0)]
 
-    # a number that is known, and a contact that is not in the phonebook, are refused
+    # a number that is known is refused; a contact the polled copy does not know yet is not
+    # (the box is asked itself)
     with pytest.raises(ServiceValidationError):
         await hass.services.async_call(
             DOMAIN, "add_number_to_contact", {"contact_id": "0", "number": "+49 30 123456"}, blocking=True
         )
-    with pytest.raises(ServiceValidationError):
+    await hass.services.async_call(
+        DOMAIN, "add_number_to_contact", {"contact_id": "77", "number": "040 111"}, blocking=True
+    )
+    assert box.calls_log[-1] == ("add_number", "77", "040 111", "home", 0)
+    assert len(box.calls_log) == 2
+
+
+async def test_add_contact_with_several_numbers_emails_and_vip(hass: HomeAssistant) -> None:
+    box = FakeBox(phonebooks=[make_phonebook(("Anna", "030123456"))])
+    await _setup(hass, box)
+    await hass.services.async_call(
+        DOMAIN,
+        "add_contact",
+        {
+            "name": "Bob",
+            "numbers": [{"number": "040 1", "type": "work"}, {"number": "0170 2", "type": "mobile"}],
+            "emails": ["bob@example.com"],
+            "vip": True,
+        },
+        blocking=True,
+    )
+    assert box.calls_log == [
+        ("add_contact", "040 1", "Bob", 0, [("040 1", "work"), ("0170 2", "mobile")], ["bob@example.com"], True)
+    ]
+    with pytest.raises(ServiceValidationError):  # neither number nor numbers
+        await hass.services.async_call(DOMAIN, "add_contact", {"name": "Zed"}, blocking=True)
+
+
+async def test_update_and_delete_contact(hass: HomeAssistant) -> None:
+    box = FakeBox(phonebooks=[make_phonebook(("Anna", "030123456"))])
+    await _setup(hass, box)
+    await hass.services.async_call(
+        DOMAIN,
+        "update_contact",
+        {
+            "contact_id": "0",
+            "name": "Anna B",
+            "numbers": [{"number": "030 123456", "type": "home"}],
+            "emails": ["a@example.com"],
+            "vip": True,
+        },
+        blocking=True,
+    )
+    assert box.calls_log[-1] == (
+        "update_contact", "0", "Anna B", [("030 123456", "home")], ["a@example.com"], True, 0
+    )
+    await hass.services.async_call(DOMAIN, "delete_contact", {"contact_id": "0"}, blocking=True)
+    assert box.calls_log[-1] == ("delete_contact", "0", 0)
+    with pytest.raises(vol.Invalid):
         await hass.services.async_call(
-            DOMAIN, "add_number_to_contact", {"contact_id": "77", "number": "040 111"}, blocking=True
+            DOMAIN,
+            "update_contact",
+            {"contact_id": "0", "name": "X", "numbers": [{"number": "030 1", "type": "bogus"}]},
+            blocking=True,
         )
-    assert len(box.calls_log) == 1
 
 
 async def test_add_contact_refuses_a_known_number_in_any_spelling(hass: HomeAssistant) -> None:

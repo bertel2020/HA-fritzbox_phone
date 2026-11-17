@@ -2,6 +2,23 @@
 
 Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
+## Unveröffentlicht
+
+### Neu
+
+- Neue Aktionen `update_contact` (Name, Nummern, E-Mail-Adressen und VIP-Markierung
+  eines Kontakts ändern) und `delete_contact`. `add_contact` nimmt jetzt mehrere
+  Nummern (`numbers`, je mit Art, auch `fax_work`), E-Mail-Adressen (`emails`) und
+  die VIP-Markierung (`vip`). Die Kontakte (Attribut und Websocket-Befehl
+  `contacts`) nennen jetzt auch ihre E-Mail-Adressen. Mit einer echten Box noch
+  nicht ausprobiert.
+
+### Behoben
+
+- `add_number_to_contact` lehnte einen Kontakt ab, den die Box zwar hat, der aber
+  noch nicht im zuletzt abgerufenen Telefonbuch stand („steht nicht in diesem
+  Telefonbuch“). Die Box wird jetzt selbst nach dem Eintrag gefragt.
+
 ## 2.3.2 – 2026-11-14
 
 ### Behoben

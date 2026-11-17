@@ -168,6 +168,7 @@ async def test_phonebooks_and_contacts(hass: HomeAssistant, hass_ws_client) -> N
         "vip": True,
         "uniqueid": "7",
         "has_image": True,
+        "emails": [],
         "numbers": [{"number": "030111", "type": "home"}],
     }
     assert len(result["contacts"]) == 2
@@ -202,7 +203,7 @@ async def test_add_contact_takes_the_reported_phonebook_id(
         {"number": "089 1234", "name": "Dora", "phonebook_id": phonebook_id},
         blocking=True,
     )
-    assert ("add_contact", "089 1234", "Dora", 2) in box.calls_log
+    assert ("add_contact", "089 1234", "Dora", 2, [("089 1234", "home")], [], False) in box.calls_log
 
 
 async def test_calls_from_the_list(hass: HomeAssistant, hass_ws_client) -> None:

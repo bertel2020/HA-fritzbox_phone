@@ -176,9 +176,23 @@ def build_client_class(box: FakeBox):
                 if deflection.id == deflection_id:
                     deflection.enabled = enable
 
-        def add_contact(self, number: str, name: str, phonebook_id: int = 0) -> str:
-            box.calls_log.append(("add_contact", number, name, phonebook_id))
+        def add_contact(
+            self,
+            number: str,
+            name: str,
+            phonebook_id: int = 0,
+            numbers=None,
+            emails=None,
+            vip: bool = False,
+        ) -> str:
+            box.calls_log.append(("add_contact", number, name, phonebook_id, numbers, emails, vip))
             return "uid"
+
+        def update_contact(self, contact_id, name, numbers, emails, vip, phonebook_id=0) -> None:
+            box.calls_log.append(("update_contact", contact_id, name, numbers, emails, vip, phonebook_id))
+
+        def delete_contact(self, contact_id, phonebook_id=0) -> None:
+            box.calls_log.append(("delete_contact", contact_id, phonebook_id))
 
         def add_number_to_contact(
             self, contact_id: str, number: str, number_type: str = "home", phonebook_id: int = 0

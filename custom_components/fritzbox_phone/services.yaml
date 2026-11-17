@@ -100,14 +100,87 @@ add_contact:
     entity:
       integration: fritzbox_phone
   fields:
-    number:
+    name:
       required: true
+      example: "Dr. Weber (Praxis)"
+      selector:
+        text:
+    number:
+      required: false
       example: "030 123456"
+      selector:
+        text:
+    numbers:
+      required: false
+      example: '[{"number": "030 123456", "type": "work"}, {"number": "0170 1234567", "type": "mobile"}]'
+      selector:
+        object:
+    emails:
+      required: false
+      example: '["weber@example.com"]'
+      selector:
+        object:
+    vip:
+      required: false
+      default: false
+      selector:
+        boolean:
+    phonebook_id:
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 999
+          mode: box
+
+update_contact:
+  target:
+    entity:
+      integration: fritzbox_phone
+  fields:
+    contact_id:
+      required: true
+      example: "12"
       selector:
         text:
     name:
       required: true
       example: "Dr. Weber (Praxis)"
+      selector:
+        text:
+    numbers:
+      required: true
+      example: '[{"number": "030 123456", "type": "work"}]'
+      selector:
+        object:
+    emails:
+      required: false
+      example: '["weber@example.com"]'
+      selector:
+        object:
+    vip:
+      required: false
+      default: false
+      selector:
+        boolean:
+    phonebook_id:
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 999
+          mode: box
+
+delete_contact:
+  target:
+    entity:
+      integration: fritzbox_phone
+  fields:
+    contact_id:
+      required: true
+      example: "12"
       selector:
         text:
     phonebook_id:
@@ -143,6 +216,7 @@ add_number_to_contact:
             - home
             - mobile
             - work
+            - fax_work
             - other
     phonebook_id:
       required: false

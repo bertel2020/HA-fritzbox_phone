@@ -79,6 +79,7 @@ class PhonebookContact:
     vip: bool
     image_url: str | None
     numbers: list[PhonebookNumber] = field(default_factory=list)
+    emails: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -313,6 +314,11 @@ class FritzBoxPhoneClient:
                         numbers.append(
                             PhonebookNumber(number=number_value, type=number_el.get("type"))
                         )
+            emails = [
+                (email_el.text or "").strip()
+                for email_el in contact_el.findall("services/email")
+                if (email_el.text or "").strip()
+            ]
             contacts.append(
                 PhonebookContact(
                     name=name or "?",
@@ -320,18 +326,29 @@ class FritzBoxPhoneClient:
                     vip=vip,
                     image_url=image_url,
                     numbers=numbers,
+                    emails=emails,
                 )
             )
         return contacts
 
-    def add_contact(self, number: str, name: str, phonebook_id: int = 0) -> str | None:
-        """Add a contact with one number to a phonebook; returns its unique id."""
+    def add_contact(
+        self,
+        number: str,
+        name: str,
+        phonebook_id: int = 0,
+        numbers: list[tuple[str, str]] | None = None,
+        emails: list[str] | None = None,
+        vip: bool = False,
+    ) -> str | None:
+        """Add a contact to a phonebook; returns its unique id.
+
+        `numbers` are (number, type) pairs; without them the one `number` goes in as "home".
+        """
         contact = ET.Element("contact")
+        ET.SubElement(contact, "category").text = "1" if vip else "0"
         person = ET.SubElement(contact, "person")
         ET.SubElement(person, "realName").text = name
-        telephony = ET.SubElement(contact, "telephony")
-        entry = ET.SubElement(telephony, "number", type="home", prio="1")
-        entry.text = number
+        self._fill_contact(contact, numbers or [(number, "home")], emails or [])
         info = self._call(
             ONTEL_SERVICE,
             "SetPhonebookEntryUID",
@@ -340,16 +357,30 @@ class FritzBoxPhoneClient:
         )
         return info.get("NewPhonebookEntryUniqueID")
 
-    def add_number_to_contact(
-        self, contact_id: str, number: str, number_type: str = "home", phonebook_id: int = 0
-    ) -> None:
-        """Add one more number to a contact that is already in a phonebook.
+    @staticmethod
+    def _fill_contact(contact: ET.Element, numbers: list[tuple[str, str]], emails: list[str]) -> None:
+        """Replace the numbers and e-mail addresses of a contact element."""
+        for old in contact.findall("telephony"):
+            contact.remove(old)
+        telephony = ET.SubElement(contact, "telephony")
+        telephony.set("nid", str(len(numbers)))
+        for index, (value, kind) in enumerate(numbers):
+            entry = ET.SubElement(telephony, "number", type=kind)
+            if index == 0:
+                entry.set("prio", "1")
+            entry.text = value
+        services = contact.find("services")
+        if services is None and emails:
+            services = ET.SubElement(contact, "services")
+        if services is not None:
+            for old in services.findall("email"):
+                services.remove(old)
+            for address in emails:
+                ET.SubElement(services, "email", classifier="private").text = address
+            if not len(services):
+                contact.remove(services)
 
-        The entry is read from the box as it is, the number is added to it and the whole entry is
-        written back with its unique id, so nothing else of the contact (e-mail, image, VIP
-        mark, its other numbers) is lost. If the box answers with another id it made a new
-        entry instead of changing the old one: that one is deleted again and the call fails.
-        """
+    def _read_contact(self, contact_id: str, phonebook_id: int) -> ET.Element:
         info = self._call(
             ONTEL_SERVICE,
             "GetPhonebookEntryUID",
@@ -360,11 +391,10 @@ class FritzBoxPhoneClient:
         contact = ET.fromstring(data) if data else None
         if contact is None or contact.tag != "contact":
             raise FritzActionError(f"The box did not return the contact {contact_id}")
-        telephony = contact.find("telephony")
-        if telephony is None:
-            telephony = ET.SubElement(contact, "telephony")
-        ET.SubElement(telephony, "number", type=number_type).text = number
-        telephony.set("nid", str(len(telephony.findall("number"))))
+        return contact
+
+    def _write_contact(self, contact: ET.Element, contact_id: str, phonebook_id: int) -> None:
+        """Write an entry back with its unique id; undo and fail if the box made a new one."""
         uniqueid = contact.find("uniqueid")
         if uniqueid is None:
             uniqueid = ET.SubElement(contact, "uniqueid")
@@ -384,6 +414,63 @@ class FritzBoxPhoneClient:
                 NewPhonebookEntryUniqueID=new_id,
             )
             raise FritzActionError("The box made a new entry instead of changing the contact")
+
+    def update_contact(
+        self,
+        contact_id: str,
+        name: str,
+        numbers: list[tuple[str, str]],
+        emails: list[str],
+        vip: bool,
+        phonebook_id: int = 0,
+    ) -> None:
+        """Change name, numbers, e-mail addresses and VIP mark of a contact.
+
+        The entry is read from the box and only these parts are replaced; everything else in it
+        (image, other fields) is written back as it was.
+        """
+        contact = self._read_contact(contact_id, phonebook_id)
+        person = contact.find("person")
+        if person is None:
+            person = ET.Element("person")
+            contact.insert(0, person)
+        real_name = person.find("realName")
+        if real_name is None:
+            real_name = ET.SubElement(person, "realName")
+        real_name.text = name
+        category = contact.find("category")
+        if category is None:
+            category = ET.SubElement(contact, "category")
+        category.text = "1" if vip else "0"
+        self._fill_contact(contact, numbers, emails)
+        self._write_contact(contact, contact_id, phonebook_id)
+
+    def delete_contact(self, contact_id: str, phonebook_id: int = 0) -> None:
+        """Delete a contact from a phonebook."""
+        self._call(
+            ONTEL_SERVICE,
+            "DeletePhonebookEntryUID",
+            NewPhonebookID=phonebook_id,
+            NewPhonebookEntryUniqueID=contact_id,
+        )
+
+    def add_number_to_contact(
+        self, contact_id: str, number: str, number_type: str = "home", phonebook_id: int = 0
+    ) -> None:
+        """Add one more number to a contact that is already in a phonebook.
+
+        The entry is read from the box as it is, the number is added to it and the whole entry is
+        written back with its unique id, so nothing else of the contact is lost. If the box
+        answers with another id it made a new entry instead of changing the old one: that one is
+        deleted again and the call fails.
+        """
+        contact = self._read_contact(contact_id, phonebook_id)
+        telephony = contact.find("telephony")
+        if telephony is None:
+            telephony = ET.SubElement(contact, "telephony")
+        ET.SubElement(telephony, "number", type=number_type).text = number
+        telephony.set("nid", str(len(telephony.findall("number"))))
+        self._write_contact(contact, contact_id, phonebook_id)
 
     # ------------------------------------------------------------------
     # Call forwarding (Rufumleitung)

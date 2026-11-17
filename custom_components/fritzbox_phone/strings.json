@@ -314,7 +314,7 @@
         },
         "number_type": {
           "name": "Type",
-          "description": "Home, mobile, work or other."
+          "description": "Home, mobile, work, work fax or other."
         },
         "phonebook_id": {
           "name": "Phonebook",
@@ -324,15 +324,71 @@
     },
     "add_contact": {
       "name": "Add a contact",
-      "description": "Adds a contact with one number to a FRITZ!Box phonebook, e.g. for a caller the call list shows as unknown. Numbers that are already in a phonebook are refused.",
+      "description": "Adds a contact to a FRITZ!Box phonebook, with one or more numbers, e-mail addresses and the VIP mark. Numbers that are already in a phonebook are refused.",
       "fields": {
+        "name": {
+          "name": "Name",
+          "description": "The name the contact gets in the phonebook."
+        },
         "number": {
           "name": "Phone number",
-          "description": "The number of the contact."
+          "description": "One number of the contact (home). Use numbers for several or other types."
+        },
+        "numbers": {
+          "name": "Numbers",
+          "description": "List of numbers, each with number and type (home, mobile, work, fax_work, other)."
+        },
+        "emails": {
+          "name": "E-mail addresses",
+          "description": "List of e-mail addresses."
+        },
+        "vip": {
+          "name": "VIP",
+          "description": "Marks the contact as VIP."
+        },
+        "phonebook_id": {
+          "name": "Phonebook",
+          "description": "Number of the phonebook (0 is the main phonebook)."
+        }
+      }
+    },
+    "update_contact": {
+      "name": "Edit a contact",
+      "description": "Changes name, numbers, e-mail addresses and VIP mark of a contact in a FRITZ!Box phonebook. The numbers and e-mail addresses given replace the old ones; the rest of the entry (for example the image) is kept.",
+      "fields": {
+        "contact_id": {
+          "name": "Contact",
+          "description": "The unique id of the contact (attribute uniqueid of the contacts, or uniqueid in the websocket command contacts)."
         },
         "name": {
           "name": "Name",
           "description": "The name the contact gets in the phonebook."
+        },
+        "numbers": {
+          "name": "Numbers",
+          "description": "All numbers the contact is to have afterwards, each with number and type."
+        },
+        "emails": {
+          "name": "E-mail addresses",
+          "description": "All e-mail addresses the contact is to have afterwards."
+        },
+        "vip": {
+          "name": "VIP",
+          "description": "Marks the contact as VIP."
+        },
+        "phonebook_id": {
+          "name": "Phonebook",
+          "description": "Number of the phonebook (0 is the main phonebook)."
+        }
+      }
+    },
+    "delete_contact": {
+      "name": "Delete a contact",
+      "description": "Deletes a contact from a FRITZ!Box phonebook. This cannot be undone.",
+      "fields": {
+        "contact_id": {
+          "name": "Contact",
+          "description": "The unique id of the contact (attribute uniqueid of the contacts, or uniqueid in the websocket command contacts)."
         },
         "phonebook_id": {
           "name": "Phonebook",
@@ -368,6 +424,9 @@
     },
     "contact_exists": {
       "message": "{number} is already in the phonebook as {name}."
+    },
+    "contact_no_number": {
+      "message": "A contact needs at least one number."
     }
   },
   "issues": {

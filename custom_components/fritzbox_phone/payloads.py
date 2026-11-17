@@ -160,4 +160,5 @@ def contact_to_dict(contact: PhonebookContact) -> dict[str, Any]:
         "uniqueid": contact.uniqueid,
         "has_image": contact.image_url is not None,
         "numbers": [{"number": number.number, "type": number.type} for number in contact.numbers],
+        "emails": list(contact.emails),
     }

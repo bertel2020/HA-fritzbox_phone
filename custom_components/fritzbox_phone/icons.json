@@ -112,6 +112,12 @@
     },
     "add_number_to_contact": {
       "service": "mdi:phone-plus"
+    },
+    "update_contact": {
+      "service": "mdi:account-edit"
+    },
+    "delete_contact": {
+      "service": "mdi:account-remove"
     }
   }
 }

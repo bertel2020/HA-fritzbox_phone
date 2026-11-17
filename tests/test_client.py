@@ -164,6 +164,62 @@ def test_add_number_to_contact_fails_when_the_box_has_no_such_entry() -> None:
     assert [a for _, a, _ in box.actions] == ["GetPhonebookEntryUID"]
 
 
+def test_update_contact_replaces_the_given_parts_and_keeps_the_rest() -> None:
+    client, box = _client(
+        {
+            "GetPhonebookEntryUID": {"NewPhonebookEntryData": ENTRY},
+            "SetPhonebookEntryUID": {"NewPhonebookEntryUniqueID": "12"},
+        }
+    )
+    client.update_contact("12", "Maria S", [("030 1", "work"), ("0160 1", "mobile")], ["m@x.de"], False, 2)
+    _, _, arguments = box.actions[-1]
+    contact = ET.fromstring(arguments["NewPhonebookEntryData"])
+    assert contact.findtext("uniqueid") == "12"
+    assert contact.findtext("category") == "0"
+    assert contact.findtext("person/realName") == "Maria S"
+    assert contact.findtext("person/imageURL") == "/i.jpg"
+    assert contact.findtext("mod_time") == "5"
+    assert [(n.get("type"), n.get("prio"), n.text) for n in contact.findall("telephony/number")] == [
+        ("work", "1", "030 1"),
+        ("mobile", None, "0160 1"),
+    ]
+    assert [e.text for e in contact.findall("services/email")] == ["m@x.de"]
+    # no e-mail left: no empty services element
+    client.update_contact("12", "Maria S", [("030 1", "work")], [], True, 2)
+    contact = ET.fromstring(box.actions[-1][2]["NewPhonebookEntryData"])
+    assert contact.find("services") is None and contact.findtext("category") == "1"
+
+
+def test_update_contact_undoes_a_new_entry_the_box_made_instead() -> None:
+    client, box = _client(
+        {
+            "GetPhonebookEntryUID": {"NewPhonebookEntryData": ENTRY},
+            "SetPhonebookEntryUID": {"NewPhonebookEntryUniqueID": "99"},
+            "DeletePhonebookEntryUID": {},
+        }
+    )
+    with pytest.raises(FritzActionError):
+        client.update_contact("12", "M", [("1", "home")], [], False)
+    assert box.actions[-1][1:] [0] == "DeletePhonebookEntryUID"
+
+
+def test_delete_contact_and_add_contact_with_everything() -> None:
+    client, box = _client(
+        {"DeletePhonebookEntryUID": {}, "SetPhonebookEntryUID": {"NewPhonebookEntryUniqueID": "7"}}
+    )
+    client.delete_contact("12", 2)
+    _, action, arguments = box.actions[-1]
+    assert (action, arguments) == (
+        "DeletePhonebookEntryUID",
+        {"NewPhonebookID": 2, "NewPhonebookEntryUniqueID": "12"},
+    )
+    client.add_contact("1", "Bert", 0, [("030 5", "work"), ("0170 6", "mobile")], ["b@x.de"], True)
+    contact = ET.fromstring(box.actions[-1][2]["NewPhonebookEntryData"])
+    assert contact.findtext("category") == "1"
+    assert [n.text for n in contact.findall("telephony/number")] == ["030 5", "0170 6"]
+    assert contact.findtext("services/email") == "b@x.de"
+
+
 # --- call list ------------------------------------------------------------
 
 CALLS = """<root>
