@@ -15,7 +15,8 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Behoben
 
-- Ein Kontakt wird nicht mehr „an Ort und Stelle“ zurückgeschrieben: Die Box legte dabei einen zweiten Eintrag an. `add_number_to_contact` und `update_contact` legen den geänderten Eintrag jetzt neu an und löschen danach den alten; der Kontakt bekommt eine neue `uniqueid`.
+- E-Mail-Adressen eines Kontakts werden dort gelesen und geschrieben, wo AVM sie ablegt (`telephony/services`); beim Ändern bleiben Kurzwahl, Vanity, Türsprechanlage und andere Nummernarten (zum Beispiel intern) erhalten.
+- Antwortet die Box beim Zurückschreiben mit einer anderen Kennung, wird erst geprüft, ob der alte Eintrag noch da ist: Ist er weg, hat die Box ihn ersetzt; ist er noch da, wird er gelöscht (schlägt das fehl, wird der neue entfernt).
 - `add_number_to_contact` lehnte einen Kontakt ab, den die Box zwar hat, der aber
   noch nicht im zuletzt abgerufenen Telefonbuch stand („steht nicht in diesem
   Telefonbuch“). Die Box wird jetzt selbst nach dem Eintrag gefragt.

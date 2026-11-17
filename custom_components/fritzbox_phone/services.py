@@ -69,7 +69,8 @@ def _contact_number(value: Any) -> tuple[str, str]:
     if not isinstance(value, dict):
         raise vol.Invalid("expected number and type")
     kind = value.get("type", "home")
-    if kind not in NUMBER_TYPES:
+    # the box has more types than the ones offered (intern, fax_home, ...): a stored one stays
+    if not isinstance(kind, str) or not re.fullmatch(r"[a-z_]{1,16}", kind):
         raise vol.Invalid("unknown number type")
     return _number(value.get("number")), kind
 

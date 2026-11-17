@@ -434,7 +434,7 @@ async def test_update_and_delete_contact(hass: HomeAssistant) -> None:
         await hass.services.async_call(
             DOMAIN,
             "update_contact",
-            {"contact_id": "0", "name": "X", "numbers": [{"number": "030 1", "type": "bogus"}]},
+            {"contact_id": "0", "name": "X", "numbers": [{"number": "030 1", "type": "Bogus!"}]},
             blocking=True,
         )
 

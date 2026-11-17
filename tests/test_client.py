@@ -118,46 +118,75 @@ def test_add_contact_sends_a_phonebook_entry() -> None:
 ENTRY = (
     "<contact><category>1</category><person><realName>Maria</realName>"
     "<imageURL>/i.jpg</imageURL></person>"
-    '<telephony nid="1"><number type="mobile" prio="1">0160 1</number></telephony>'
+    '<telephony nid="1"><services><email classifier="work">m@old.de</email></services>'
+    '<number type="mobile" quickdial="7" vanity="" prio="1">0160 1</number>'
+    "<doorphone><openkey>*1#</openkey></doorphone></telephony>"
     "<mod_time>5</mod_time><uniqueid>12</uniqueid></contact>"
 )
 
 
-def test_add_number_to_contact_adds_the_whole_entry_anew_and_deletes_the_old_one() -> None:
+def _written(box, index=-1):
+    return ET.fromstring(
+        [a for _, n, a in box.actions if n == "SetPhonebookEntryUID"][index]["NewPhonebookEntryData"]
+    )
+
+
+def test_add_number_to_contact_keeps_everything_and_writes_the_entry_with_its_id() -> None:
     client, box = _client(
         {
             "GetPhonebookEntryUID": {"NewPhonebookEntryData": ENTRY},
+            "SetPhonebookEntryUID": {"NewPhonebookEntryUniqueID": "12"},
+        }
+    )
+    client.add_number_to_contact("12", "030 77", "home", 2)
+    assert [a for _, a, _ in box.actions] == ["GetPhonebookEntryUID", "SetPhonebookEntryUID"]
+    assert box.actions[-1][2]["NewPhonebookID"] == 2
+    contact = _written(box)
+    assert contact.findtext("uniqueid") == "12"
+    assert contact.findtext("category") == "1"
+    assert contact.findtext("person/imageURL") == "/i.jpg"
+    assert contact.findtext("telephony/doorphone/openkey") == "*1#"
+    assert [(e.get("classifier"), e.text) for e in contact.findall("telephony/services/email")] == [
+        ("work", "m@old.de")
+    ]
+    assert [(n.get("type"), n.get("quickdial"), n.get("prio"), n.text) for n in contact.findall("telephony/number")] == [
+        ("mobile", "7", "1", "0160 1"),
+        ("home", None, "0", "030 77"),
+    ]
+    assert contact.find("telephony").get("nid") == "2"
+    assert contact.find("services") is None  # e-mail lives in telephony, not beside it
+
+
+def test_a_new_id_with_the_old_one_gone_means_the_box_replaced_the_entry() -> None:
+    client, box = _client(
+        {
+            "GetPhonebookEntryUID": [{"NewPhonebookEntryData": ENTRY}, FritzActionError("713")],
+            "SetPhonebookEntryUID": {"NewPhonebookEntryUniqueID": "99"},
+        }
+    )
+    client.add_number_to_contact("12", "030 77")
+    assert "DeletePhonebookEntryUID" not in [a for _, a, _ in box.actions]
+
+
+def test_a_new_id_with_the_old_one_still_there_deletes_the_old_one() -> None:
+    client, box = _client(
+        {
+            "GetPhonebookEntryUID": [{"NewPhonebookEntryData": ENTRY}, {"NewPhonebookEntryData": ENTRY}],
             "SetPhonebookEntryUID": {"NewPhonebookEntryUniqueID": "99"},
             "DeletePhonebookEntryUID": {},
         }
     )
-    client.add_number_to_contact("12", "030 77", "home", 2)
-    assert [a for _, a, _ in box.actions] == [
-        "GetPhonebookEntryUID",
-        "SetPhonebookEntryUID",
-        "DeletePhonebookEntryUID",
-    ]
-    assert box.actions[-1][2]["NewPhonebookEntryUniqueID"] == "12"
-    _, _, arguments = box.actions[1]
-    assert arguments["NewPhonebookID"] == 2
-    contact = ET.fromstring(arguments["NewPhonebookEntryData"])
-    assert contact.find("uniqueid") is None
-    assert contact.findtext("category") == "1"
-    assert contact.findtext("person/imageURL") == "/i.jpg"
-    assert [(n.get("type"), n.text) for n in contact.findall("telephony/number")] == [
-        ("mobile", "0160 1"),
-        ("home", "030 77"),
-    ]
-    assert contact.find("telephony").get("nid") == "2"
+    client.add_number_to_contact("12", "030 77")
+    deleted = [a["NewPhonebookEntryUniqueID"] for _, n, a in box.actions if n == "DeletePhonebookEntryUID"]
+    assert deleted == ["12"]
 
 
 def test_a_failed_delete_of_the_old_entry_takes_the_new_one_away_again() -> None:
-    delete_old = FritzActionError("no")
     client, box = _client(
         {
-            "GetPhonebookEntryUID": {"NewPhonebookEntryData": ENTRY},
+            "GetPhonebookEntryUID": [{"NewPhonebookEntryData": ENTRY}, {"NewPhonebookEntryData": ENTRY}],
             "SetPhonebookEntryUID": {"NewPhonebookEntryUniqueID": "99"},
-            "DeletePhonebookEntryUID": [delete_old, {}],
+            "DeletePhonebookEntryUID": [FritzActionError("no"), {}],
         }
     )
     with pytest.raises(FritzActionError):
@@ -179,24 +208,24 @@ def test_update_contact_replaces_the_given_parts_and_keeps_the_rest() -> None:
             "GetPhonebookEntryUID": {"NewPhonebookEntryData": ENTRY},
             "SetPhonebookEntryUID": {"NewPhonebookEntryUniqueID": "12"},
         }
-    )  # the box that does change in place: nothing is deleted
+    )
     client.update_contact("12", "Maria S", [("030 1", "work"), ("0160 1", "mobile")], ["m@x.de"], False, 2)
-    _, _, arguments = box.actions[-1]
-    contact = ET.fromstring(arguments["NewPhonebookEntryData"])
-    assert contact.find("uniqueid") is None
+    contact = _written(box)
+    assert contact.findtext("uniqueid") == "12"
     assert contact.findtext("category") == "0"
     assert contact.findtext("person/realName") == "Maria S"
     assert contact.findtext("person/imageURL") == "/i.jpg"
     assert contact.findtext("mod_time") == "5"
-    assert [(n.get("type"), n.get("prio"), n.text) for n in contact.findall("telephony/number")] == [
-        ("work", "1", "030 1"),
-        ("mobile", None, "0160 1"),
+    assert contact.findtext("telephony/doorphone/openkey") == "*1#"
+    # the number that stays keeps its quickdial; the new one comes first as the user ordered
+    assert [(n.get("type"), n.get("quickdial"), n.text) for n in contact.findall("telephony/number")] == [
+        ("work", None, "030 1"),
+        ("mobile", "7", "0160 1"),
     ]
-    assert [e.text for e in contact.findall("services/email")] == ["m@x.de"]
-    # no e-mail left: no empty services element
+    assert [e.text for e in contact.findall("telephony/services/email")] == ["m@x.de"]
     client.update_contact("12", "Maria S", [("030 1", "work")], [], True, 2)
-    contact = ET.fromstring(box.actions[-1][2]["NewPhonebookEntryData"])
-    assert contact.find("services") is None and contact.findtext("category") == "1"
+    contact = _written(box)
+    assert contact.findall("telephony/services/email") == [] and contact.findtext("category") == "1"
 
 
 def test_delete_contact_and_add_contact_with_everything() -> None:
@@ -210,10 +239,11 @@ def test_delete_contact_and_add_contact_with_everything() -> None:
         {"NewPhonebookID": 2, "NewPhonebookEntryUniqueID": "12"},
     )
     client.add_contact("1", "Bert", 0, [("030 5", "work"), ("0170 6", "mobile")], ["b@x.de"], True)
-    contact = ET.fromstring(box.actions[-1][2]["NewPhonebookEntryData"])
+    contact = _written(box)
+    assert contact.find("uniqueid") is None  # a new entry carries no unique id
     assert contact.findtext("category") == "1"
-    assert [n.text for n in contact.findall("telephony/number")] == ["030 5", "0170 6"]
-    assert contact.findtext("services/email") == "b@x.de"
+    assert [(n.get("prio"), n.text) for n in contact.findall("telephony/number")] == [("1", "030 5"), ("0", "0170 6")]
+    assert contact.findtext("telephony/services/email") == "b@x.de"
 
 
 # --- call list ------------------------------------------------------------
@@ -375,3 +405,18 @@ def test_download_refuses_oversized_recordings(monkeypatch) -> None:
 def test_download_explains_a_missing_recording() -> None:
     with pytest.raises(ValueError, match="HTTP 404"):
         _downloader(_Response(status=404)).download("http://b/x")
+
+
+def test_the_phonebook_reads_the_email_addresses_from_telephony_services() -> None:
+    xml = (
+        "<phonebooks><phonebook><contact><person><realName>Ida</realName></person>"
+        '<telephony><services><email classifier="private">i@x.de</email></services>'
+        '<number type="home" prio="1">030 1</number></telephony><uniqueid>5</uniqueid></contact>'
+        "</phonebook></phonebooks>"
+    )
+    client, _ = _client(
+        {"GetPhonebook": {"NewPhonebookURL": "http://x/pb.xml", "NewPhonebookName": "T"}, "GetPhonebookList": {"NewPhonebookList": "0"}},
+        xml,
+    )
+    contact = client.get_phonebooks()[0].contacts[0]
+    assert contact.emails == ["i@x.de"] and contact.uniqueid == "5"
