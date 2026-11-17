@@ -11,7 +11,7 @@ import voluptuous as vol
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
-from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError, Unauthorized
 from homeassistant.helpers import config_validation as cv, service
 
 from .api import redact
@@ -250,7 +250,16 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             )
             await _contact_done(coordinator)
 
+    async def _require_admin(call: ServiceCall) -> None:
+        """Changing or deleting a contact is for administrators; automations (no user) pass."""
+        if call.context.user_id is None:
+            return
+        user = await hass.auth.async_get_user(call.context.user_id)
+        if user is None or not user.is_admin:
+            raise Unauthorized(context=call.context, permission="admin")
+
     async def update_contact(call: ServiceCall) -> None:
+        await _require_admin(call)
         for coordinator in await _coordinators(hass, call):
             await _async_run(
                 hass,
@@ -266,6 +275,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             await _contact_done(coordinator)
 
     async def delete_contact(call: ServiceCall) -> None:
+        await _require_admin(call)
         for coordinator in await _coordinators(hass, call):
             await _async_run(
                 hass,

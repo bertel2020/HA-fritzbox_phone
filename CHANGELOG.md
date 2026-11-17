@@ -13,7 +13,9 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
   `contacts`) nennen jetzt auch ihre E-Mail-Adressen. Alle vier Aktionen sind an
   einer echten FRITZ!Box ausprobiert. Die Box vergibt beim Ändern eines Kontakts
   mitunter eine neue `uniqueid`; wer eine Kennung fest hinterlegt hat, liest sie
-  nach einer Änderung neu aus dem Attribut `contacts`.
+  nach einer Änderung neu aus dem Attribut `contacts`. `update_contact` und
+  `delete_contact` darf nur ein Administrator aufrufen (Automationen ohne Nutzer
+  sind erlaubt).
 
 ### Behoben
 

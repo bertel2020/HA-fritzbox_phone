@@ -458,3 +458,25 @@ async def test_add_contact_needs_a_sensible_name(hass: HomeAssistant, name) -> N
             DOMAIN, "add_contact", {"number": "040 999", "name": name}, blocking=True
         )
     assert box.calls_log == []
+
+
+async def test_changing_and_deleting_a_contact_is_for_administrators(
+    hass: HomeAssistant, hass_admin_user, hass_read_only_user
+) -> None:
+    from homeassistant.core import Context
+    from homeassistant.exceptions import Unauthorized
+
+    box = FakeBox(phonebooks=[make_phonebook(("Anna", "030123456"))])
+    await _setup(hass, box)
+    update = {"contact_id": "0", "name": "A", "numbers": [{"number": "030 1", "type": "home"}]}
+    for user in (hass_read_only_user, hass_admin_user):
+        context = Context(user_id=user.id)
+        if user.is_admin:
+            await hass.services.async_call(DOMAIN, "update_contact", update, blocking=True, context=context)
+            await hass.services.async_call(DOMAIN, "delete_contact", {"contact_id": "0"}, blocking=True, context=context)
+        else:
+            with pytest.raises(Unauthorized):
+                await hass.services.async_call(DOMAIN, "update_contact", update, blocking=True, context=context)
+            with pytest.raises(Unauthorized):
+                await hass.services.async_call(DOMAIN, "delete_contact", {"contact_id": "0"}, blocking=True, context=context)
+    assert [entry[0] for entry in box.calls_log] == ["update_contact", "delete_contact"]
