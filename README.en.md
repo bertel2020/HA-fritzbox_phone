@@ -29,7 +29,7 @@
 
 The integration talks to the FRITZ!Box locally (TR-064 and the CallMonitor on port 1012). Only the optional services PhoneBlock (spam check) and Tellows (reverse lookup) open internet connections.
 
-> The detailed user guide is currently available in German only: [docs/USER-GUIDE.de.md](docs/USER-GUIDE.de.md). The card follows the Home Assistant language and is available in English and German.
+> The detailed user guide: [docs/USER-GUIDE.en.md](docs/USER-GUIDE.en.md) (also available in [German](docs/USER-GUIDE.de.md)). The card follows the Home Assistant language and is available in English and German.
 
 ## Screenshots
 
@@ -66,7 +66,7 @@ The integration talks to the FRITZ!Box locally (TR-064 and the CallMonitor on po
 - **Editing the phone book**: the services `add_contact`, `update_contact`, `delete_contact` and `add_number_to_contact` create contacts (with several numbers, e-mail and VIP), change or delete them, or add one more number.
 - **Call barring**: the services `block_number` and `unblock_number` add numbers to the box's call barring or remove them.
 - **Statistics**: calls today, missed calls, talk time and (with PhoneBlock) spam calls as sensors.
-- **Websocket API and call history**: commands for panels (calls, phonebooks, answering machines, call barring, statistics), admin only; optionally a call history beyond the window of the box (see the [user guide](docs/USER-GUIDE.de.md#websocket-api-für-panels), German).
+- **Websocket API and call history**: commands for panels (calls, phonebooks, answering machines, call barring, statistics), admin only; optionally a call history beyond the window of the box (see the [user guide](docs/USER-GUIDE.en.md#websocket-api-for-panels)).
 - **Blueprints**: notification for a missed call, a warning for spam calls, and actions on ringing, VIP callers and new answering machine messages.
 - **Easy setup**: the box is found automatically on the network; new credentials or a new address without setting up again; diagnostics to share when asking for help.
 
@@ -89,7 +89,7 @@ entity: sensor.YOUR_CALL_LIST               # the call list entity
 tam_entity: sensor.YOUR_ANSWERING_MACHINE  # optional
 ```
 
-**Home Assistant 2025.10 or newer** is required. Options, entities, services, blueprints and troubleshooting are covered in the [user guide](docs/USER-GUIDE.de.md) (German).
+**Home Assistant 2025.10 or newer** is required. Options, entities, services, blueprints and troubleshooting are covered in the [user guide](docs/USER-GUIDE.en.md).
 
 ## Privacy in short
 

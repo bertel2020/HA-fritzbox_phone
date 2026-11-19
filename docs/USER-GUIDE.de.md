@@ -1,5 +1,7 @@
 # FRITZ!Box Telefon für Home Assistant – Anleitung
 
+English: [USER-GUIDE.en.md](USER-GUIDE.en.md)
+
 [← Zurück zur Übersicht](../README.md)
 
 Benutzerdefinierte Home-Assistant-Integration für **Telefonbuch**, **Anrufliste**,
