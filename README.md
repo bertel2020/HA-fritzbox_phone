@@ -96,6 +96,19 @@ Voraussetzung ist **Home Assistant 2025.10 oder neuer**. Alles Weitere (Optionen
 - Der optionale Anrufverlauf ist standardmäßig aus. Eingeschaltet legt er Anrufe mit Nummern und Namen in `.storage` (und damit in Backups) ab.
 - Die Ergebnisse von PhoneBlock und Tellows (geprüfte Rufnummern mit Bewertung) bleiben bis zu 6 Stunden auch über einen Neustart hinaus in `.storage` erhalten.
 
+## Umstieg von den Core-Integrationen
+
+Diese Integration ersetzt die Telefonie-Funktionen von **FRITZ!Box Tools** (`fritz`) und den **AVM FRITZ!Box Anrufmonitor** (`fritzbox_callmonitor`). Alles Übrige von `fritz` (WLAN, Router-Sensoren, Geräte-Tracker, Updates) bleibt dort; schaltest du `fritz` ab, entfällt das mit.
+
+| Core | Hier |
+|---|---|
+| `fritz.dial` (Gerät, `max_ring_seconds`) | `fritzbox_phone.dial` (Ziel: Entität, Gerät, Bereich oder Label; optional `max_ring_seconds`) |
+| Rufumleitungs-Schalter (`switch.…_call_deflection_N`) | Schalter je Rufumleitung, mit denselben Attributen (`type`, `number`, `to_number`, `mode`, `outgoing`, `phonebook_id`; Core nennt `to_number` `deflection_to_number`) |
+| Anrufmonitor-Sensor (`idle`, `ringing`, `dialing`, `talking`) | Anruf-Sensor mit denselben Zuständen und Attributen (`from`, `to`, `device`, `initiated`, `accepted`, `closed`, `duration`, `from_name`, `to_name`, `with_name`, `vip`) |
+| Option „Präfixe“ | Option „Präfixe“, Zahlen werden zusätzlich in einheitlicher Form (E.164) verglichen |
+
+Die Entitäten sind neu und haben neue IDs. Passe Automationen, Dashboards und Skripte an, die die alten verwenden, und entferne die Core-Integrationen erst danach.
+
 ## Änderungsverlauf
 
 Siehe [CHANGELOG.md](CHANGELOG.md).

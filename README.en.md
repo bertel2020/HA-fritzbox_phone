@@ -98,6 +98,19 @@ tam_entity: sensor.YOUR_ANSWERING_MACHINE  # optional
 - The optional call history is off by default. When switched on it keeps calls with numbers and names in `.storage` (and so in backups).
 - The results of PhoneBlock and Tellows (checked numbers with their rating) are kept in `.storage` for up to 6 hours, also across a restart.
 
+## Switching from the core integrations
+
+This integration replaces the telephony features of **FRITZ!Box Tools** (`fritz`) and the **AVM FRITZ!Box Call Monitor** (`fritzbox_callmonitor`). Everything else in `fritz` (Wi-Fi, router sensors, device trackers, updates) stays there; if you remove `fritz`, you lose that too.
+
+| Core | Here |
+|---|---|
+| `fritz.dial` (device, `max_ring_seconds`) | `fritzbox_phone.dial` (target: entity, device, area or label; optional `max_ring_seconds`) |
+| Call deflection switches (`switch.…_call_deflection_N`) | One switch per call forwarding rule with the same attributes (`type`, `number`, `to_number`, `mode`, `outgoing`, `phonebook_id`; core calls `to_number` `deflection_to_number`) |
+| Call monitor sensor (`idle`, `ringing`, `dialing`, `talking`) | Call sensor with the same states and attributes (`from`, `to`, `device`, `initiated`, `accepted`, `closed`, `duration`, `from_name`, `to_name`, `with_name`, `vip`) |
+| “Prefixes” option | “Prefixes” option; numbers are also compared in one canonical form (E.164) |
+
+The entities are new and have new IDs. Update automations, dashboards and scripts that use the old ones, and remove the core integrations only afterwards.
+
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) (German).
