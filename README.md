@@ -58,8 +58,9 @@ Die Integration arbeitet lokal mit der FRITZ!Box (TR-064 und CallMonitor, Port 1
 - **Spam-Erkennung**: Prüfung eingehender Nummern mit PhoneBlock (nur Hashes der Nummer werden gesendet).
 - **Rückwärtssuche**: unbekannte Nummern werden über Tellows aufgelöst.
 - **Ort und Land**: Herkunft einer Nummer wird offline bestimmt, ohne Internetzugriff.
-- **Wählen und Auflegen**: Services `dial` und `hangup`, Rückruf-Knopf in der Karte.
-- **Rufumleitung**: jede Umleitung der Box als Schalter, z. B. für „nachts aufs Handy“.
+- **Wählen und Auflegen**: Services `dial` (auf Wunsch mit gewähltem Telefon und automatischem Auflegen) und `hangup`, Rückruf-Knopf in der Karte.
+- **Rufumleitung**: jede Umleitung der Box als Schalter, z. B. für „nachts aufs Handy“, auch für eine begrenzte Zeit (`turn_on_for`) oder nach Zeitplan (Blueprint).
+- **Leitungen und Telefone**: je Rufnummer ein Sensor, ob der Anbieter sie angemeldet hat, und ein Sensor mit den Telefonen der Box.
 - **Telefonbuch bearbeiten**: Services `add_contact`, `update_contact`, `delete_contact` und `add_number_to_contact` legen Kontakte an (mit mehreren Nummern, E-Mail und VIP), ändern, löschen sie oder ergänzen eine Nummer.
 - **Rufsperre**: Services `block_number` und `unblock_number` tragen Nummern in die Rufsperre der Box ein oder entfernen sie.
 - **Statistik**: Anrufe heute, verpasste Anrufe, Gesprächszeit und (mit PhoneBlock) Spam-Anrufe als Sensoren.

@@ -23,6 +23,8 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
   schaltet für 1 bis 1440 Minuten ein und danach wieder aus. Der Timer wird
   gespeichert und übersteht einen Neustart von Home Assistant; von Hand
   Ausschalten bricht ihn ab.
+- Neuer Blueprint `scheduled_forwarding.yaml`: schaltet eine Rufumleitung zu einer
+  Uhrzeit ein und zu einer anderen aus, an wählbaren Wochentagen.
 
 ## 2.3.3 – 2026-11-17
 

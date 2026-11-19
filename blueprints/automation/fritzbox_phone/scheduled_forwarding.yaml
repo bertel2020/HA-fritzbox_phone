@@ -1,0 +1,77 @@
+blueprint:
+  name: FRITZ!Box - Rufumleitung nach Zeitplan
+  description: >-
+    Schaltet eine Rufumleitung der FRITZ!Box zu einer festen Uhrzeit ein und zu
+    einer anderen wieder aus, z. B. „nachts aufs Handy“. Die Rufumleitung selbst
+    (Zielnummer, welche Anrufe) wird an der Box eingerichtet; hier wird nur ihr
+    Schalter bedient.
+  domain: automation
+  author: bertel2020
+  source_url: https://github.com/bertel2020/HA-fritzbox_phone/blob/main/blueprints/automation/fritzbox_phone/scheduled_forwarding.yaml
+  input:
+    forwarding:
+      name: Rufumleitung
+      description: Der Schalter der Rufumleitung.
+      selector:
+        entity:
+          domain: switch
+          integration: fritzbox_phone
+    time_on:
+      name: Einschalten um
+      selector:
+        time: {}
+      default: "22:00:00"
+    time_off:
+      name: Ausschalten um
+      selector:
+        time: {}
+      default: "07:00:00"
+    weekdays:
+      name: Wochentage
+      description: Nur an diesen Tagen wird geschaltet (gilt für beide Zeitpunkte).
+      default: [mon, tue, wed, thu, fri, sat, sun]
+      selector:
+        select:
+          multiple: true
+          options:
+            - { value: mon, label: Montag }
+            - { value: tue, label: Dienstag }
+            - { value: wed, label: Mittwoch }
+            - { value: thu, label: Donnerstag }
+            - { value: fri, label: Freitag }
+            - { value: sat, label: Samstag }
+            - { value: sun, label: Sonntag }
+
+mode: single
+
+variables:
+  forwarding: !input forwarding
+
+triggers:
+  - trigger: time
+    at: !input time_on
+    id: "on"
+  - trigger: time
+    at: !input time_off
+    id: "off"
+
+conditions:
+  - condition: time
+    weekday: !input weekdays
+
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: "on"
+        sequence:
+          - action: switch.turn_on
+            target:
+              entity_id: "{{ forwarding }}"
+      - conditions:
+          - condition: trigger
+            id: "off"
+        sequence:
+          - action: switch.turn_off
+            target:
+              entity_id: "{{ forwarding }}"

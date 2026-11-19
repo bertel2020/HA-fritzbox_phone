@@ -292,7 +292,9 @@ und Firmware). Namen und Symbole sind übersetzt (Deutsch/Englisch).
 | `sensor.*_erkannte_spam_anrufe` | fortlaufender Zähler neu erkannter Spam-Anrufe für die Langzeitstatistik (nur bei eingeschaltetem PhoneBlock, übersteht Neustarts) | - |
 | `sensor.*_<anrufbeantworter>` (je TAM) | Anzahl neuer Nachrichten | `tam_index`, `messages`: Anrufer, Datum, Dauer, gelesen/neu, `has_recording`, `recording_path`, `area_name` (Ort/Land, offline), PhoneBlock-Spamfelder, `reverse_name`/`reverse_category` (Tellows, jeweils falls aktiviert) |
 | `switch.*_<anrufbeantworter>_aktiv` | an/aus | – |
-| `switch.*_umleitung_auf_<ziel>` (je Rufumleitung der Box) | an/aus; schaltet die Rufumleitung ein oder aus | `deflection_id`, `type`, `number`, `to_number`, `mode` |
+| `switch.*_umleitung_auf_<ziel>` (je Rufumleitung der Box) | an/aus; schaltet die Rufumleitung ein oder aus | `deflection_id`, `type`, `number`, `to_number`, `mode`, `outgoing`, `phonebook_id` |
+| `binary_sensor.*_leitung_<nummer>` (je Rufnummer der Box) | an, solange der Anbieter die Nummer angemeldet hat | `number`, `status` (Meldung der Box, z. B. `Registered`) |
+| `sensor.*_telefone` (Kategorie Diagnose) | Anzahl der Telefone, die die Wählhilfe klingeln lassen kann | `dial_phones` (gültige Werte für das Feld `phone` von `dial`), `dial_phone` (aktuell an der Box gewählt), `dect` (Name, Modell, aktiv), `ip` (Name, Nummer). Wird höchstens einmal pro Stunde gelesen |
 | `binary_sensor.*_ungelesene_nachrichten` | an, solange irgendein Anrufbeantworter ungehörte Nachrichten hat | `count` |
 | `sensor.*_anrufmonitor` | `idle` / `ringing` / `dialing` / `talking`; `unavailable`, solange die Verbindung zum CallMonitor nicht steht | je nach Zustand `from`/`to`/`with`, `from_name`/`to_name`/`with_name`, `vip`, `area_name` (Ort/Land, offline), `device`, `duration`, bei unbekannten eingehenden Anrufen zusätzlich PhoneBlock-Spamfelder und `reverse_name`/`reverse_category` (Tellows, jeweils falls aktiviert); im Zustand `idle` bleiben die Felder des zuletzt beendeten Gesprächs erhalten, ergänzt um `initiated` (Klingel-/Wählbeginn), `accepted` (Annahmezeitpunkt), `started` (Gesprächsbeginn = `accepted`, falls vorhanden), `closed` (Auflegen), `duration_formatted` (exakte Gesprächsdauer inkl. Sekunden, z. B. `1:09:18`) und `ring_duration_formatted` (Klingeldauer bis zur Annahme, z. B. `0:11`, nur falls der Anruf angenommen wurde) |
 | `binary_sensor.*_klingelt` | an, solange ein Anruf klingelt | `number`, `name`, `is_spam` |
@@ -423,7 +425,8 @@ actions:
 | `fritzbox_phone.mark_message_read` | Anrufbeantworter-Nachricht als (un)gelesen markieren | `sensor.*_<anrufbeantworter>`; `message_index`, `read` |
 | `fritzbox_phone.delete_message` | Nachricht auf der Box löschen | `sensor.*_<anrufbeantworter>`; `message_index` |
 | `fritzbox_phone.play_message` | Eine Anrufbeantworter-Aufnahme auf einem Mediaplayer abspielen (signierte Adresse, zehn Minuten gültig; der Lautsprecher muss Home Assistant unter der internen Adresse erreichen) | Entität: Anrufbeantworter-Sensor; `message_index`, `media_player`, optional `message_key` |
-| `fritzbox_phone.dial` | Anruf über die Wählhilfe der Box starten: das dort gewählte Telefon klingelt zuerst, die Nummer wird nach dem Abheben gewählt | Gerät (bei nur einer Box optional); `number` |
+| `fritzbox_phone.dial` | Anruf über die Wählhilfe der Box starten: das dort gewählte Telefon klingelt zuerst, die Nummer wird nach dem Abheben gewählt | Gerät (bei nur einer Box optional); `number`, optional `phone` (für diesen Anruf dieses Telefon klingeln lassen statt des an der Box gewählten, danach stellt die Integration die Wahl der Box zurück), optional `max_ring_seconds` (1–300: legt nach dieser Zeit auf, wenn niemand abgehoben hat) |
+| `fritzbox_phone.turn_on_for` | Anrufbeantworter oder Rufumleitung für eine Weile einschalten und danach wieder ausschalten. Der Timer wird gespeichert und übersteht einen Neustart; von Hand Ausschalten bricht ihn ab | Entität: Schalter des Anrufbeantworters oder der Rufumleitung; `minutes` (1–1440) |
 | `fritzbox_phone.hangup` | Einen noch nicht angenommenen Wählvorgang abbrechen | Gerät (optional) |
 | `fritzbox_phone.lookup_number` | Antwortet mit dem, was zu einer Nummer bekannt ist | Gerät (optional); `number` |
 | `fritzbox_phone.add_contact` | Kontakt in einem Telefonbuch der Box anlegen, mit einer oder mehreren Nummern (je mit Art), E-Mail-Adressen und VIP-Markierung. Nummern, die schon in einem Telefonbuch stehen (auch in anderer Schreibweise), werden abgelehnt | Gerät (optional); `name`, `number` oder `numbers` (Liste aus `number` und `type`: `home`, `mobile`, `work`, `fax_work`, `other`), optional `emails` (Liste), `vip` (Standard aus), `phonebook_id` (Standard 0 = erstes Telefonbuch; die Nummer steht als Attribut `phonebook_id` am Telefonbuch-Sensor und als `id` im Websocket-Befehl `fritzbox_phone/phonebooks`) |
@@ -732,7 +735,7 @@ Anruflisten-Sensor, `phonebook_id` an jedem Telefonbuch-Sensor und
 ## Blueprints
 
 Im Ordner [`blueprints/automation/fritzbox_phone/`](blueprints/automation/fritzbox_phone)
-liegen fünf fertige Automations-Vorlagen. Home Assistant lädt sie nicht
+liegen sechs fertige Automations-Vorlagen. Home Assistant lädt sie nicht
 selbst; die Dateien nach `<Konfiguration>/blueprints/automation/fritzbox_phone/`
 kopieren oder unter **Einstellungen → Automationen & Szenen → Blueprints →
 Blueprint importieren** die Adresse der Datei auf GitHub eintragen:
@@ -743,6 +746,7 @@ Blueprint importieren** die Adresse der Datei auf GitHub eintragen:
 | `spam_call_alert.yaml` | warnt, sobald ein klingelnder Anruf von PhoneBlock als Spam eingestuft wurde (ab einstellbarer Wahrscheinlichkeit); `number`, `name`, `confidence` stehen zur Verfügung |
 | `notify_ringing.yaml` | führt beim Klingeln eine Aktion aus (einmal je Anruf, auch wenn Name oder Spam-Prüfung später ankommen) und pausiert auf Wunsch Mediaplayer; `caller`, `number`, `is_vip`, `is_spam` stehen zur Verfügung |
 | `vip_call.yaml` | führt eine Aktion aus, wenn ein als VIP markierter Kontakt anruft, z. B. eine Benachrichtigung, die „Nicht stören“ durchbricht; `caller`, `number` stehen zur Verfügung |
+| `scheduled_forwarding.yaml` | schaltet eine Rufumleitung zu einer Uhrzeit ein und zu einer anderen aus, an wählbaren Wochentagen (z. B. „nachts aufs Handy“) |
 | `notify_tam_message.yaml` | führt für jede neue Nachricht auf dem Anrufbeantworter eine Aktion aus; `caller`, `place`, `duration`, `tam_name`, `is_spam` stehen zur Verfügung; Spam lässt sich ausblenden |
 
 ## Datenschutz und Sicherheit

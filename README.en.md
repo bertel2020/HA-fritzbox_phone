@@ -60,8 +60,9 @@ The integration talks to the FRITZ!Box locally (TR-064 and the CallMonitor on po
 - **Spam check**: incoming numbers are checked with PhoneBlock (only hashes of the number are sent).
 - **Reverse lookup**: unknown numbers are resolved through Tellows.
 - **Place and country**: the origin of a number is determined offline.
-- **Dial and hang up**: the services `dial` and `hangup`, plus a call-back button in the card.
-- **Call forwarding**: every forwarding rule of the box as a switch, e.g. for "forward to my mobile at night".
+- **Dial and hang up**: the services `dial` (optionally with a chosen phone and automatic hang-up) and `hangup`, plus a call-back button in the card.
+- **Call forwarding**: every forwarding rule of the box as a switch, e.g. for "forward to my mobile at night", also for a limited time (`turn_on_for`) or on a schedule (blueprint).
+- **Lines and phones**: one sensor per telephone number showing whether the provider has it registered, and a sensor listing the box's phones.
 - **Editing the phone book**: the services `add_contact`, `update_contact`, `delete_contact` and `add_number_to_contact` create contacts (with several numbers, e-mail and VIP), change or delete them, or add one more number.
 - **Call barring**: the services `block_number` and `unblock_number` add numbers to the box's call barring or remove them.
 - **Statistics**: calls today, missed calls, talk time and (with PhoneBlock) spam calls as sensors.
