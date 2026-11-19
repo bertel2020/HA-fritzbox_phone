@@ -1,12 +1,18 @@
 """Switch platform for the FRITZ!Box phone integration (answering machine, call forwarding)."""
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, HassJob, HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_track_point_in_utc_time
+from homeassistant.helpers.storage import Store
+from homeassistant.util import dt as dt_util
+
+from .const import DOMAIN
 
 from .coordinator import FritzBoxPhoneCoordinator
 from .runtime import FritzBoxPhoneConfigEntry
@@ -21,6 +27,8 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: FritzBoxPhoneConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     coordinator = entry.runtime_data.coordinator
+    timers = TimedSwitchStore(hass)
+    await timers.async_load()
     known: set[int] = set()
     known_deflections: set[int] = set()
 
@@ -33,10 +41,10 @@ async def async_setup_entry(
         ]
         known_deflections.update(d.id for d in new_deflections)
         entities: list[SwitchEntity] = [
-            FritzBoxTamSwitch(coordinator, entry, tam.index) for tam in new_tams
+            FritzBoxTamSwitch(coordinator, entry, tam.index, timers) for tam in new_tams
         ]
         entities.extend(
-            FritzBoxDeflectionSwitch(coordinator, entry, d.id) for d in new_deflections
+            FritzBoxDeflectionSwitch(coordinator, entry, d.id, timers) for d in new_deflections
         )
         if entities:
             async_add_entities(entities)
@@ -45,15 +53,91 @@ async def async_setup_entry(
     entry.async_on_unload(coordinator.async_add_listener(_async_add_new_entities))
 
 
-class FritzBoxTamSwitch(FritzBoxPhoneEntity, SwitchEntity):
+class TimedSwitchStore:
+    """When a switch that was turned on for a while has to go off again.
+
+    Kept on disk, so a restart of Home Assistant does not leave an answering
+    machine or a forwarding rule on for good.
+    """
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        self._store: Store[dict[str, str]] = Store(hass, 1, f"{DOMAIN}_timed_switches")
+        self._expiry: dict[str, str] = {}
+
+    async def async_load(self) -> None:
+        self._expiry = await self._store.async_load() or {}
+
+    def get(self, unique_id: str) -> datetime | None:
+        raw = self._expiry.get(unique_id)
+        return dt_util.parse_datetime(raw) if raw else None
+
+    def set(self, unique_id: str, expiry: datetime | None) -> None:
+        if expiry is None:
+            if self._expiry.pop(unique_id, None) is None:
+                return
+        else:
+            self._expiry[unique_id] = expiry.isoformat()
+        self._store.async_delay_save(lambda: dict(self._expiry), 1)
+
+
+class TimedSwitchMixin:
+    """`turn_on_for`: on now, off again after a number of minutes."""
+
+    _timers: TimedSwitchStore
+    _unsub_timer: CALLBACK_TYPE | None = None
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(self._cancel_timer)
+        if (expiry := self._timers.get(self.unique_id)) is not None:
+            # Also runs a timer that ran out while Home Assistant was down.
+            self._arm_timer(max(expiry, dt_util.utcnow()))
+
+    @callback
+    def _cancel_timer(self) -> None:
+        if self._unsub_timer is not None:
+            self._unsub_timer()
+            self._unsub_timer = None
+
+    @callback
+    def _arm_timer(self, expiry: datetime) -> None:
+        self._cancel_timer()
+        self._unsub_timer = async_track_point_in_utc_time(
+            self.hass, HassJob(self._async_timer_ran_out, cancel_on_shutdown=True), expiry
+        )
+
+    async def _async_timer_ran_out(self, _now: datetime) -> None:
+        self._unsub_timer = None
+        self._timers.set(self.unique_id, None)
+        await self._async_set_enable(False)
+
+    async def async_turn_on_for(self, minutes: int) -> None:
+        await self.async_turn_on()
+        expiry = dt_util.utcnow() + timedelta(minutes=minutes)
+        self._timers.set(self.unique_id, expiry)
+        self._arm_timer(expiry)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        # Switched off by hand: the timer has nothing left to do.
+        self._cancel_timer()
+        self._timers.set(self.unique_id, None)
+        await self._async_set_enable(False)
+
+
+class FritzBoxTamSwitch(TimedSwitchMixin, FritzBoxPhoneEntity, SwitchEntity):
     """Enables/disables a FRITZ!Box answering machine (X_AVM-DE_TAM SetEnable)."""
 
     _attr_translation_key = "tam_enabled"
 
     def __init__(
-        self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry, tam_index: int
+        self,
+        coordinator: FritzBoxPhoneCoordinator,
+        entry: ConfigEntry,
+        tam_index: int,
+        timers: TimedSwitchStore,
     ) -> None:
         super().__init__(coordinator, entry)
+        self._timers = timers
         self._tam_index = tam_index
         self._attr_unique_id = f"{entry.entry_id}_tam_{tam_index}_enabled"
 
@@ -83,9 +167,6 @@ class FritzBoxTamSwitch(FritzBoxPhoneEntity, SwitchEntity):
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self._async_set_enable(True)
 
-    async def async_turn_off(self, **kwargs: Any) -> None:
-        await self._async_set_enable(False)
-
     async def _async_set_enable(self, enable: bool) -> None:
         await self._async_box_call(
             self.coordinator.client.set_tam_enable, self._tam_index, enable
@@ -93,15 +174,20 @@ class FritzBoxTamSwitch(FritzBoxPhoneEntity, SwitchEntity):
         await self.coordinator.async_request_refresh()
 
 
-class FritzBoxDeflectionSwitch(FritzBoxPhoneEntity, SwitchEntity):
+class FritzBoxDeflectionSwitch(TimedSwitchMixin, FritzBoxPhoneEntity, SwitchEntity):
     """Enables/disables a call forwarding rule (X_AVM-DE_OnTel SetDeflectionEnable)."""
 
     _attr_translation_key = "deflection_enabled"
 
     def __init__(
-        self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry, deflection_id: int
+        self,
+        coordinator: FritzBoxPhoneCoordinator,
+        entry: ConfigEntry,
+        deflection_id: int,
+        timers: TimedSwitchStore,
     ) -> None:
         super().__init__(coordinator, entry)
+        self._timers = timers
         self._deflection_id = deflection_id
         self._attr_unique_id = f"{entry.entry_id}_deflection_{deflection_id}_enabled"
 
@@ -141,9 +227,6 @@ class FritzBoxDeflectionSwitch(FritzBoxPhoneEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self._async_set_enable(True)
-
-    async def async_turn_off(self, **kwargs: Any) -> None:
-        await self._async_set_enable(False)
 
     async def _async_set_enable(self, enable: bool) -> None:
         await self._async_box_call(

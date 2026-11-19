@@ -10,6 +10,7 @@ import requests
 import voluptuous as vol
 
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
+from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HassJob, HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError, Unauthorized
@@ -25,6 +26,7 @@ from .const import (
     ATTR_MESSAGE_INDEX,
     ATTR_NAME,
     ATTR_MAX_RING_SECONDS,
+    ATTR_MINUTES,
     ATTR_NUMBER,
     ATTR_PHONE,
     ATTR_NUMBER_TYPE,
@@ -46,6 +48,7 @@ from .const import (
     SERVICE_LOOKUP_NUMBER,
     SERVICE_MARK_MESSAGE_READ,
     SERVICE_PLAY_MESSAGE,
+    SERVICE_TURN_ON_FOR,
     SERVICE_UNBLOCK_NUMBER,
     SERVICE_UPDATE_CONTACT,
 )
@@ -156,6 +159,15 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         service.async_register_platform_entity_service(
             hass, DOMAIN, name, entity_domain=SENSOR_DOMAIN, schema=schema, func=func
         )
+
+    service.async_register_platform_entity_service(
+        hass,
+        DOMAIN,
+        SERVICE_TURN_ON_FOR,
+        entity_domain=SWITCH_DOMAIN,
+        schema={vol.Required(ATTR_MINUTES): vol.All(vol.Coerce(int), vol.Range(min=1, max=1440))},
+        func="async_turn_on_for",
+    )
 
     async def dial(call: ServiceCall) -> None:
         for coordinator in await _coordinators(hass, call):

@@ -409,6 +409,16 @@
           "description": "Nummer des Telefonbuchs (0 ist das Haupttelefonbuch)."
         }
       }
+    },
+    "turn_on_for": {
+      "name": "Zeitweise einschalten",
+      "description": "Schaltet einen Anrufbeantworter oder eine Rufumleitung ein und nach der angegebenen Zeit wieder aus. Der Timer übersteht einen Neustart von Home Assistant; von Hand ausschalten bricht ihn ab.",
+      "fields": {
+        "minutes": {
+          "name": "Minuten",
+          "description": "Wie lange eingeschaltet bleibt."
+        }
+      }
     }
   },
   "exceptions": {

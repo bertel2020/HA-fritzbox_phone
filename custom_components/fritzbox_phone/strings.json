@@ -409,6 +409,16 @@
           "description": "Number of the phonebook (0 is the main phonebook)."
         }
       }
+    },
+    "turn_on_for": {
+      "name": "Turn on for a while",
+      "description": "Turns an answering machine or a call forwarding rule on and switches it off again after the given time. The timer survives a restart of Home Assistant; switching it off by hand cancels it.",
+      "fields": {
+        "minutes": {
+          "name": "Minutes",
+          "description": "How long it stays on."
+        }
+      }
     }
   },
   "exceptions": {

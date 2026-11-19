@@ -19,6 +19,10 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
   (`dial_phone`). Die Aktion `dial` hat dazu das optionale Feld `phone`: Es lässt
   für diesen einen Anruf das genannte Telefon klingeln; die Einstellung der Box
   wird danach zurückgesetzt. Nicht an einer echten FRITZ!Box ausprobiert.
+- Neue Aktion `turn_on_for` für die Schalter der Anrufbeantworter und Rufumleitungen:
+  schaltet für 1 bis 1440 Minuten ein und danach wieder aus. Der Timer wird
+  gespeichert und übersteht einen Neustart von Home Assistant; von Hand
+  Ausschalten bricht ihn ab.
 
 ## 2.3.3 – 2026-11-17
 

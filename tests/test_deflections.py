@@ -1,8 +1,12 @@
 """Call forwarding rules as switches."""
 from __future__ import annotations
 
+from datetime import timedelta
+
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.fritzbox_phone.api import Deflection, Phones, VoipLine
 
@@ -90,3 +94,34 @@ async def test_phones_sensor_lists_what_dial_can_ring(hass: HomeAssistant) -> No
     assert state.state == "2"
     assert state.attributes["dial_phones"] == ["Fon 1", "DECT Kueche"]
     assert state.attributes["dect"][0]["name"] == "Kueche"
+
+
+async def test_turn_on_for_switches_off_again(hass: HomeAssistant) -> None:
+    box = FakeBox(deflections=[_deflection(0, False)])
+    entry = await setup_integration(hass, box)
+    switch = entity_id(hass, entry, "deflection_0_enabled", "switch")
+
+    await hass.services.async_call(
+        "fritzbox_phone", "turn_on_for", {"entity_id": switch, "minutes": 30}, blocking=True
+    )
+    assert box.calls_log[-1] == ("set_deflection_enable", 0, True)
+
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=31))
+    await hass.async_block_till_done()
+    assert box.calls_log[-1] == ("set_deflection_enable", 0, False)
+
+
+async def test_switching_off_by_hand_cancels_the_timer(hass: HomeAssistant) -> None:
+    box = FakeBox(deflections=[_deflection(0, False)])
+    entry = await setup_integration(hass, box)
+    switch = entity_id(hass, entry, "deflection_0_enabled", "switch")
+
+    await hass.services.async_call(
+        "fritzbox_phone", "turn_on_for", {"entity_id": switch, "minutes": 30}, blocking=True
+    )
+    await hass.services.async_call("switch", "turn_off", {"entity_id": switch}, blocking=True)
+    box.calls_log.clear()
+
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=31))
+    await hass.async_block_till_done()
+    assert box.calls_log == []

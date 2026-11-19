@@ -67,6 +67,8 @@ ATTR_PHONEBOOK_ID = "phonebook_id"
 
 SERVICE_DIAL = "dial"
 SERVICE_HANGUP = "hangup"
+SERVICE_TURN_ON_FOR = "turn_on_for"
+ATTR_MINUTES = "minutes"
 SERVICE_LOOKUP_NUMBER = "lookup_number"
 SERVICE_ADD_CONTACT = "add_contact"
 SERVICE_ADD_NUMBER = "add_number_to_contact"
