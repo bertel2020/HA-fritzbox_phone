@@ -11,6 +11,9 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
   `fritz.dial`.
 - Die Schalter der Rufumleitungen nennen jetzt auch `outgoing` (welche Anrufe
   umgeleitet werden) und `phonebook_id` als Attribute.
+- Je Rufnummer der Box ein Sensor „Leitung …“, der anzeigt, ob der Anbieter sie
+  angemeldet hat (Attribut `status`). So fällt ein Ausfall des Telefonanschlusses
+  auf. Nicht an einer echten FRITZ!Box ausprobiert.
 
 ## 2.3.3 – 2026-11-17
 

@@ -28,6 +28,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import (
     CallEntry,
     Deflection,
+    VoipLine,
     FritzBoxPhoneClient,
     Phonebook,
     Tam,
@@ -102,6 +103,7 @@ class FritzBoxPhoneData:
     calls: list[CallEntry]
     tams: list[Tam]
     deflections: list[Deflection] = field(default_factory=list)
+    voip_lines: list[VoipLine] = field(default_factory=list)
 
 
 class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
@@ -136,6 +138,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         self._phonebooks: list[Phonebook] | None = None
         self._phonebooks_fetched = 0.0
         self._deflections: list[Deflection] = []
+        self._voip_lines: list[VoipLine] = []
         self._contacts_by_number: dict[str, tuple[str, bool]] = {}
         self._contacts_by_digits: dict[str, tuple[str, bool]] = {}
         # Change detection for the logbook events. `None` means "no poll
@@ -479,6 +482,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             calls=calls,
             tams=tams,
             deflections=self._get_deflections(),
+            voip_lines=self._get_voip_lines(),
         )
 
     def _get_deflections(self) -> list[Deflection]:
@@ -491,6 +495,16 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             return self._deflections
         self._deflections = deflections
         return deflections
+
+    def _get_voip_lines(self) -> list[VoipLine]:
+        # Secondary data, like the forwarding rules.
+        try:
+            lines = self.client.get_voip_lines()
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.debug("Telefonleitungen konnten nicht gelesen werden: %s", err)
+            return self._voip_lines
+        self._voip_lines = lines
+        return lines
 
     @staticmethod
     def _link_calls_to_messages(calls: list[CallEntry], tams: list[Tam]) -> None:
@@ -697,6 +711,9 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         area code, fetched once and cached).
         """
         return describe_number(number, self._region_code(), self._get_own_area_code())
+
+    def get_voip_line(self, index: int) -> VoipLine | None:
+        return next((line for line in self.data.voip_lines if line.index == index), None)
 
     def get_deflection(self, deflection_id: int) -> Deflection | None:
         return next((d for d in self.data.deflections if d.id == deflection_id), None)

@@ -181,6 +181,9 @@
       },
       "unread_messages": {
         "name": "Ungelesene Nachrichten"
+      },
+      "line_registered": {
+        "name": "Leitung {number}"
       }
     },
     "event": {

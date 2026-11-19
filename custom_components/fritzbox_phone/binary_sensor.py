@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -40,6 +40,21 @@ async def async_setup_entry(
 
     _async_add_unread_sensor()
     entry.async_on_unload(coordinator.async_add_listener(_async_add_unread_sensor))
+
+    # A number that is configured later gets its sensor without a reload.
+    known_lines: set[int] = set()
+
+    @callback
+    def _async_add_line_sensors() -> None:
+        new = [line for line in coordinator.data.voip_lines if line.index not in known_lines]
+        known_lines.update(line.index for line in new)
+        if new:
+            async_add_entities(
+                FritzBoxLineSensor(coordinator, entry, line.index) for line in new
+            )
+
+    _async_add_line_sensors()
+    entry.async_on_unload(coordinator.async_add_listener(_async_add_line_sensors))
 
 
 class FritzBoxRingingSensor(FritzBoxPhoneEntity, BinarySensorEntity):
@@ -109,3 +124,42 @@ class FritzBoxUnreadMessagesSensor(FritzBoxPhoneEntity, BinarySensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         return {"count": self._unread}
+
+
+class FritzBoxLineSensor(FritzBoxPhoneEntity, BinarySensorEntity):
+    """On while the provider accepts a telephone number of the box."""
+
+    _attr_translation_key = "line_registered"
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+
+    def __init__(
+        self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry, index: int
+    ) -> None:
+        super().__init__(coordinator, entry)
+        self._index = index
+        self._attr_unique_id = f"{entry.entry_id}_line_{index}_registered"
+
+    @property
+    def _line(self):
+        return self.coordinator.get_voip_line(self._index)
+
+    @property
+    def available(self) -> bool:
+        return super().available and self._line is not None
+
+    @property
+    def translation_placeholders(self) -> dict[str, str]:
+        line = self._line
+        return {"number": (line.number if line and line.number else str(self._index + 1))}
+
+    @property
+    def is_on(self) -> bool | None:
+        line = self._line
+        return line.registered if line else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        line = self._line
+        if line is None:
+            return {}
+        return {"number": line.number, "status": line.status}

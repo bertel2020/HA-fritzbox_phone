@@ -74,6 +74,12 @@
       },
       "unread_messages": {
         "default": "mdi:voicemail"
+      },
+      "line_registered": {
+        "default": "mdi:phone-off",
+        "state": {
+          "on": "mdi:phone-check"
+        }
       }
     },
     "event": {

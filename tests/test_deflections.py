@@ -4,7 +4,7 @@ from __future__ import annotations
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 
-from custom_components.fritzbox_phone.api import Deflection
+from custom_components.fritzbox_phone.api import Deflection, VoipLine
 
 from .common import FakeBox, entity_id, setup_integration
 
@@ -58,3 +58,19 @@ async def test_a_box_without_deflections_gets_no_switch(hass: HomeAssistant) -> 
         state for state in hass.states.async_all("switch") if "deflection" in state.entity_id
     ]
     assert entry.runtime_data.coordinator.data.deflections == []
+
+
+async def test_line_sensors_show_the_registration(hass: HomeAssistant) -> None:
+    box = FakeBox(
+        voip_lines=[
+            VoipLine(index=0, number="030 111", status="Registered"),
+            VoipLine(index=1, number="040 222", status="Unregistered"),
+        ]
+    )
+    entry = await setup_integration(hass, box)
+
+    first = hass.states.get(entity_id(hass, entry, "line_0_registered", "binary_sensor"))
+    second = hass.states.get(entity_id(hass, entry, "line_1_registered", "binary_sensor"))
+    assert (first.state, second.state) == (STATE_ON, STATE_OFF)
+    assert second.attributes["status"] == "Unregistered"
+    assert first.attributes["friendly_name"].endswith("Line 030 111")

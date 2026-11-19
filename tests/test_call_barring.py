@@ -4,6 +4,8 @@ from __future__ import annotations
 import threading
 from xml.etree import ElementTree as ET
 
+from fritzconnection.core.exceptions import FritzActionError
+
 from custom_components.fritzbox_phone.api import (
     FritzBoxPhoneClient,
     PhonebookContact,
@@ -117,3 +119,28 @@ def test_deflections_are_read_one_by_one() -> None:
         "SetDeflectionEnable",
         {"NewDeflectionId": 1, "NewEnable": 1},
     )
+
+
+def test_voip_lines_read_number_and_status() -> None:
+    client, box = _client([])
+
+    def call_action(service, action, **arguments):
+        box.actions.append((action, arguments))
+        if action == "GetExistingVoIPNumbers":
+            return {"NewExistingVoIPNumbers": 2}
+        index = arguments["NewVoIPAccountIndex"]
+        if index == 1:  # a gap in the account indices
+            raise FritzActionError("713")
+        return {
+            "NewVoIPNumber": f"030 {index}",
+            "NewVoIPPassword": "secret",
+            "NewX_AVM-DE_VoIPStatus": "Registered" if index == 0 else "Unregistered",
+        }
+
+    box.call_action = call_action
+    lines = client.get_voip_lines()
+    assert [(x.index, x.number, x.registered) for x in lines] == [
+        (0, "030 0", True),
+        (2, "030 2", False),
+    ]
+    assert "secret" not in repr(lines)

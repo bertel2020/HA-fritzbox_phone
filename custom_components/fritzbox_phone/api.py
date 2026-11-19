@@ -64,6 +64,8 @@ DEVICEINFO_SERVICE = "DeviceInfo1"
 VOIP_SERVICE = "X_VoIP1"
 # More rules than this are not expected; it only bounds the requests per poll.
 MAX_DEFLECTIONS = 32
+# The box has room for 20 telephone numbers; this only bounds the requests per poll.
+MAX_VOIP_ACCOUNTS = 20
 
 
 @dataclass
@@ -167,6 +169,19 @@ class Deflection:
     mode: str | None
     outgoing: str | None = None
     phonebook_id: int | None = None
+
+
+@dataclass
+class VoipLine:
+    """A telephone number the box registers with the provider (X_VoIP)."""
+
+    index: int
+    number: str | None
+    status: str | None
+
+    @property
+    def registered(self) -> bool:
+        return (self.status or "").strip().lower() == "registered"
 
 
 def path_key(path: str | None) -> tuple[str, tuple[tuple[str, str], ...]] | None:
@@ -562,6 +577,37 @@ class FritzBoxPhoneClient:
             NewDeflectionId=deflection_id,
             NewEnable=int(enable),
         )
+
+    # ------------------------------------------------------------------
+    # Telephone lines (registration with the provider)
+    # ------------------------------------------------------------------
+
+    def get_voip_lines(self) -> list[VoipLine]:
+        """The box's telephone numbers and whether the provider accepts them.
+
+        The status comes from GetVoIPAccount, which also hands out the
+        account password; only number and status are read, the answer is
+        dropped right here.
+        """
+        existing = _to_int(
+            str(self._call(VOIP_SERVICE, "GetExistingVoIPNumbers").get("NewExistingVoIPNumbers"))
+        )
+        lines: list[VoipLine] = []
+        for index in range(MAX_VOIP_ACCOUNTS):
+            if len(lines) >= existing:
+                break
+            try:
+                info = self._call(VOIP_SERVICE, "X_AVM-DE_GetVoIPAccount", NewVoIPAccountIndex=index)
+            except UNSUPPORTED_ERRORS:
+                continue  # indices can have gaps
+            lines.append(
+                VoipLine(
+                    index=index,
+                    number=info.get("NewVoIPNumber") or None,
+                    status=info.get("NewX_AVM-DE_VoIPStatus") or None,
+                )
+            )
+        return lines
 
     # ------------------------------------------------------------------
     # Call barring (Rufsperre)

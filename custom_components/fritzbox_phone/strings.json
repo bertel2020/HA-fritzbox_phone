@@ -181,6 +181,9 @@
       },
       "unread_messages": {
         "name": "Unread messages"
+      },
+      "line_registered": {
+        "name": "Line {number}"
       }
     },
     "event": {

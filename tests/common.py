@@ -11,6 +11,7 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.fritzbox_phone.api import (
+    VoipLine,
     CallEntry,
     Phonebook,
     PhonebookContact,
@@ -106,6 +107,7 @@ class FakeBox:
     calls_log: list[tuple] = field(default_factory=list)
     blocked: list[str] = field(default_factory=list)
     deflections: list[Deflection] = field(default_factory=list)
+    voip_lines: list[VoipLine] = field(default_factory=list)
     # Raised by get_blocked_numbers (e.g. a box without call barring).
     blocklist_error: Exception | None = None
 
@@ -169,6 +171,10 @@ def build_client_class(box: FakeBox):
         def get_deflections(self):
             self._poll()
             return [replace(d) for d in box.deflections]
+
+        def get_voip_lines(self):
+            self._poll()
+            return [replace(line) for line in box.voip_lines]
 
         def set_deflection_enable(self, deflection_id: int, enable: bool) -> None:
             box.calls_log.append(("set_deflection_enable", deflection_id, enable))
