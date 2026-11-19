@@ -1,6 +1,7 @@
 """Services of the FRITZ!Box phone integration."""
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
@@ -10,9 +11,10 @@ import voluptuous as vol
 
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
 from homeassistant.const import CONF_HOST
-from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.core import HassJob, HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError, Unauthorized
 from homeassistant.helpers import config_validation as cv, service
+from homeassistant.helpers.event import async_call_later
 
 from .api import redact
 from .const import (
@@ -22,6 +24,7 @@ from .const import (
     ATTR_MESSAGE_KEY,
     ATTR_MESSAGE_INDEX,
     ATTR_NAME,
+    ATTR_MAX_RING_SECONDS,
     ATTR_NUMBER,
     ATTR_NUMBER_TYPE,
     ATTR_NUMBERS,
@@ -47,6 +50,8 @@ from .const import (
 )
 from .coordinator import FritzBoxPhoneCoordinator
 from .runtime import FritzBoxPhoneConfigEntry
+
+_LOGGER = logging.getLogger(__name__)
 
 # Digits plus what a dial string may contain (+, *, #, separators). Nothing
 # else goes to the box.
@@ -154,6 +159,15 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     async def dial(call: ServiceCall) -> None:
         for coordinator in await _coordinators(hass, call):
             await _async_run(hass, coordinator, coordinator.client.dial, call.data[ATTR_NUMBER])
+            if (seconds := call.data.get(ATTR_MAX_RING_SECONDS)) is not None:
+                # Like fritz.dial: cancel the call setup if nobody picked up in time.
+                async def _hangup(_now, coordinator=coordinator) -> None:
+                    try:
+                        await _async_run(hass, coordinator, coordinator.client.hangup)
+                    except HomeAssistantError as err:
+                        _LOGGER.warning("Hanging up after %s seconds failed: %s", seconds, err)
+
+                async_call_later(hass, seconds, HassJob(_hangup, cancel_on_shutdown=True))
 
     async def hangup(call: ServiceCall) -> None:
         for coordinator in await _coordinators(hass, call):
@@ -366,7 +380,15 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         DOMAIN,
         SERVICE_DIAL,
         dial,
-        schema=vol.Schema({**_DEVICE_FIELD, vol.Required(ATTR_NUMBER): _number}),
+        schema=vol.Schema(
+            {
+                **_DEVICE_FIELD,
+                vol.Required(ATTR_NUMBER): _number,
+                vol.Optional(ATTR_MAX_RING_SECONDS): vol.All(
+                    vol.Coerce(int), vol.Range(min=1, max=300)
+                ),
+            }
+        ),
     )
     hass.services.async_register(
         DOMAIN, SERVICE_HANGUP, hangup, schema=vol.Schema({**_DEVICE_FIELD})

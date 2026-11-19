@@ -1,7 +1,7 @@
 """Dial / hangup / lookup services and the "today" statistics."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytest
 import voluptuous as vol
 
@@ -9,7 +9,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
-from pytest_homeassistant_custom_component.common import async_capture_events, async_mock_service
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import async_capture_events, async_fire_time_changed, async_mock_service
 
 from custom_components.fritzbox_phone.const import (
     CONF_PHONEBLOCK_ENABLED,
@@ -45,6 +46,24 @@ async def test_dial_and_hangup(hass: HomeAssistant) -> None:
     # With a single box the device is optional.
     await hass.services.async_call(DOMAIN, "hangup", {}, blocking=True)
     assert box.calls_log == [("dial", "030 123456"), ("hangup",)]
+
+
+async def test_dial_hangs_up_after_max_ring_seconds(hass: HomeAssistant) -> None:
+    box = FakeBox()
+    await _setup(hass, box)
+
+    await hass.services.async_call(
+        DOMAIN, "dial", {"number": "030 1", "max_ring_seconds": 20}, blocking=True
+    )
+    assert box.calls_log == [("dial", "030 1")]
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=21))
+    await hass.async_block_till_done()
+    assert box.calls_log == [("dial", "030 1"), ("hangup",)]
+
+    with pytest.raises(vol.Invalid):
+        await hass.services.async_call(
+            DOMAIN, "dial", {"number": "1", "max_ring_seconds": 0}, blocking=True
+        )
 
 
 async def test_block_and_unblock_number(hass: HomeAssistant) -> None:

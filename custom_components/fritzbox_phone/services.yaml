@@ -78,6 +78,14 @@ dial:
       example: "030 123456"
       selector:
         text:
+    max_ring_seconds:
+      required: false
+      example: 15
+      selector:
+        number:
+          min: 1
+          max: 300
+          unit_of_measurement: seconds
 
 hangup:
   target:

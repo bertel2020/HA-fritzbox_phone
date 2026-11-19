@@ -60,6 +60,7 @@ ATTR_MESSAGE_KEY = "message_key"
 ATTR_MEDIA_PLAYER = "media_player"
 
 ATTR_NUMBER = "number"
+ATTR_MAX_RING_SECONDS = "max_ring_seconds"
 ATTR_NAME = "name"
 ATTR_PHONEBOOK_ID = "phonebook_id"
 

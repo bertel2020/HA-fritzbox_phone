@@ -240,6 +240,10 @@
         "number": {
           "name": "Phone number",
           "description": "The number to call."
+        },
+        "max_ring_seconds": {
+          "name": "Hang up after",
+          "description": "Cancels the call setup after this many seconds if nobody picked up. Leave empty to keep ringing until you cancel with the hangup action."
         }
       }
     },

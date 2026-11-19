@@ -240,6 +240,10 @@
         "number": {
           "name": "Rufnummer",
           "description": "Die anzurufende Nummer."
+        },
+        "max_ring_seconds": {
+          "name": "Auflegen nach",
+          "description": "Bricht den Verbindungsaufbau nach so vielen Sekunden ab, wenn niemand abgehoben hat. Leer lassen, damit es klingelt, bis du mit der Aktion „Auflegen“ abbrichst."
         }
       }
     },
