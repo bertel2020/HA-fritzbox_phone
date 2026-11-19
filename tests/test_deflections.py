@@ -4,7 +4,7 @@ from __future__ import annotations
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 
-from custom_components.fritzbox_phone.api import Deflection, VoipLine
+from custom_components.fritzbox_phone.api import Deflection, Phones, VoipLine
 
 from .common import FakeBox, entity_id, setup_integration
 
@@ -74,3 +74,19 @@ async def test_line_sensors_show_the_registration(hass: HomeAssistant) -> None:
     assert (first.state, second.state) == (STATE_ON, STATE_OFF)
     assert second.attributes["status"] == "Unregistered"
     assert first.attributes["friendly_name"].endswith("Line 030 111")
+
+
+async def test_phones_sensor_lists_what_dial_can_ring(hass: HomeAssistant) -> None:
+    box = FakeBox(
+        phones=Phones(
+            dial_phones=["Fon 1", "DECT Kueche"],
+            dial_phone="Fon 1",
+            dect=[{"name": "Kueche", "model": "C6", "active": True}],
+        )
+    )
+    entry = await setup_integration(hass, box)
+
+    state = hass.states.get(entity_id(hass, entry, "phones", "sensor"))
+    assert state.state == "2"
+    assert state.attributes["dial_phones"] == ["Fon 1", "DECT Kueche"]
+    assert state.attributes["dect"][0]["name"] == "Kueche"

@@ -48,6 +48,22 @@ async def test_dial_and_hangup(hass: HomeAssistant) -> None:
     assert box.calls_log == [("dial", "030 123456"), ("hangup",)]
 
 
+async def test_dial_with_a_phone(hass: HomeAssistant) -> None:
+    from custom_components.fritzbox_phone.api import Phones
+
+    box = FakeBox(phones=Phones(dial_phones=["Fon 1", "DECT Kueche"]))
+    await _setup(hass, box)
+
+    await hass.services.async_call(
+        DOMAIN, "dial", {"number": "030 1", "phone": "DECT Kueche"}, blocking=True
+    )
+    assert box.calls_log == [("dial", "030 1", "DECT Kueche")]
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN, "dial", {"number": "030 1", "phone": "Nope"}, blocking=True
+        )
+
+
 async def test_dial_hangs_up_after_max_ring_seconds(hass: HomeAssistant) -> None:
     box = FakeBox()
     await _setup(hass, box)

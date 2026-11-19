@@ -4,6 +4,7 @@ from __future__ import annotations
 import threading
 from xml.etree import ElementTree as ET
 
+import pytest
 from fritzconnection.core.exceptions import FritzActionError
 
 from custom_components.fritzbox_phone.api import (
@@ -144,3 +145,68 @@ def test_voip_lines_read_number_and_status() -> None:
         (2, "030 2", False),
     ]
     assert "secret" not in repr(lines)
+
+
+def _phone_box(box, restore_fails: bool = False) -> None:
+    config = {"phone": "Fon 1"}
+
+    def call_action(service, action, **arguments):
+        box.actions.append((action, arguments))
+        if action == "X_AVM-DE_GetPhonePort":
+            index = arguments["NewIndex"]
+            names = {0: "Fon 1", 1: "DECT Kueche"}
+            if index not in names:
+                raise FritzActionError("713")
+            return {"NewX_AVM-DE_PhoneName": names[index]}
+        if action == "X_AVM-DE_DialGetConfig":
+            return {"NewX_AVM-DE_PhoneName": config["phone"]}
+        if action == "X_AVM-DE_DialSetConfig":
+            config["phone"] = arguments["NewX_AVM-DE_PhoneName"]
+            return {}
+        if action == "GetNumberOfDectEntries":
+            return {"NewNumberOfEntries": 1}
+        if action == "GetGenericDectEntry":
+            return {"NewName": "Kueche", "NewModel": "FRITZ!Fon C6", "NewActive": 1}
+        if action == "X_AVM-DE_GetClients":
+            return {
+                "NewX_AVM-DE_ClientList": "<List><Item><PhoneName>Softphone</PhoneName>"
+                "<OutGoingNumber>030 1</OutGoingNumber></Item></List>"
+            }
+        return {}
+
+    box.call_action = call_action
+
+
+def test_phones_are_collected_from_all_groups() -> None:
+    client, box = _client([])
+    _phone_box(box)
+    phones = client.get_phones()
+    assert phones.dial_phones == ["Fon 1", "DECT Kueche"]
+    assert phones.dial_phone == "Fon 1"
+    assert phones.dect == [{"name": "Kueche", "model": "FRITZ!Fon C6", "active": True}]
+    assert phones.ip == [{"name": "Softphone", "number": "030 1"}]
+
+
+def test_dial_with_a_phone_restores_the_dial_help() -> None:
+    client, box = _client([])
+    _phone_box(box)
+    client.dial("030 9", phone="DECT Kueche")
+    sequence = [
+        (a, args.get("NewX_AVM-DE_PhoneName") or args.get("NewX_AVM-DE_PhoneNumber"))
+        for a, args in box.actions
+        if a.startswith("X_AVM-DE_Dial")
+    ]
+    assert sequence == [
+        ("X_AVM-DE_DialGetConfig", None),
+        ("X_AVM-DE_DialSetConfig", "DECT Kueche"),
+        ("X_AVM-DE_DialNumber", "030 9"),
+        ("X_AVM-DE_DialSetConfig", "Fon 1"),
+    ]
+
+
+def test_dial_with_an_unknown_phone_is_refused() -> None:
+    client, box = _client([])
+    _phone_box(box)
+    with pytest.raises(ValueError):
+        client.dial("030 9", phone="Nope")
+    assert not any(a == "X_AVM-DE_DialNumber" for a, _ in box.actions)

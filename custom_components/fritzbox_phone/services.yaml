@@ -78,6 +78,11 @@ dial:
       example: "030 123456"
       selector:
         text:
+    phone:
+      required: false
+      example: "Fon 1"
+      selector:
+        text:
     max_ring_seconds:
       required: false
       example: 15

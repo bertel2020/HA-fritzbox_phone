@@ -14,6 +14,11 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 - Je Rufnummer der Box ein Sensor „Leitung …“, der anzeigt, ob der Anbieter sie
   angemeldet hat (Attribut `status`). So fällt ein Ausfall des Telefonanschlusses
   auf. Nicht an einer echten FRITZ!Box ausprobiert.
+- Neuer Sensor „Telefone“ (Diagnose): Die Attribute nennen die Telefone der Box
+  (`dial_phones`, `dect`, `ip`) und das aktuell für die Wählhilfe gewählte
+  (`dial_phone`). Die Aktion `dial` hat dazu das optionale Feld `phone`: Es lässt
+  für diesen einen Anruf das genannte Telefon klingeln; die Einstellung der Box
+  wird danach zurückgesetzt. Nicht an einer echten FRITZ!Box ausprobiert.
 
 ## 2.3.3 – 2026-11-17
 

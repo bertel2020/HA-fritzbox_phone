@@ -165,6 +165,9 @@
           "error": "Error",
           "unknown": "Unknown"
         }
+      },
+      "phones": {
+        "name": "Phones"
       }
     },
     "switch": {
@@ -243,6 +246,10 @@
         "number": {
           "name": "Phone number",
           "description": "The number to call."
+        },
+        "phone": {
+          "name": "Phone",
+          "description": "Rings this phone for this one call instead of the one chosen on the box. Use a name from the phones sensor attribute dial_phones."
         },
         "max_ring_seconds": {
           "name": "Hang up after",

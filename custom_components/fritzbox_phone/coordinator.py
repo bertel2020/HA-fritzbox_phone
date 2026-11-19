@@ -28,6 +28,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import (
     CallEntry,
     Deflection,
+    Phones,
     VoipLine,
     FritzBoxPhoneClient,
     Phonebook,
@@ -97,6 +98,9 @@ ENRICHMENT_BUDGET = 20
 FIRST_ENRICHMENT_BUDGET = 5
 
 
+PHONES_REFRESH_SECONDS = 3600
+
+
 @dataclass
 class FritzBoxPhoneData:
     phonebooks: list[Phonebook]
@@ -104,6 +108,7 @@ class FritzBoxPhoneData:
     tams: list[Tam]
     deflections: list[Deflection] = field(default_factory=list)
     voip_lines: list[VoipLine] = field(default_factory=list)
+    phones: Phones | None = None
 
 
 class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
@@ -139,6 +144,8 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         self._phonebooks_fetched = 0.0
         self._deflections: list[Deflection] = []
         self._voip_lines: list[VoipLine] = []
+        self._phones: Phones | None = None
+        self._phones_read_at = 0.0
         self._contacts_by_number: dict[str, tuple[str, bool]] = {}
         self._contacts_by_digits: dict[str, tuple[str, bool]] = {}
         # Change detection for the logbook events. `None` means "no poll
@@ -483,6 +490,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             tams=tams,
             deflections=self._get_deflections(),
             voip_lines=self._get_voip_lines(),
+            phones=self._get_phones(),
         )
 
     def _get_deflections(self) -> list[Deflection]:
@@ -495,6 +503,20 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             return self._deflections
         self._deflections = deflections
         return deflections
+
+    def _get_phones(self) -> Phones | None:
+        # Handsets are rarely added or renamed: one read per hour is plenty
+        # for the many requests it takes.
+        now = time.monotonic()
+        if self._phones is not None and now - self._phones_read_at < PHONES_REFRESH_SECONDS:
+            return self._phones
+        try:
+            phones = self.client.get_phones()
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.debug("Telefone konnten nicht gelesen werden: %s", err)
+            return self._phones
+        self._phones, self._phones_read_at = phones, now
+        return phones
 
     def _get_voip_lines(self) -> list[VoipLine]:
         # Secondary data, like the forwarding rules.

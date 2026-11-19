@@ -11,6 +11,7 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.fritzbox_phone.api import (
+    Phones,
     VoipLine,
     CallEntry,
     Phonebook,
@@ -108,6 +109,7 @@ class FakeBox:
     blocked: list[str] = field(default_factory=list)
     deflections: list[Deflection] = field(default_factory=list)
     voip_lines: list[VoipLine] = field(default_factory=list)
+    phones: Phones = field(default_factory=Phones)
     # Raised by get_blocked_numbers (e.g. a box without call barring).
     blocklist_error: Exception | None = None
 
@@ -162,8 +164,17 @@ def build_client_class(box: FakeBox):
         def download(self, url: str) -> bytes:
             return b"RIFF"
 
-        def dial(self, number: str) -> None:
+        def dial(self, number: str, phone: str | None = None) -> None:
+            if phone is not None:
+                if phone not in box.phones.dial_phones:
+                    raise ValueError(f"Unknown phone: {phone}")
+                box.calls_log.append(("dial", number, phone))
+                return
             box.calls_log.append(("dial", number))
+
+        def get_phones(self):
+            self._poll()
+            return replace(box.phones)
 
         def hangup(self) -> None:
             box.calls_log.append(("hangup",))

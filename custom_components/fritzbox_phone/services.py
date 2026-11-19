@@ -26,6 +26,7 @@ from .const import (
     ATTR_NAME,
     ATTR_MAX_RING_SECONDS,
     ATTR_NUMBER,
+    ATTR_PHONE,
     ATTR_NUMBER_TYPE,
     ATTR_NUMBERS,
     ATTR_PHONEBOOK_ID,
@@ -158,7 +159,19 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
     async def dial(call: ServiceCall) -> None:
         for coordinator in await _coordinators(hass, call):
-            await _async_run(hass, coordinator, coordinator.client.dial, call.data[ATTR_NUMBER])
+            try:
+                await _async_run(
+                    hass,
+                    coordinator,
+                    coordinator.client.dial,
+                    *(
+                        (call.data[ATTR_NUMBER], call.data[ATTR_PHONE])
+                        if ATTR_PHONE in call.data
+                        else (call.data[ATTR_NUMBER],)
+                    ),
+                )
+            except ValueError as err:  # a phone the dial help does not know
+                raise ServiceValidationError(str(err)) from err
             if (seconds := call.data.get(ATTR_MAX_RING_SECONDS)) is not None:
                 # Like fritz.dial: cancel the call setup if nobody picked up in time.
                 async def _hangup(_now, coordinator=coordinator) -> None:
@@ -384,6 +397,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
             {
                 **_DEVICE_FIELD,
                 vol.Required(ATTR_NUMBER): _number,
+                vol.Optional(ATTR_PHONE): cv.string,
                 vol.Optional(ATTR_MAX_RING_SECONDS): vol.All(
                     vol.Coerce(int), vol.Range(min=1, max=300)
                 ),

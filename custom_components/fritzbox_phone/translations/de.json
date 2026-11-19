@@ -165,6 +165,9 @@
           "error": "Fehler",
           "unknown": "Unbekannt"
         }
+      },
+      "phones": {
+        "name": "Telefone"
       }
     },
     "switch": {
@@ -243,6 +246,10 @@
         "number": {
           "name": "Rufnummer",
           "description": "Die anzurufende Nummer."
+        },
+        "phone": {
+          "name": "Telefon",
+          "description": "Lässt für diesen einen Anruf dieses Telefon klingeln statt des an der Box gewählten. Einen Namen aus dem Attribut dial_phones des Telefone-Sensors verwenden."
         },
         "max_ring_seconds": {
           "name": "Auflegen nach",

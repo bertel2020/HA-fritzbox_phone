@@ -60,6 +60,7 @@ async def async_setup_entry(
         FritzBoxMissedCallsSensor(coordinator, entry),
         FritzBoxCallsTodaySensor(coordinator, entry),
         FritzBoxTalkTimeTodaySensor(coordinator, entry),
+        FritzBoxPhonesSensor(coordinator, entry),
     ]
     if (monitor := entry.runtime_data.call_monitor) is not None:
         entities.append(FritzBoxCallMonitorSensor(coordinator, entry, monitor))
@@ -557,3 +558,36 @@ class FritzBoxCallMonitorSensor(FritzBoxPhoneEntity, SensorEntity):
         if context is not None:
             self.async_set_context(context)
         self.async_write_ha_state()
+
+
+class FritzBoxPhonesSensor(FritzBoxPhoneEntity, SensorEntity):
+    """The telephones of the box; its attributes name what `dial` can ring."""
+
+    _attr_translation_key = "phones"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_phones"
+
+    @property
+    def available(self) -> bool:
+        return super().available and self.coordinator.data.phones is not None
+
+    @property
+    def native_value(self) -> int | None:
+        phones = self.coordinator.data.phones
+        return len(phones.dial_phones) if phones else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        phones = self.coordinator.data.phones
+        if phones is None:
+            return {}
+        return {
+            "dial_phones": phones.dial_phones,
+            "dial_phone": phones.dial_phone,
+            "dect": phones.dect,
+            "ip": phones.ip,
+            **self._privacy_attributes,
+        }

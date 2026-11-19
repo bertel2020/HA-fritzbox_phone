@@ -49,6 +49,9 @@
           "error": "mdi:magnify-close",
           "unknown": "mdi:magnify"
         }
+      },
+      "phones": {
+        "default": "mdi:phone-classic"
       }
     },
     "switch": {

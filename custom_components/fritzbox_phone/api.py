@@ -22,7 +22,12 @@ from xml.etree import ElementTree as ET
 import requests
 
 from fritzconnection import FritzConnection
-from fritzconnection.core.exceptions import FritzActionError, FritzSecurityError, FritzServiceError
+from fritzconnection.core.exceptions import (
+    FritzActionError,
+    FritzConnectionException,
+    FritzSecurityError,
+    FritzServiceError,
+)
 from fritzconnection.core.utils import get_xml_root
 
 from .const import CALL_TYPE_NAMES, FAX_PORT, MAX_RECORDING_BYTES, TAM_PORT, TAM_PORT_RANGE
@@ -64,6 +69,10 @@ DEVICEINFO_SERVICE = "DeviceInfo1"
 VOIP_SERVICE = "X_VoIP1"
 # More rules than this are not expected; it only bounds the requests per poll.
 MAX_DEFLECTIONS = 32
+DECT_SERVICE = "X_AVM-DE_Dect1"
+# Upper bounds that only limit the requests per refresh.
+MAX_PHONE_PORTS = 20
+MAX_DECT_HANDSETS = 16
 # The box has room for 20 telephone numbers; this only bounds the requests per poll.
 MAX_VOIP_ACCOUNTS = 20
 
@@ -182,6 +191,17 @@ class VoipLine:
     @property
     def registered(self) -> bool:
         return (self.status or "").strip().lower() == "registered"
+
+
+@dataclass
+class Phones:
+    """The telephones the box knows about."""
+
+    # Names the dial help accepts (X_VoIP GetPhonePort), and the one it uses now.
+    dial_phones: list[str] = field(default_factory=list)
+    dial_phone: str | None = None
+    dect: list[dict[str, Any]] = field(default_factory=list)
+    ip: list[dict[str, Any]] = field(default_factory=list)
 
 
 def path_key(path: str | None) -> tuple[str, tuple[tuple[str, str], ...]] | None:
@@ -806,13 +826,87 @@ class FritzBoxPhoneClient:
             NewMessageIndex=message_index,
         )
 
-    def dial(self, number: str) -> None:
+    def dial(self, number: str, phone: str | None = None) -> None:
         """Start a call from the box's dial help (Wählhilfe).
 
         The dial help has to be enabled on the box (Telefonie > Telefoniegeräte);
-        the phone it rings first is the one chosen there.
+        the phone it rings first is the one chosen there, or `phone` (a name
+        from get_dial_phones) for this one call: the box's own choice is put
+        back afterwards.
         """
+        if phone is None:
+            self._dial(number)
+            return
+        if phone not in self.get_dial_phones():
+            raise ValueError(f"Unknown phone: {phone}")
+        previous = self._call(VOIP_SERVICE, "X_AVM-DE_DialGetConfig").get("NewX_AVM-DE_PhoneName")
+        self._call(VOIP_SERVICE, "X_AVM-DE_DialSetConfig", **{"NewX_AVM-DE_PhoneName": phone})
+        try:
+            self._dial(number)
+        finally:
+            if previous and previous != phone:
+                try:
+                    self._call(
+                        VOIP_SERVICE, "X_AVM-DE_DialSetConfig", **{"NewX_AVM-DE_PhoneName": previous}
+                    )
+                except (FritzConnectionException, requests.RequestException, OSError) as err:
+                    _LOGGER.warning("Could not restore the dial help phone: %s", redact(err))
+
+    def _dial(self, number: str) -> None:
         self._call(VOIP_SERVICE, "X_AVM-DE_DialNumber", **{"NewX_AVM-DE_PhoneNumber": number})
+
+    def get_dial_phones(self) -> list[str]:
+        """Names of the phones the dial help can ring."""
+        names: list[str] = []
+        for index in range(MAX_PHONE_PORTS):
+            try:
+                name = self._call(VOIP_SERVICE, "X_AVM-DE_GetPhonePort", NewIndex=index).get(
+                    "NewX_AVM-DE_PhoneName"
+                )
+            except UNSUPPORTED_ERRORS:
+                continue  # the index range may start at 1 or have gaps
+            if name and name not in names:
+                names.append(name)
+        return names
+
+    def get_phones(self) -> Phones:
+        """The telephones of the box. Each group is optional: a box without
+        DECT or IP phones just leaves it empty."""
+        phones = Phones(dial_phones=self.get_dial_phones())
+        try:
+            phones.dial_phone = (
+                self._call(VOIP_SERVICE, "X_AVM-DE_DialGetConfig").get("NewX_AVM-DE_PhoneName")
+                or None
+            )
+        except UNSUPPORTED_ERRORS:
+            pass
+        try:
+            count = _to_int(
+                str(self._call(DECT_SERVICE, "GetNumberOfDectEntries").get("NewNumberOfEntries"))
+            )
+            for index in range(min(count, MAX_DECT_HANDSETS)):
+                entry = self._call(DECT_SERVICE, "GetGenericDectEntry", NewIndex=index)
+                phones.dect.append(
+                    {
+                        "name": entry.get("NewName"),
+                        "model": entry.get("NewModel") or None,
+                        "active": str(entry.get("NewActive")).lower() in ("1", "true"),
+                    }
+                )
+        except UNSUPPORTED_ERRORS:
+            pass
+        try:
+            raw = self._call(VOIP_SERVICE, "X_AVM-DE_GetClients").get("NewX_AVM-DE_ClientList")
+            for item in ET.fromstring(raw).iter("Item") if raw else ():
+                phones.ip.append(
+                    {
+                        "name": item.findtext("PhoneName"),
+                        "number": item.findtext("OutGoingNumber") or None,
+                    }
+                )
+        except (UNSUPPORTED_ERRORS + (ET.ParseError,)):
+            pass
+        return phones
 
     def hangup(self) -> None:
         """Cancel the call setup started by dial()."""
