@@ -100,6 +100,8 @@ def test_deflections_are_read_one_by_one() -> None:
             "NewNumber": "030 111",
             "NewDeflectionToNumber": f"0171 {arguments['NewDeflectionId']}",
             "NewMode": "eDeflectImmediately",
+            "NewOutgoing": "eAllCalls",
+            "NewPhonebookID": 0,
         }
 
     box.call_action = call_action
@@ -108,6 +110,7 @@ def test_deflections_are_read_one_by_one() -> None:
         (0, True, "0171 0"),
         (1, False, "0171 1"),
     ]
+    assert (deflections[0].outgoing, deflections[0].phonebook_id) == ("eAllCalls", 0)
 
     client.set_deflection_enable(1, True)
     assert box.actions[-1] == (

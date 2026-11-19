@@ -9,6 +9,8 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 - Die Aktion `dial` hat ein optionales Feld `max_ring_seconds` (1–300): Hebt niemand
   in dieser Zeit ab, wird der Verbindungsaufbau automatisch abgebrochen, wie bei
   `fritz.dial`.
+- Die Schalter der Rufumleitungen nennen jetzt auch `outgoing` (welche Anrufe
+  umgeleitet werden) und `phonebook_id` als Attribute.
 
 ## 2.3.3 – 2026-11-17
 

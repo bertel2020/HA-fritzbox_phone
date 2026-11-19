@@ -165,6 +165,8 @@ class Deflection:
     number: str | None
     to_number: str | None
     mode: str | None
+    outgoing: str | None = None
+    phonebook_id: int | None = None
 
 
 def path_key(path: str | None) -> tuple[str, tuple[tuple[str, str], ...]] | None:
@@ -543,6 +545,12 @@ class FritzBoxPhoneClient:
                     number=info.get("NewNumber") or None,
                     to_number=info.get("NewDeflectionToNumber") or None,
                     mode=info.get("NewMode") or None,
+                    outgoing=info.get("NewOutgoing") or None,
+                    phonebook_id=(
+                        _to_int(str(info["NewPhonebookID"]))
+                        if info.get("NewPhonebookID") not in (None, "")
+                        else None
+                    ),
                 )
             )
         return deflections

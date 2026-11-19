@@ -17,6 +17,8 @@ def _deflection(deflection_id: int, enabled: bool, to_number: str = "0171 123456
         number="030 111",
         to_number=to_number,
         mode="eDeflectImmediately",
+        outgoing="eAllCalls",
+        phonebook_id=0,
     )
 
 
@@ -28,6 +30,7 @@ async def test_deflection_switches_follow_the_box(hass: HomeAssistant) -> None:
     second = hass.states.get(entity_id(hass, entry, "deflection_1_enabled", "switch"))
     assert (first.state, second.state) == (STATE_ON, STATE_OFF)
     assert first.attributes["to_number"] == "0171 1234567"
+    assert (first.attributes["outgoing"], first.attributes["phonebook_id"]) == ("eAllCalls", 0)
     assert first.attributes["friendly_name"].endswith("Forwarding to 0171 1234567")
 
 

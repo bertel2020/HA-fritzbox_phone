@@ -135,6 +135,8 @@ class FritzBoxDeflectionSwitch(FritzBoxPhoneEntity, SwitchEntity):
             "number": deflection.number,
             "to_number": deflection.to_number,
             "mode": deflection.mode,
+            "outgoing": deflection.outgoing,
+            "phonebook_id": deflection.phonebook_id,
         }
 
     async def async_turn_on(self, **kwargs: Any) -> None:
