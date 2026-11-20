@@ -2,7 +2,7 @@
 
 Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
-## Unveröffentlicht
+## 2.4.0 – 2026-11-20
 
 ### Neu
 
@@ -25,6 +25,8 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
   Ausschalten bricht ihn ab.
 - Neuer Blueprint `scheduled_forwarding.yaml`: schaltet eine Rufumleitung zu einer
   Uhrzeit ein und zu einer anderen aus, an wählbaren Wochentagen.
+- Englische Anleitung (`docs/USER-GUIDE.en.md`), Umstiegshinweis von den
+  Core-Integrationen `fritz` und `fritzbox_callmonitor` in den Readmes.
 
 ## 2.3.3 – 2026-11-17
 
