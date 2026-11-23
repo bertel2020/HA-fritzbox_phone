@@ -120,6 +120,9 @@
       "call_list": {
         "name": "Anrufliste"
       },
+      "call_list_number": {
+        "name": "Anrufliste {number}"
+      },
       "missed_calls": {
         "name": "Verpasste Anrufe"
       },

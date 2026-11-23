@@ -4,6 +4,9 @@
       "call_list": {
         "default": "mdi:phone-log"
       },
+      "call_list_number": {
+        "default": "mdi:phone-log"
+      },
       "missed_calls": {
         "default": "mdi:phone-missed"
       },

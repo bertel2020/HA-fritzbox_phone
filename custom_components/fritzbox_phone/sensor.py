@@ -40,7 +40,7 @@ from .coordinator import FritzBoxPhoneCoordinator
 from .runtime import FritzBoxPhoneConfigEntry
 from .entity import FritzBoxPhoneEntity
 from .health import STATUS_ERROR, STATUS_OK, STATUS_UNKNOWN, LookupHealth
-from .payloads import call_to_dict, contact_to_dict, message_to_dict
+from .payloads import call_to_dict, contact_to_dict, message_to_dict, own_number
 from .views import recording_path
 
 _LOGGER = logging.getLogger(__name__)
@@ -90,6 +90,7 @@ async def async_setup_entry(
     # box that merely hiccuped.
     known_phonebooks: set[int] = set()
     known_tams: set[int] = set()
+    known_numbers: set[str] = set()
 
     @callback
     def _async_add_new_entities() -> None:
@@ -102,6 +103,20 @@ async def async_setup_entry(
             if tam.index not in known_tams:
                 known_tams.add(tam.index)
                 new.append(FritzBoxTamSensor(coordinator, entry, tam.index))
+        # One call list per own number, found in the calls themselves (the
+        # box offers no list of its numbers over the call list). Only
+        # worth it with more than one number; a number that has shown up
+        # once keeps its sensor.
+        numbers = {
+            key: number
+            for call in coordinator.data.calls
+            if (number := own_number(call_to_dict(call))) and (key := _digits(number))
+        }
+        if len(numbers) > 1 or known_numbers:
+            for key, number in numbers.items():
+                if key not in known_numbers:
+                    known_numbers.add(key)
+                    new.append(FritzBoxOwnNumberCallListSensor(coordinator, entry, key, number))
         if new:
             async_add_entities(new)
 
@@ -142,6 +157,46 @@ class FritzBoxCallListSensor(FritzBoxPhoneEntity, SensorEntity):
             "call_history_days": options.get(CONF_CALL_HISTORY_DAYS, DEFAULT_CALL_HISTORY_DAYS),
             **self._privacy_attributes,
         }
+
+
+def _digits(number: str) -> str:
+    return "".join(ch for ch in number if ch.isdigit())
+
+
+class FritzBoxOwnNumberCallListSensor(FritzBoxPhoneEntity, SensorEntity):
+    """The call list narrowed to the calls of one of the box's own numbers."""
+
+    _attr_translation_key = "call_list_number"
+    _unrecorded_attributes = frozenset({"calls"})
+
+    def __init__(
+        self,
+        coordinator: FritzBoxPhoneCoordinator,
+        entry: ConfigEntry,
+        key: str,
+        number: str,
+    ) -> None:
+        super().__init__(coordinator, entry)
+        self._key = key
+        self._number = number
+        self._attr_unique_id = f"{entry.entry_id}_call_list_{key}"
+
+    @property
+    def translation_placeholders(self) -> dict[str, str]:
+        return {"number": self._number}
+
+    @property
+    def _calls(self) -> list[dict[str, Any]]:
+        records = (call_to_dict(call) for call in self.coordinator.data.calls)
+        return [r for r in records if _digits(own_number(r) or "") == self._key]
+
+    @property
+    def native_value(self) -> int:
+        return len(self._calls)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {"own_number": self._number, "calls": self._calls, **self._privacy_attributes}
 
 
 class FritzBoxMissedCallsSensor(FritzBoxPhoneEntity, SensorEntity):

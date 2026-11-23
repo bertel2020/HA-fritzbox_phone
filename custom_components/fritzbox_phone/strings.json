@@ -120,6 +120,9 @@
       "call_list": {
         "name": "Call list"
       },
+      "call_list_number": {
+        "name": "Call list {number}"
+      },
       "missed_calls": {
         "name": "Missed calls"
       },

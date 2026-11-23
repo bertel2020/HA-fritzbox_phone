@@ -15,6 +15,7 @@ from .common import (
     FakeBox,
     entity_id,
     get_coordinator,
+    make_call,
     make_message,
     make_phonebook,
     make_tam,
@@ -70,3 +71,33 @@ def test_big_attribute_lists_stay_out_of_the_recorder() -> None:
     assert "calls" in FritzBoxMissedCallsSensor._unrecorded_attributes
     assert "contacts" in FritzBoxPhonebookSensor._unrecorded_attributes
     assert "messages" in FritzBoxTamSensor._unrecorded_attributes
+
+
+async def test_call_list_per_own_number(hass: HomeAssistant) -> None:
+    from homeassistant.helpers import entity_registry as er
+
+    box = FakeBox(calls=[make_call("1", called_number="0301111")])
+    entry = await setup_integration(hass, box)
+    registry = er.async_get(hass)
+
+    def sensor(number: str) -> str | None:
+        return registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{entry.entry_id}_call_list_{number}"
+        )
+
+    # A single number needs no per-number list.
+    assert sensor("0301111") is None
+
+    box.calls = [
+        make_call("1", called_number="0301111"),
+        make_call("2", called_number="0302222"),
+        make_call("3", 3, caller_number="0301111", called_number="0309999"),
+    ]
+    await get_coordinator(hass, entry).async_refresh()
+    await hass.async_block_till_done()
+
+    first = hass.states.get(sensor("0301111"))
+    assert first.state == "2"  # the incoming call and the outgoing one
+    assert first.attributes["own_number"] == "0301111"
+    assert hass.states.get(sensor("0302222")).state == "1"
+    assert await hass.config_entries.async_unload(entry.entry_id)

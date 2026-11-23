@@ -2,6 +2,13 @@
 
 Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
+## Unveröffentlicht
+
+### Neu
+
+- Hat die Box mehrere Rufnummern, gibt es je Rufnummer einen Sensor „Anrufliste …“
+  mit den Anrufen genau dieser Nummer (Attribute `own_number` und `calls`).
+
 ## 2.4.0 – 2026-11-20
 
 ### Neu
