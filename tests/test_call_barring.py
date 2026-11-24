@@ -236,6 +236,17 @@ def test_voip_line_status_as_number() -> None:
     assert not VoipLine(index=0, number="1", status="0").registered
 
 
+def test_voip_line_in_a_call_is_still_registered() -> None:
+    for status in ("connected", "3"):
+        line = VoipLine(index=0, number="1", status=status)
+        assert line.registered and line.in_use
+    assert not VoipLine(index=0, number="1", status="2").in_use
+    assert VoipLine(index=0, number="1", status="Not registered").registered is False
+    assert VoipLine(index=0, number="1", status="disabled").registered is False
+    assert VoipLine(index=0, number="1", status="unknown").registered is None
+    assert VoipLine(index=0, number="1", status="7").registered is None
+
+
 def test_phone_group_with_argument_error_leaves_others() -> None:
     from fritzconnection.core.exceptions import FritzArgumentError
 

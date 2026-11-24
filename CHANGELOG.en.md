@@ -35,7 +35,9 @@ All notable changes to this integration are recorded here.
   cannot be read stays empty.
 - The telephone lines showed "Disconnected" although the provider had them
   registered: some boxes report the status as a number (`2` = registered) instead
-  of a word.
+  of a word. During a call the box reports `connected` or `3`; that counts as
+  registered too, and the new attribute `in_use` shows the running call. Unknown
+  statuses show as "Unknown" and are logged once.
 - After a Home Assistant restart the "Call monitor" sensor was unavailable for as
   long as the first poll of the box took. The connection to the call monitor is now
   opened while that poll runs.

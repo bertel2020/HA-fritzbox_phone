@@ -598,6 +598,16 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             self._read_failed("voip_lines", "Telefonleitungen", err)
             return self._voip_lines
         self._read_ok("voip_lines")
+        for line in lines:
+            if line.registered is None:
+                key = f"voip_status_{line.status}"
+                if key not in self._read_warned:
+                    self._read_warned.add(key)
+                    _LOGGER.warning(
+                        "Die FRITZ!Box meldet für die Leitung %s den unbekannten Status %r",
+                        line.number,
+                        line.status,
+                    )
         self._voip_lines = lines
         return lines
 

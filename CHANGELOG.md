@@ -37,7 +37,10 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
   Telefon-Abfragen ablehnte. Jetzt wird jede Gruppe (Wählhilfe, DECT, IP-Telefone)
   einzeln gelesen; was sich nicht lesen lässt, bleibt leer.
 - Die Telefonleitungen standen auf „Getrennt“, obwohl der Anbieter sie registriert
-  hatte: Manche Boxen melden den Status als Zahl (`2` = registriert) statt als Wort.
+  hatte: Manche Boxen melden den Status als Zahl (`2` = registriert) statt als Wort. Während eines Gesprächs meldet die Box
+  `connected` bzw. `3`; auch das gilt als registriert, das neue Attribut `in_use`
+  zeigt dann das laufende Gespräch an. Unbekannte Status stehen auf „Unbekannt“
+  und werden einmal im Log gemeldet.
 - Nach einem Neustart von Home Assistant war der Sensor „Anrufmonitor“ so lange
   „nicht verfügbar“, wie die erste Abfrage der Box dauerte. Die Verbindung zum
   Anrufmonitor wird jetzt schon währenddessen aufgebaut.

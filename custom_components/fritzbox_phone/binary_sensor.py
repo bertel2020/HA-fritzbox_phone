@@ -176,7 +176,11 @@ class FritzBoxLineSensor(FritzBoxPhoneEntity, BinarySensorEntity):
         line = self._line
         if line is None:
             return {}
-        return {"number": line.number, "status": line.status}
+        return {
+            "number": line.number,
+            "status": line.status,
+            "in_use": line.in_use,
+        }
 
 
 class FritzBoxHandsetSensor(FritzBoxPhoneEntity, BinarySensorEntity):

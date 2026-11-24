@@ -212,10 +212,29 @@ class VoipLine:
     status: str | None
 
     @property
-    def registered(self) -> bool:
-        # Boxes answer with the word or, as seen on a real one, with a
-        # number: "2" while the provider has the number registered.
-        return (self.status or "").strip().lower() in ("registered", "2")
+    def registered(self) -> bool | None:
+        """True while the number is registered, None for a status nobody knows.
+
+        AVM documents the words disabled, not registered, registered,
+        connected and unknown. "connected" means a call is running on the
+        line, so the number is registered then too. A real box answers with
+        numbers: "2" while idle and "3" during a call.
+        """
+        status = (self.status or "").strip().lower()
+        if status in _LINE_REGISTERED:
+            return True
+        if status in _LINE_NOT_REGISTERED:
+            return False
+        return None
+
+    @property
+    def in_use(self) -> bool:
+        """True while a call runs on the line."""
+        return (self.status or "").strip().lower() in ("connected", "3")
+
+
+_LINE_REGISTERED = ("registered", "connected", "2", "3")
+_LINE_NOT_REGISTERED = ("disabled", "not registered", "unregistered", "0")
 
 
 @dataclass
