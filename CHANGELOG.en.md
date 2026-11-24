@@ -6,6 +6,9 @@ All notable changes to this integration are recorded here.
 
 ### New
 
+- The call monitor now names the phone of a call (attribute `phone`): who picked up
+  or which phone places the call. FON sockets, DECT handsets and IP phones are
+  recognised; not tried on a real FRITZ!Box with every kind of phone.
 - One sensor "Handset …" per DECT handset (on while it is switched on and in range;
   attributes `name`, `model`).
 - New selection "Phone for call backs" (configuration): sets the phone of the dial

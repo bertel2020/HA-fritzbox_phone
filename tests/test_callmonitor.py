@@ -66,7 +66,12 @@ def test_parse_line() -> None:
     assert ring.timestamp == "2026-10-24T10:00:00"
 
     call = line("24.10.26 10:00:00;CALL;3;1;0301111;0309999;SIP1;")
-    assert call.fields == {"from": "0301111", "to": "0309999", "device": "SIP1"}
+    assert call.fields == {
+        "from": "0301111",
+        "to": "0309999",
+        "device": "SIP1",
+        "extension": "1",
+    }
 
     connect = line("24.10.26 10:00:05;CONNECT;7;1;0301234567;")
     assert connect.fields == {"with": "0301234567", "device": "1"}
@@ -398,3 +403,32 @@ async def test_stop_does_not_wait_for_a_stuck_monitor(hass: HomeAssistant, fake_
     finally:
         callmonitor.STOP_TIMEOUT = 10
         release.set()
+
+
+async def test_a_call_names_the_phone_that_picked_up(hass: HomeAssistant, fake_monitor) -> None:
+    from custom_components.fritzbox_phone.api import Phones
+
+    box = FakeBox(
+        phones=Phones(
+            dial_phones=["FON1: Telefon", "FON2: Telefon"],
+            dect=[{"id": "2", "name": "Mobilteil 2", "model": None, "active": True}],
+            ip=[{"name": "FRITZ!App Fon", "internal_number": "620", "number": None,
+                 "incoming_numbers": []}],
+        )
+    )
+    entry, monitor = await setup_monitor(hass, box)
+    sensor = entity_id(hass, entry, "call_monitor")
+
+    monitor.async_handle_line(line("24.10.26 10:00:00;RING;1;0301;0300;SIP0;"))
+    monitor.async_handle_line(line("24.10.26 10:00:03;CONNECT;1;11;0301;"))
+    await hass.async_block_till_done()
+    assert hass.states.get(sensor).attributes["phone"] == "Mobilteil 2"
+
+    monitor.async_handle_line(line("24.10.26 10:00:30;DISCONNECT;1;27;"))
+    monitor.async_handle_line(line("24.10.26 10:01:00;CALL;2;20;620;0309999;SIP0;"))
+    await hass.async_block_till_done()
+    assert hass.states.get(sensor).attributes["phone"] == "FRITZ!App Fon"
+
+    monitor.async_handle_line(line("24.10.26 10:01:05;CONNECT;2;0;0309999;"))
+    await hass.async_block_till_done()
+    assert hass.states.get(sensor).attributes["phone"] == "FON1: Telefon"

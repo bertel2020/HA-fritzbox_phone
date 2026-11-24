@@ -26,6 +26,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import (
+    phone_for_extension,
     CallEntry,
     AlarmClock,
     UNSUPPORTED_ERRORS,
@@ -801,6 +802,10 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
 
     def get_voip_line(self, index: int) -> VoipLine | None:
         return next((line for line in self.data.voip_lines if line.index == index), None)
+
+    def phone_name(self, extension: str | None) -> str | None:
+        """The phone behind a CallMonitor extension (None when unknown)."""
+        return phone_for_extension(self.data.phones if self.data else None, extension)
 
     def get_dect_handset(self, handset_id: str) -> dict[str, Any] | None:
         phones = self.data.phones

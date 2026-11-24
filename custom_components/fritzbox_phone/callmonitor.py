@@ -107,7 +107,12 @@ def parse_line(line: str) -> MonitorLine | None:
         if kind == "RING":
             fields = {"from": parts[3], "to": parts[4], "device": parts[5]}
         elif kind == "CALL":
-            fields = {"from": parts[4], "to": parts[5], "device": parts[6]}
+            fields = {
+                "from": parts[4],
+                "to": parts[5],
+                "device": parts[6],
+                "extension": parts[3],
+            }
         elif kind == "CONNECT":
             fields = {"with": parts[4], "device": parts[3]}
         elif kind == "DISCONNECT":
@@ -455,6 +460,8 @@ class FritzCallMonitor:
             "device": line.fields["device"],
             "initiated": line.timestamp,
         }
+        if "extension" in line.fields:  # an outgoing call names its phone right away
+            attributes["phone"] = self._coordinator.phone_name(line.fields["extension"])
         number = attributes[other]
         name, vip = self._coordinator.resolve_contact(number)
         attributes[f"{other}_name"] = name
@@ -476,6 +483,8 @@ class FritzCallMonitor:
                 "with": number,
                 "device": line.fields["device"],
                 "accepted": line.timestamp,
+                # Who picked up (or, for an outgoing call, who is calling).
+                "phone": self._coordinator.phone_name(line.fields["device"]),
             }
         )
         # CONNECT doesn't repeat RING/CALL's `initiated` timestamp - it stays

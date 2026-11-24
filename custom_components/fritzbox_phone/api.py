@@ -251,6 +251,35 @@ def _field(item: ET.Element, name: str) -> str | None:
 _DECT_NON_PHONES = ("fritz!smart", "fritz!dect", "fritz!contact", "comet")
 
 
+def phone_for_extension(phones: Phones | None, extension: str | None) -> str | None:
+    """Name of the phone behind a CallMonitor extension number.
+
+    The box numbers its connections: 0-2 are the FON sockets, 10-19 the DECT
+    handsets (handset 1 = 10) and 20-29 the IP phones (internal number 620
+    = 20). Anything else, such as the answering machine, has no name here.
+    """
+    if phones is None or not extension or not extension.strip().isdigit():
+        return None
+    number = int(extension)
+    if 0 <= number <= 2:
+        prefix = f"FON{number + 1}"
+        return next((n for n in phones.dial_phones if n.upper().startswith(prefix)), None)
+    if 10 <= number <= 19:
+        return next(
+            (h.get("name") for h in phones.dect if h.get("id") == str(number - 9)), None
+        )
+    if 20 <= number <= 29:
+        return next(
+            (
+                p.get("name")
+                for p in phones.ip
+                if p.get("internal_number") == f"62{number - 20}"
+            ),
+            None,
+        )
+    return None
+
+
 def path_key(path: str | None) -> tuple[str, tuple[tuple[str, str], ...]] | None:
     """Comparable form of a download path: the same file spelled with
     different session ids or parameter order compares equal."""

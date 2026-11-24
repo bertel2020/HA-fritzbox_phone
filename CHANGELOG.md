@@ -6,6 +6,10 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Neu
 
+- Der Anrufmonitor nennt jetzt das Telefon eines Anrufs (Attribut `phone`): wer
+  abgehoben hat oder von wo aus angerufen wird. Erkannt werden FON-Anschlüsse,
+  DECT-Mobilteile und IP-Telefone; nicht an einer echten FRITZ!Box mit allen
+  Telefonarten ausprobiert.
 - Je DECT-Mobilteil ein Sensor „Mobilteil …“ (an, solange es eingeschaltet und in
   Reichweite ist; Attribute `name`, `model`).
 - Neue Auswahl „Telefon für Rückrufe“ (Konfiguration): stellt das Telefon der Wählhilfe ein,
