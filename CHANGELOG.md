@@ -22,8 +22,11 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
   abgehoben hat oder von wo aus angerufen wird. Erkannt werden FON-Anschlüsse,
   DECT-Mobilteile und IP-Telefone; nicht an einer echten FRITZ!Box mit allen
   Telefonarten ausprobiert.
-- Je DECT-Mobilteil ein Sensor „Mobilteil …“ (an, solange es eingeschaltet und in
-  Reichweite ist; Attribute `name`, `model`).
+- Je DECT-Mobilteil ein Sensor „… Funkverbindung“ („Aktiv“, solange das Mobilteil eine
+  Funkverbindung zur Box hat, sonst „Ruhezustand“; Attribute `name`, `model`). Die Box
+  meldet nur, ob gerade eine Funkverbindung besteht: Ein ruhendes Mobilteil, vor allem
+  mit DECT Eco, steht auf „Ruhezustand“, ohne unerreichbar zu sein. Der Zustand wird bei
+  jeder Abfrage neu gelesen.
 - Neue Auswahl „Telefon für Rückrufe“ (Konfiguration): stellt das Telefon der Wählhilfe ein,
   das als Erstes klingelt, wie unter Telefonie → Telefoniegeräte an der Box.
 
@@ -41,10 +44,7 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
   `connected` bzw. `3`; auch das gilt als registriert, das neue Attribut `in_use`
   zeigt dann das laufende Gespräch an. Unbekannte Status stehen auf „Unbekannt“
   und werden einmal im Log gemeldet.
-- Leitungen heißen jetzt „Registriert“ / „Nicht registriert“ statt „Verbunden“ / „Getrennt“; eine abgeschaltete Nummer zeigt „Unbekannt“. Die Mobilteil-Sensoren heißen „… Funkverbindung“ mit „Aktiv“ / „Ruhezustand“: Die Box meldet nur, ob gerade eine Funkverbindung besteht, nicht ob das Mobilteil erreichbar ist.
-- Die Sensoren der DECT-Mobilteile zeigten bis zu eine Stunde lang einen veralteten
-  Zustand, weil die Telefone nur stündlich gelesen werden. Die Mobilteile werden
-  jetzt bei jeder Abfrage neu gelesen.
+- Leitungen heißen jetzt „Registriert“ / „Nicht registriert“ statt „Verbunden“ / „Getrennt“; eine abgeschaltete Nummer zeigt „Unbekannt“.
 - Nach einem Neustart von Home Assistant war der Sensor „Anrufmonitor“ so lange
   „nicht verfügbar“, wie die erste Abfrage der Box dauerte. Die Verbindung zum
   Anrufmonitor wird jetzt schon währenddessen aufgebaut.

@@ -20,8 +20,10 @@ All notable changes to this integration are recorded here.
 - The call monitor now names the phone of a call (attribute `phone`): who picked up
   or which phone places the call. FON sockets, DECT handsets and IP phones are
   recognised; not tried on a real FRITZ!Box with every kind of phone.
-- One sensor "Handset …" per DECT handset (on while it is switched on and in range;
-  attributes `name`, `model`).
+- One sensor "... radio link" per DECT handset ("Active" while the handset has a radio
+  link to the box, otherwise "Idle"; attributes `name`, `model`). The box only reports
+  whether a radio link exists right now: a resting handset, especially with DECT Eco,
+  shows "Idle" without being unreachable. The state is read on every poll.
 - New selection "Phone for call backs" (configuration): sets the phone of the dial
   help that rings first, as under Telephony → Telephony devices on the box.
 
@@ -44,9 +46,7 @@ All notable changes to this integration are recorded here.
 
 ### Changed
 
-- Lines now read "Registered" / "Not registered" instead of "Connected" / "Disconnected"; a number the box has switched off shows "Unknown". The handset sensors are named "... radio link" with "Active" / "Idle": the box only reports whether a radio link exists right now, not whether the handset is reachable.
-- The DECT handset sensors could show a stale state for up to an hour because the
-  phones are only read hourly. The handsets are now read on every poll.
+- Lines now read "Registered" / "Not registered" instead of "Connected" / "Disconnected"; a number the box has switched off shows "Unknown".
 - When reading the phones, forwarding rules, alarm clocks, telephone lines or the
   call barring fails, the log shows a warning with the error type once (before,
   only on debug level).
