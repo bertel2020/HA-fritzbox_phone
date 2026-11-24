@@ -93,9 +93,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: FritzBoxPhoneConfigEntry
     else:
         await CallHistory.async_delete(hass, entry.entry_id)
     await coordinator.async_load_lookups()
-    await coordinator.async_config_entry_first_refresh()
-
-    await _async_register_frontend_resource(hass)
 
     monitor = None
     if entry.options.get(CONF_ENABLE_CALLMONITOR, DEFAULT_ENABLE_CALLMONITOR):
@@ -105,14 +102,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: FritzBoxPhoneConfigEntry
             entry.options.get(CONF_CALLMONITOR_PORT, DEFAULT_CALLMONITOR_PORT),
             coordinator,
         )
-    entry.runtime_data = FritzBoxPhoneRuntimeData(coordinator=coordinator, call_monitor=monitor)
-    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-    if monitor is not None:
-        # The first connection attempt must not hold up the setup: a box
-        # that has the CallMonitor switched off would otherwise cost the
-        # socket timeout on every start.
+        # Connect while the first poll runs: its many requests can take a
+        # while, and the call sensor would show "unavailable" for all of it
+        # after every restart. The first connection attempt must not hold up
+        # the setup either: a box that has the CallMonitor switched off
+        # would otherwise cost the socket timeout on every start.
         entry.async_create_background_task(hass, monitor.async_start(), "call monitor start")
         entry.async_on_unload(monitor.async_stop)
 
@@ -120,6 +114,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: FritzBoxPhoneConfigEntry
             await monitor.async_stop()
 
         entry.async_on_unload(hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _stop_monitor))
+
+    # on_unload does not run when the setup fails, so the monitor started
+    # above must be stopped by hand on that path.
+    try:
+        await coordinator.async_config_entry_first_refresh()
+        await _async_register_frontend_resource(hass)
+        entry.runtime_data = FritzBoxPhoneRuntimeData(coordinator=coordinator, call_monitor=monitor)
+        entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    except BaseException:
+        if monitor is not None:
+            await monitor.async_stop()
+        raise
     return True
 
 
