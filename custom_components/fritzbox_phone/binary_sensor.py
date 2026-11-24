@@ -184,10 +184,9 @@ class FritzBoxLineSensor(FritzBoxPhoneEntity, BinarySensorEntity):
 
 
 class FritzBoxHandsetSensor(FritzBoxPhoneEntity, BinarySensorEntity):
-    """On while a DECT handset of the box is switched on and in range."""
+    """On while a DECT handset has a radio link to the box (in use, not just in range)."""
 
     _attr_translation_key = "dect_handset"
-    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
 
     def __init__(
         self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry, handset_id: str

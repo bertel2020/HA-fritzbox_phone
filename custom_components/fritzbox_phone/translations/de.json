@@ -202,10 +202,18 @@
         "name": "Ungelesene Nachrichten"
       },
       "line_registered": {
-        "name": "Leitung {number}"
+        "name": "Leitung {number}",
+        "state": {
+          "on": "Registriert",
+          "off": "Nicht registriert"
+        }
       },
       "dect_handset": {
-        "name": "{name}"
+        "name": "{name} Funkverbindung",
+        "state": {
+          "on": "Aktiv",
+          "off": "Ruhezustand"
+        }
       }
     },
     "event": {

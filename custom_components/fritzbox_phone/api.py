@@ -213,7 +213,10 @@ class VoipLine:
 
     @property
     def registered(self) -> bool | None:
-        """True while the number is registered, None for a status nobody knows.
+        """True while the number is registered, False if the box says it is not.
+
+        None for everything else, including a number that is switched off on
+        purpose ("disabled", probably "0": no fault) and statuses nobody knows.
 
         AVM documents the words disabled, not registered, registered,
         connected and unknown. "connected" means a call is running on the
@@ -234,7 +237,7 @@ class VoipLine:
 
 
 _LINE_REGISTERED = ("registered", "connected", "2", "3")
-_LINE_NOT_REGISTERED = ("disabled", "not registered", "unregistered", "0")
+_LINE_NOT_REGISTERED = ("not registered", "unregistered")
 
 
 @dataclass
@@ -1085,7 +1088,10 @@ class FritzBoxPhoneClient:
             return None
 
     def get_dect_handsets(self) -> list[dict[str, Any]]:
-        """The DECT handsets and whether each is switched on and in range."""
+        """The DECT handsets and whether each has a radio link right now.
+
+        AVM: "active" = currently connected. A resting handset (DECT Eco)
+        reports inactive, so this is no measure of being reachable."""
         handsets: list[dict[str, Any]] = []
         count = _to_int(
             str(self._call(DECT_SERVICE, "GetNumberOfDectEntries").get("NewNumberOfEntries"))

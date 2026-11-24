@@ -610,7 +610,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             return self._voip_lines
         self._read_ok("voip_lines")
         for line in lines:
-            if line.registered is None:
+            if line.registered is None and (line.status or "").lower() not in ("disabled", "0"):
                 key = f"voip_status_{line.status}"
                 if key not in self._read_warned:
                     self._read_warned.add(key)

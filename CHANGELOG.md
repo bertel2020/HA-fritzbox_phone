@@ -41,6 +41,7 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
   `connected` bzw. `3`; auch das gilt als registriert, das neue Attribut `in_use`
   zeigt dann das laufende Gespräch an. Unbekannte Status stehen auf „Unbekannt“
   und werden einmal im Log gemeldet.
+- Leitungen heißen jetzt „Registriert“ / „Nicht registriert“ statt „Verbunden“ / „Getrennt“; eine abgeschaltete Nummer zeigt „Unbekannt“. Die Mobilteil-Sensoren heißen „… Funkverbindung“ mit „Aktiv“ / „Ruhezustand“: Die Box meldet nur, ob gerade eine Funkverbindung besteht, nicht ob das Mobilteil erreichbar ist.
 - Die Sensoren der DECT-Mobilteile zeigten bis zu eine Stunde lang einen veralteten
   Zustand, weil die Telefone nur stündlich gelesen werden. Die Mobilteile werden
   jetzt bei jeder Abfrage neu gelesen.

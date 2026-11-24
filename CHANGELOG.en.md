@@ -44,6 +44,7 @@ All notable changes to this integration are recorded here.
 
 ### Changed
 
+- Lines now read "Registered" / "Not registered" instead of "Connected" / "Disconnected"; a number the box has switched off shows "Unknown". The handset sensors are named "... radio link" with "Active" / "Idle": the box only reports whether a radio link exists right now, not whether the handset is reachable.
 - The DECT handset sensors could show a stale state for up to an hour because the
   phones are only read hourly. The handsets are now read on every poll.
 - When reading the phones, forwarding rules, alarm clocks, telephone lines or the

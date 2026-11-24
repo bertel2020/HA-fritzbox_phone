@@ -202,10 +202,18 @@
         "name": "Unread messages"
       },
       "line_registered": {
-        "name": "Line {number}"
+        "name": "Line {number}",
+        "state": {
+          "on": "Registered",
+          "off": "Not registered"
+        }
       },
       "dect_handset": {
-        "name": "{name}"
+        "name": "{name} radio link",
+        "state": {
+          "on": "Active",
+          "off": "Idle"
+        }
       }
     },
     "event": {

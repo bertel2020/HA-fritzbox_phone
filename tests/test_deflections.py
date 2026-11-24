@@ -161,7 +161,7 @@ async def test_dect_handsets_get_a_sensor_each(hass: HomeAssistant) -> None:
     kitchen = hass.states.get(entity_id(hass, entry, "dect_1", "binary_sensor"))
     bathroom = hass.states.get(entity_id(hass, entry, "dect_2", "binary_sensor"))
     assert (kitchen.state, bathroom.state) == (STATE_ON, STATE_OFF)
-    assert kitchen.attributes["friendly_name"].endswith("Kueche")
+    assert kitchen.attributes["friendly_name"].endswith("Kueche radio link")
     assert kitchen.attributes["model"] == "C6"
 
 

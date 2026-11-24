@@ -233,7 +233,7 @@ def test_dial_with_an_unknown_phone_is_refused() -> None:
 
 def test_voip_line_status_as_number() -> None:
     assert VoipLine(index=0, number="1", status="2").registered
-    assert not VoipLine(index=0, number="1", status="0").registered
+    assert VoipLine(index=0, number="1", status="0").registered is None
 
 
 def test_voip_line_in_a_call_is_still_registered() -> None:
@@ -242,7 +242,7 @@ def test_voip_line_in_a_call_is_still_registered() -> None:
         assert line.registered and line.in_use
     assert not VoipLine(index=0, number="1", status="2").in_use
     assert VoipLine(index=0, number="1", status="Not registered").registered is False
-    assert VoipLine(index=0, number="1", status="disabled").registered is False
+    assert VoipLine(index=0, number="1", status="disabled").registered is None
     assert VoipLine(index=0, number="1", status="unknown").registered is None
     assert VoipLine(index=0, number="1", status="7").registered is None
 
