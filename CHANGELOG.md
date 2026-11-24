@@ -2,7 +2,7 @@
 
 Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
-## 2.5.1 – 2026-11-24
+## 2.6.0 – 2026-11-24
 
 ### Neu
 
