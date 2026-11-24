@@ -86,7 +86,7 @@
           "call_history_days": "Anrufverlauf auf dem Datenträger behalten (Tage, 0 = aus)",
           "enable_call_monitor": "Anrufmonitor (Echtzeit-Anrufstatus) aktivieren",
           "callmonitor_port": "Anrufmonitor-Port",
-          "prefixes": "Länder-Präfixe für den Rufnummernabgleich (z. B. +49), kommagetrennt; leer = Land von Home Assistant",
+          "prefixes": "Länder-Präfixe (z. B. +49)",
           "phoneblock_enabled": "PhoneBlock-Spamerkennung aktivieren (kostenloser Account auf phoneblock.net nötig)",
           "phoneblock_username": "PhoneBlock-Benutzername",
           "phoneblock_password": "PhoneBlock-Kennwort (leer lassen = unverändert)",
@@ -102,7 +102,7 @@
           "call_history_days": "Führt jede Anrufliste zu einem längeren Verlauf für die Statistik eines Panels zusammen, ohne Doppelte, und behält ihn so viele Tage (höchstens 365). Die Anrufdaten (Nummern, Namen, Zeiten) liegen dann im Ordner .storage von Home Assistant und in dessen Backups. 0 löscht den gespeicherten Verlauf.",
           "enable_call_monitor": "Der Anrufmonitor muss in der FRITZ!Box aktiviert sein (an einem angeschlossenen Telefon #96*5* wählen).",
           "callmonitor_port": "TCP-Port des FRITZ!Box-Anrufmonitors, normalerweise 1012.",
-          "prefixes": "Damit dieselbe Nummer in verschiedenen Schreibweisen erkannt wird, z. B. 030 123456 und +49 30 123456.",
+          "prefixes": "Für den Rufnummernabgleich, kommagetrennt; leer = Land von Home Assistant. Damit dieselbe Nummer in verschiedenen Schreibweisen erkannt wird, z. B. 030 123456 und +49 30 123456.",
           "phoneblock_enabled": "Fragt unbekannte Anrufer bei phoneblock.net ab. Es wird nur ein Hash der Nummer gesendet.",
           "phoneblock_username": "Benutzername bei phoneblock.net.",
           "phoneblock_password": "Leer lassen, um das gespeicherte Kennwort zu behalten.",
@@ -205,7 +205,7 @@
         "name": "Leitung {number}"
       },
       "dect_handset": {
-        "name": "Mobilteil {name}"
+        "name": "{name}"
       }
     },
     "event": {

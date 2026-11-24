@@ -86,7 +86,7 @@
           "call_history_days": "Keep a call history on disk (days, 0 = off)",
           "enable_call_monitor": "Enable the call monitor (real-time call state)",
           "callmonitor_port": "Call monitor port",
-          "prefixes": "Country prefixes for number matching (e.g. +49), comma separated; empty = country of Home Assistant",
+          "prefixes": "Country prefixes (e.g. +49)",
           "phoneblock_enabled": "Enable PhoneBlock spam detection (free account on phoneblock.net required)",
           "phoneblock_username": "PhoneBlock username",
           "phoneblock_password": "PhoneBlock password (leave empty = unchanged)",
@@ -102,7 +102,7 @@
           "call_history_days": "Merges every call list into a longer history for the statistics of a panel, deduplicated and kept for this many days (at most 365). The call records (numbers, names, times) are then stored in Home Assistant's .storage folder and in its backups. 0 deletes the stored history.",
           "enable_call_monitor": "Needs the call monitor enabled on the FRITZ!Box (dial #96*5* on a connected phone).",
           "callmonitor_port": "TCP port of the FRITZ!Box call monitor, normally 1012.",
-          "prefixes": "Used to recognise the same number written differently, e.g. 030 123456 and +49 30 123456.",
+          "prefixes": "For number matching, comma separated; empty = country of Home Assistant. Used to recognise the same number written differently, e.g. 030 123456 and +49 30 123456.",
           "phoneblock_enabled": "Looks up unknown callers on phoneblock.net. Only a hash of the number is sent.",
           "phoneblock_username": "Account name on phoneblock.net.",
           "phoneblock_password": "Leave empty to keep the stored password.",
@@ -205,7 +205,7 @@
         "name": "Line {number}"
       },
       "dect_handset": {
-        "name": "Handset {name}"
+        "name": "{name}"
       }
     },
     "event": {
