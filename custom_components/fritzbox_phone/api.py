@@ -210,7 +210,9 @@ class VoipLine:
 
     @property
     def registered(self) -> bool:
-        return (self.status or "").strip().lower() == "registered"
+        # Boxes answer with the word or, as seen on a real one, with a
+        # number: "2" while the provider has the number registered.
+        return (self.status or "").strip().lower() in ("registered", "2")
 
 
 @dataclass

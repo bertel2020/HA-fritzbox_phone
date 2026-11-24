@@ -8,6 +8,7 @@ import pytest
 from fritzconnection.core.exceptions import FritzActionError
 
 from custom_components.fritzbox_phone.api import (
+    VoipLine,
     FritzBoxPhoneClient,
     PhonebookContact,
     PhonebookNumber,
@@ -226,3 +227,8 @@ def test_dial_with_an_unknown_phone_is_refused() -> None:
     with pytest.raises(ValueError):
         client.dial("030 9", phone="Nope")
     assert not any(a == "X_AVM-DE_DialNumber" for a, _ in box.actions)
+
+
+def test_voip_line_status_as_number() -> None:
+    assert VoipLine(index=0, number="1", status="2").registered
+    assert not VoipLine(index=0, number="1", status="0").registered
