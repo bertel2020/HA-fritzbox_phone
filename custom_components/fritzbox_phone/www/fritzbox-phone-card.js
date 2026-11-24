@@ -1385,7 +1385,9 @@ class FritzboxPhoneCard extends HTMLElement {
         const endDt = attrs.closed ? new Date(attrs.closed) : null;
         const timeRange =
           startDt && endDt ? `${formatClockTime(startDt)}–${formatClockTime(endDt)}` : null;
-        main.appendChild(metaLine([timeRange, attrs.area_name, attrs.duration_formatted]));
+        main.appendChild(
+          metaLine([timeRange, attrs.phone, attrs.area_name, attrs.duration_formatted])
+        );
       }
 
       wrap.appendChild(main);
@@ -1437,7 +1439,7 @@ class FritzboxPhoneCard extends HTMLElement {
     stateLine.textContent = t(`cm_${state}`);
     main.appendChild(stateLine);
 
-    const meta = metaLine([attrs.area_name].filter(Boolean));
+    const meta = metaLine([attrs.phone, attrs.area_name].filter(Boolean));
     if (timestampKey && attrs[timestampKey]) {
       if (meta.childElementCount > 0) meta.appendChild(textSpan("·"));
       const timerSpan = document.createElement("span");

@@ -925,3 +925,25 @@ test("the editor offers the phones of the box for call backs", () => {
     ["", "Fon 1", "DECT Kueche"],
   );
 });
+
+test("the call monitor names the phone of a call", () => {
+  const window = load();
+  const hass = makeHass({
+    "sensor.call_monitor": state("sensor.call_monitor", "talking", {
+      with: "030123456",
+      phone: "Mobilteil 2",
+    }),
+  });
+  const card = mount(window, { entity: "sensor.call_monitor" }, hass);
+  assert.ok(text(card).includes("Mobilteil 2"));
+
+  card.hass = makeHass({
+    "sensor.call_monitor": state("sensor.call_monitor", "idle", {
+      with: "030123456",
+      phone: "FON1: Telefon",
+      started: "2026-01-01T10:00:00",
+      closed: "2026-01-01T10:01:00",
+    }),
+  });
+  assert.ok(text(card).includes("FON1: Telefon"));
+});

@@ -6,6 +6,8 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Neu
 
+- Die Karte zeigt beim Anrufmonitor, an welchem Telefon ein Anruf läuft oder zuletzt
+  lief (Attribut `phone`).
 - Neue Aktion `probe_phones` („Telefondaten roh auslesen“): liefert die rohen Antworten
   der Box auf die Telefon-Abfragen, ohne Passwörter und SIP-Zugangsdaten. Zur
   Diagnose, wenn ein Telefon falsch angezeigt wird (Entwicklerwerkzeuge → Aktionen).

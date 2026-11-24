@@ -6,6 +6,8 @@ All notable changes to this integration are recorded here.
 
 ### New
 
+- The card shows which phone a call is on, or last was on, in the call monitor view
+  (attribute `phone`).
 - New action `probe_phones` ("Read the phone data raw"): returns the box's raw answers
   to the phone requests, without passwords or SIP credentials. For diagnosis when a
   phone is shown wrongly (Developer tools → Actions).
