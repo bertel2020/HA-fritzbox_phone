@@ -245,6 +245,9 @@ class FritzBoxAlarmClockSwitch(TimedSwitchMixin, FritzBoxPhoneEntity, SwitchEnti
     """Enables/disables an alarm clock (X_VoIP SetAlarmClockEnable)."""
 
     _attr_translation_key = "alarm_clock_enabled"
+    # Few people want the alarm clocks on a dashboard: hidden from the
+    # automatic dashboards, but still there to switch and to use in automations.
+    _attr_entity_registry_visible_default = False
 
     def __init__(
         self,

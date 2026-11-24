@@ -15,7 +15,7 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
   `incoming_numbers`: für welche eigenen Rufnummern ein Telefon klingelt (leer =
   für alle). Nicht an einer echten FRITZ!Box ausprobiert; das Format der Liste
   wird auf beide bekannten Schreibweisen geprüft.
-- Je Weckruf der Box ein Schalter „Weckruf …“ (Attribute `time`, `weekdays`,
+- Je Weckruf der Box ein Schalter „Weckruf …“ (standardmäßig ausgeblendet; Attribute `time`, `weekdays`,
   `phone_name`). Nicht an einer echten FRITZ!Box zum Schalten ausprobiert; die
   Aktionen sind in der Dienstbeschreibung einer Box vorhanden. „Nicht stören“
   bietet die Box über TR-064 nicht an.
