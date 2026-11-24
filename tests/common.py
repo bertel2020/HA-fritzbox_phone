@@ -174,6 +174,12 @@ def build_client_class(box: FakeBox):
                 return
             box.calls_log.append(("dial", number))
 
+        def set_dial_phone(self, phone: str) -> None:
+            if phone not in box.phones.dial_phones:
+                raise ValueError(f"Unknown phone: {phone}")
+            box.calls_log.append(("set_dial_phone", phone))
+            box.phones.dial_phone = phone
+
         def get_phones(self):
             self._poll()
             return replace(box.phones)

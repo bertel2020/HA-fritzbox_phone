@@ -4,6 +4,11 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ## 2.5.1 – 2026-11-24
 
+### Neu
+
+- Neue Auswahl „Telefon für Rückrufe“ (Konfiguration): stellt das Telefon der Wählhilfe ein,
+  das als Erstes klingelt, wie unter Telefonie → Telefoniegeräte an der Box.
+
 ### Behoben
 
 - Der Sensor „Telefone“ liest jetzt, was die Box wirklich liefert: Die Telefone der

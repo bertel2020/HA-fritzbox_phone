@@ -1,5 +1,10 @@
 {
   "entity": {
+    "select": {
+      "dial_phone": {
+        "default": "mdi:phone-outgoing"
+      }
+    },
     "sensor": {
       "call_list": {
         "default": "mdi:phone-log"

@@ -176,6 +176,11 @@
         "name": "Telefone"
       }
     },
+    "select": {
+      "dial_phone": {
+        "name": "Telefon für Rückrufe"
+      }
+    },
     "switch": {
       "tam_enabled": {
         "name": "{name} aktiv"

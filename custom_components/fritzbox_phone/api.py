@@ -923,6 +923,12 @@ class FritzBoxPhoneClient:
             NewMessageIndex=message_index,
         )
 
+    def set_dial_phone(self, phone: str) -> None:
+        """Make `phone` (a name from get_dial_phones) the dial help's phone."""
+        if phone not in self.get_dial_phones():
+            raise ValueError(f"Unknown phone: {phone}")
+        self._call(VOIP_SERVICE, "X_AVM-DE_DialSetConfig", **{"NewX_AVM-DE_PhoneName": phone})
+
     def dial(self, number: str, phone: str | None = None) -> None:
         """Start a call from the box's dial help (Wählhilfe).
 

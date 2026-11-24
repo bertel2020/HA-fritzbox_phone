@@ -176,6 +176,11 @@
         "name": "Phones"
       }
     },
+    "select": {
+      "dial_phone": {
+        "name": "Phone for call backs"
+      }
+    },
     "switch": {
       "tam_enabled": {
         "name": "{name} active"

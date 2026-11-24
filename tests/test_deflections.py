@@ -125,3 +125,20 @@ async def test_switching_off_by_hand_cancels_the_timer(hass: HomeAssistant) -> N
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=31))
     await hass.async_block_till_done()
     assert box.calls_log == []
+
+
+async def test_dial_phone_select_follows_and_sets_the_box(hass: HomeAssistant) -> None:
+    box = FakeBox(phones=Phones(dial_phones=["Fon 1", "DECT Kueche"], dial_phone="unconfigured"))
+    entry = await setup_integration(hass, box)
+    select = entity_id(hass, entry, "dial_phone", "select")
+
+    state = hass.states.get(select)
+    assert state.state == "unknown"
+    assert state.attributes["options"] == ["Fon 1", "DECT Kueche"]
+
+    await hass.services.async_call(
+        "select", "select_option", {"entity_id": select, "option": "DECT Kueche"}, blocking=True
+    )
+    await hass.async_block_till_done()
+    assert box.calls_log[-1] == ("set_dial_phone", "DECT Kueche")
+    assert hass.states.get(select).state == "DECT Kueche"

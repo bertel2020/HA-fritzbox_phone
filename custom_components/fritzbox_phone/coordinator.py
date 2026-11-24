@@ -548,6 +548,10 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         self._blocked, self._blocked_fetched = blocked, time.monotonic()
         return blocked
 
+    def invalidate_phones(self) -> None:
+        """Have the next poll read the phones again (after the dial phone changed)."""
+        self._phones_read_at = 0.0
+
     def invalidate_blocked(self) -> None:
         """Have the next poll read the call barring list again."""
         self._blocked_fetched = 0.0

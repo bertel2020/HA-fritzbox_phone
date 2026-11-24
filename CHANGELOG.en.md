@@ -4,6 +4,11 @@ All notable changes to this integration are recorded here.
 
 ## 2.5.1 – 2026-11-24
 
+### New
+
+- New selection "Phone for call backs" (configuration): sets the phone of the dial
+  help that rings first, as under Telephony → Telephony devices on the box.
+
 ### Fixed
 
 - The "Phones" sensor now reads what a real box returns: the dial help phones
