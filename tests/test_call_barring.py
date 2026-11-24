@@ -232,3 +232,19 @@ def test_dial_with_an_unknown_phone_is_refused() -> None:
 def test_voip_line_status_as_number() -> None:
     assert VoipLine(index=0, number="1", status="2").registered
     assert not VoipLine(index=0, number="1", status="0").registered
+
+
+def test_phone_group_with_argument_error_leaves_others() -> None:
+    from fritzconnection.core.exceptions import FritzArgumentError
+
+    client, box = _client([])
+
+    def call_action(service, action, **arguments):
+        if action == "X_AVM-DE_GetPhonePort":
+            raise FritzArgumentError("bad argument")
+        return {"NewX_AVM-DE_PhoneName": "Fon 1"}
+
+    box.call_action = call_action
+    phones = client.get_phones()
+    assert phones.dial_phones == []
+    assert phones.dial_phone == "Fon 1"

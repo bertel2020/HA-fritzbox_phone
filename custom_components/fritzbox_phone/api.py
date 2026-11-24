@@ -63,7 +63,7 @@ class RecordingTooLarge(ValueError):
 
 UNSUPPORTED_ERRORS = (FritzServiceError, FritzActionError, FritzSecurityError)
 # A phone group that cannot be read must not take the other groups down.
-GROUP_ERRORS = UNSUPPORTED_ERRORS + (requests.RequestException, OSError, ValueError)
+GROUP_ERRORS = (FritzConnectionException,) + (requests.RequestException, OSError, ValueError)
 
 ONTEL_SERVICE = "X_AVM-DE_OnTel1"
 TAM_SERVICE = "X_AVM-DE_TAM1"
