@@ -446,6 +446,10 @@ class FritzBoxTamSensor(FritzBoxPhoneEntity, SensorEntity):
         return {
             "tam_index": self._tam_index,
             "enabled": tam.enabled,
+            "mode": tam.mode,
+            "ring_seconds": tam.ring_seconds,
+            "phone_numbers": tam.phone_numbers,
+            "stick": tam.stick,
             "running": tam.running,
             "capacity_minutes_remaining": tam.capacity_minutes,
             "total_messages": len(tam.messages),

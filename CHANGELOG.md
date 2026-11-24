@@ -6,6 +6,11 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Neu
 
+- Der Anrufbeantworter-Sensor nennt jetzt auch `mode`, `ring_seconds`,
+  `phone_numbers` und `stick` (Betriebsart, nach wie vielen Sekunden er rangeht,
+  für welche Rufnummern er annimmt, wo er speichert). Nur lesbar: Die Box lässt
+  sich dazu über TR-064 nicht umstellen. Nicht an einer echten FRITZ!Box
+  ausprobiert.
 - Der Sensor „Telefone“ nennt bei den IP-Telefonen jetzt auch `internal_number` und
   `incoming_numbers`: für welche eigenen Rufnummern ein Telefon klingelt (leer =
   für alle). Nicht an einer echten FRITZ!Box ausprobiert; das Format der Liste

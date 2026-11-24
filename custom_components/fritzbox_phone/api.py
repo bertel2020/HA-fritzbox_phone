@@ -165,6 +165,11 @@ class Tam:
     running: bool
     capacity_minutes: int | None
     messages: list[TamMessage] = field(default_factory=list)
+    # From GetInfo; missing when the box does not answer it.
+    mode: str | None = None
+    ring_seconds: int | None = None
+    phone_numbers: list[str] = field(default_factory=list)
+    stick: str | None = None
 
 
 @dataclass
@@ -827,8 +832,24 @@ class FritzBoxPhoneClient:
                 capacity_minutes=capacity_minutes,
                 messages=self.get_tam_messages(index),
             )
+            self._fill_tam_info(tam)
             tams.append(tam)
         return tams
+
+    def _fill_tam_info(self, tam: Tam) -> None:
+        """Mode, ring time, numbers and storage of one answering machine."""
+        try:
+            info = self._call(TAM_SERVICE, "GetInfo", NewIndex=tam.index)
+        except UNSUPPORTED_ERRORS as err:
+            _LOGGER.debug("X_AVM-DE_TAM GetInfo(%s) unavailable: %s", tam.index, err)
+            return
+        tam.mode = info.get("NewMode") or None
+        ring = str(info.get("NewRingSeconds") or "")
+        tam.ring_seconds = int(ring) if ring.isdigit() else None
+        tam.phone_numbers = [
+            part.strip() for part in str(info.get("NewPhoneNumbers") or "").split(",") if part.strip()
+        ]
+        tam.stick = info.get("NewStick") or None
 
     def get_tam_messages(self, index: int) -> list[TamMessage]:
         try:

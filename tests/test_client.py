@@ -308,6 +308,27 @@ def test_answering_machines_with_their_messages() -> None:
     assert read.new is False and read.download_url is None and read.tam == 0
 
 
+def test_answering_machine_settings_come_from_get_info() -> None:
+    answers = {
+        "GetList": {"NewTAMList": TAM_LIST},
+        "GetMessageList": {"NewURL": ""},
+        "GetInfo": {
+            "NewMode": "voicemail",
+            "NewRingSeconds": "20",
+            "NewPhoneNumbers": "0301, 0302",
+            "NewStick": "intern",
+        },
+    }
+    (tam,) = _client(answers)[0].get_tams()
+    assert (tam.mode, tam.ring_seconds, tam.phone_numbers, tam.stick) == (
+        "voicemail", 20, ["0301", "0302"], "intern",
+    )
+    # A box that refuses GetInfo still lists the machine.
+    answers["GetInfo"] = FritzActionError("x")
+    (tam,) = _client(answers)[0].get_tams()
+    assert tam.name == "AB 1" and tam.mode is None and tam.phone_numbers == []
+
+
 def test_answering_machine_missing_or_unsupported() -> None:
     assert _client({"GetList": FritzActionError("x")})[0].get_tams() == []
     assert _client({"GetList": {"NewTAMList": ""}})[0].get_tams() == []
