@@ -41,6 +41,9 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
   `connected` bzw. `3`; auch das gilt als registriert, das neue Attribut `in_use`
   zeigt dann das laufende Gespräch an. Unbekannte Status stehen auf „Unbekannt“
   und werden einmal im Log gemeldet.
+- Die Sensoren der DECT-Mobilteile zeigten bis zu eine Stunde lang einen veralteten
+  Zustand, weil die Telefone nur stündlich gelesen werden. Die Mobilteile werden
+  jetzt bei jeder Abfrage neu gelesen.
 - Nach einem Neustart von Home Assistant war der Sensor „Anrufmonitor“ so lange
   „nicht verfügbar“, wie die erste Abfrage der Box dauerte. Die Verbindung zum
   Anrufmonitor wird jetzt schon währenddessen aufgebaut.

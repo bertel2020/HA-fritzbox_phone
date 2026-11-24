@@ -44,6 +44,8 @@ All notable changes to this integration are recorded here.
 
 ### Changed
 
+- The DECT handset sensors could show a stale state for up to an hour because the
+  phones are only read hourly. The handsets are now read on every poll.
 - When reading the phones, forwarding rules, alarm clocks, telephone lines or the
   call barring fails, the log shows a warning with the error type once (before,
   only on debug level).

@@ -1084,6 +1084,29 @@ class FritzBoxPhoneClient:
         except Exception:  # noqa: BLE001
             return None
 
+    def get_dect_handsets(self) -> list[dict[str, Any]]:
+        """The DECT handsets and whether each is switched on and in range."""
+        handsets: list[dict[str, Any]] = []
+        count = _to_int(
+            str(self._call(DECT_SERVICE, "GetNumberOfDectEntries").get("NewNumberOfEntries"))
+        )
+        for index in range(min(count, MAX_DECT_HANDSETS)):
+            entry = self._call(DECT_SERVICE, "GetGenericDectEntry", NewIndex=index)
+            if any(
+                str(entry.get(key) or "").lower().startswith(_DECT_NON_PHONES)
+                for key in ("NewModel", "NewName")
+            ):
+                continue
+            handsets.append(
+                {
+                    "id": str(entry.get("NewID") or index),
+                    "name": entry.get("NewName"),
+                    "model": entry.get("NewModel") or None,
+                    "active": str(entry.get("NewActive")).lower() in ("1", "true"),
+                }
+            )
+        return handsets
+
     def get_phones(self) -> Phones:
         """The telephones of the box. Each group is optional: a box without
         DECT or IP phones just leaves it empty."""
@@ -1100,24 +1123,7 @@ class FritzBoxPhoneClient:
         except GROUP_ERRORS as err:
             _LOGGER.debug("Telefongruppe nicht lesbar: %s", err)
         try:
-            count = _to_int(
-                str(self._call(DECT_SERVICE, "GetNumberOfDectEntries").get("NewNumberOfEntries"))
-            )
-            for index in range(min(count, MAX_DECT_HANDSETS)):
-                entry = self._call(DECT_SERVICE, "GetGenericDectEntry", NewIndex=index)
-                if any(
-                    str(entry.get(key) or "").lower().startswith(_DECT_NON_PHONES)
-                    for key in ("NewModel", "NewName")
-                ):
-                    continue
-                phones.dect.append(
-                    {
-                        "id": str(entry.get("NewID") or index),
-                        "name": entry.get("NewName"),
-                        "model": entry.get("NewModel") or None,
-                        "active": str(entry.get("NewActive")).lower() in ("1", "true"),
-                    }
-                )
+            phones.dect = self.get_dect_handsets()
         except GROUP_ERRORS as err:
             _LOGGER.debug("Telefongruppe nicht lesbar: %s", err)
         try:

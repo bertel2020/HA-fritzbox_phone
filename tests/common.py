@@ -187,6 +187,10 @@ def build_client_class(box: FakeBox):
             self._poll()
             return replace(box.phones)
 
+        def get_dect_handsets(self):
+            self._poll()
+            return [dict(handset) for handset in box.phones.dect]
+
         def hangup(self) -> None:
             box.calls_log.append(("hangup",))
 

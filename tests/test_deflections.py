@@ -165,6 +165,18 @@ async def test_dect_handsets_get_a_sensor_each(hass: HomeAssistant) -> None:
     assert kitchen.attributes["model"] == "C6"
 
 
+async def test_handset_state_follows_every_poll(hass: HomeAssistant) -> None:
+    box = FakeBox(phones=Phones(dect=[{"id": "2", "name": "Bad", "model": None, "active": False}]))
+    entry = await setup_integration(hass, box)
+    sensor = entity_id(hass, entry, "dect_2", "binary_sensor")
+    assert hass.states.get(sensor).state == STATE_OFF
+
+    box.phones.dect[0]["active"] = True
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(sensor).state == STATE_ON
+
+
 async def test_hidden_phones_leave_the_choices(hass: HomeAssistant) -> None:
     from custom_components.fritzbox_phone.const import CONF_HIDDEN_PHONES
 

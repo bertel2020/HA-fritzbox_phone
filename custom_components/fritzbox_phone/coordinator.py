@@ -578,6 +578,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         # for the many requests it takes.
         now = time.monotonic()
         if self._phones is not None and now - self._phones_read_at < PHONES_REFRESH_SECONDS:
+            self._refresh_handsets(self._phones)
             return self._phones
         try:
             phones = self.client.get_phones()
@@ -589,6 +590,16 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         phones.dial_phones = [n for n in phones.dial_phones if n not in self.hidden_phones]
         self._phones, self._phones_read_at = phones, now
         return phones
+
+    def _refresh_handsets(self, phones: Phones) -> None:
+        """Whether a handset is in range changes at any time: read it every poll."""
+        try:
+            handsets = self.client.get_dect_handsets()
+        except Exception as err:  # noqa: BLE001
+            self._read_failed("dect_handsets", "Mobilteile", err)
+            return
+        self._read_ok("dect_handsets")
+        phones.dect = handsets
 
     def _get_voip_lines(self) -> list[VoipLine]:
         # Secondary data, like the forwarding rules.
