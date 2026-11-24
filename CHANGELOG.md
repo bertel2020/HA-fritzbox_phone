@@ -6,6 +6,10 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Behoben
 
+- Der Sensor „Telefone“ liest jetzt, was die Box wirklich liefert: Die Telefone der
+  Wählhilfe (die Nummerierung beginnt bei 1), die IP-Telefone samt Rufnummern
+  (Name, ausgehende und interne Nummer) und nur echte Mobilteile bei DECT (keine
+  FRITZ!DECT-Steckdosen).
 - Der Sensor „Telefone“ blieb „nicht verfügbar“, wenn die Box auch nur eine der
   Telefon-Abfragen ablehnte. Jetzt wird jede Gruppe (Wählhilfe, DECT, IP-Telefone)
   einzeln gelesen; was sich nicht lesen lässt, bleibt leer.

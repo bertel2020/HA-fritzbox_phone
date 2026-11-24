@@ -6,6 +6,9 @@ All notable changes to this integration are recorded here.
 
 ### Fixed
 
+- The "Phones" sensor now reads what a real box returns: the dial help phones
+  (numbering starts at 1), the IP phones with their numbers (name, outgoing and
+  internal number) and only real handsets under DECT (no FRITZ!DECT sockets).
 - The "Phones" sensor stayed unavailable when the box refused even one of the phone
   requests. Each group (dial help, DECT, IP phones) is now read on its own; what
   cannot be read stays empty.

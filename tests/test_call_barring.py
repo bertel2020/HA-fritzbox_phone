@@ -248,3 +248,49 @@ def test_phone_group_with_argument_error_leaves_others() -> None:
     phones = client.get_phones()
     assert phones.dial_phones == []
     assert phones.dial_phone == "Fon 1"
+
+
+def test_phones_read_a_real_boxs_answers() -> None:
+    from fritzconnection.core.exceptions import FritzArgumentError
+
+    client, box = _client([])
+    clients = (
+        "<List><Item><X_AVM-DE_ClientIndex>0</X_AVM-DE_ClientIndex>"
+        "<X_AVM-DE_OutGoingNumber>0301</X_AVM-DE_OutGoingNumber>"
+        "<X_AVM-DE_InComingNumbers><Item><Number /><Type>eAllCalls</Type><Index /><Name />"
+        "</Item></X_AVM-DE_InComingNumbers>"
+        "<X_AVM-DE_PhoneName>FRITZ!App Fon</X_AVM-DE_PhoneName>"
+        "<X_AVM-DE_InternalNumber>620</X_AVM-DE_InternalNumber></Item></List>"
+    )
+    dect = [
+        {"NewName": "Mobilteil 1", "NewModel": "", "NewActive": False},
+        {"NewName": "FRITZ!DECT 200 #1", "NewModel": "FRITZ!Smart Energy 200", "NewActive": True},
+    ]
+
+    def call_action(service, action, **arguments):
+        if action == "X_AVM-DE_GetPhonePort":
+            if arguments["NewIndex"] == 0:  # the range starts at 1
+                raise FritzArgumentError("402")
+            if arguments["NewIndex"] == 1:
+                return {"NewX_AVM-DE_PhoneName": "FON1: Telefon"}
+            raise FritzArgumentError("402")
+        if action == "GetNumberOfDectEntries":
+            return {"NewNumberOfEntries": 2}
+        if action == "GetGenericDectEntry":
+            return dect[arguments["NewIndex"]]
+        if action == "X_AVM-DE_GetClients":
+            return {"NewX_AVM-DE_ClientList": clients}
+        return {"NewX_AVM-DE_PhoneName": "unconfigured"}
+
+    box.call_action = call_action
+    phones = client.get_phones()
+    assert phones.dial_phones == ["FON1: Telefon"]
+    assert [d["name"] for d in phones.dect] == ["Mobilteil 1"]
+    assert phones.ip == [
+        {
+            "name": "FRITZ!App Fon",
+            "number": "0301",
+            "internal_number": "620",
+            "incoming_numbers": [],
+        }
+    ]

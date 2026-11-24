@@ -233,8 +233,22 @@ def _incoming_numbers(element: ET.Element | None) -> list[str]:
     """
     if element is None:
         return []
-    parts = [child.text or "" for child in element] or (element.text or "").split(",")
-    return [part.strip() for part in parts if part.strip()]
+    # A real box nests <Item><Number/><Type/>...</Item>; an empty Number
+    # (type eAllCalls) means "all numbers".
+    parts = [
+        child.findtext("Number") if len(child) else child.text
+        for child in element
+    ] or (element.text or "").split(",")
+    return [part.strip() for part in parts if part and part.strip()]
+
+
+def _field(item: ET.Element, name: str) -> str | None:
+    """A child's text, whether the box prefixes the tag with X_AVM-DE_ or not."""
+    return item.findtext(name) or item.findtext(f"X_AVM-DE_{name}")
+
+
+# DECT devices that are no telephones but share the handset list.
+_DECT_NON_PHONES = ("fritz!smart", "fritz!dect", "fritz!contact", "comet")
 
 
 def path_key(path: str | None) -> tuple[str, tuple[tuple[str, str], ...]] | None:
@@ -946,8 +960,8 @@ class FritzBoxPhoneClient:
                 name = self._call(VOIP_SERVICE, "X_AVM-DE_GetPhonePort", NewIndex=index).get(
                     "NewX_AVM-DE_PhoneName"
                 )
-            except UNSUPPORTED_ERRORS:
-                continue  # the index range may start at 1 or have gaps
+            except GROUP_ERRORS:
+                continue  # the index range starts at 1 on a real box; gaps are possible
             if name and name not in names:
                 names.append(name)
         return names
@@ -973,6 +987,11 @@ class FritzBoxPhoneClient:
             )
             for index in range(min(count, MAX_DECT_HANDSETS)):
                 entry = self._call(DECT_SERVICE, "GetGenericDectEntry", NewIndex=index)
+                if any(
+                    str(entry.get(key) or "").lower().startswith(_DECT_NON_PHONES)
+                    for key in ("NewModel", "NewName")
+                ):
+                    continue
                 phones.dect.append(
                     {
                         "name": entry.get("NewName"),
@@ -990,10 +1009,14 @@ class FritzBoxPhoneClient:
             for item in items:
                 phones.ip.append(
                     {
-                        "name": item.findtext("PhoneName"),
-                        "number": item.findtext("OutGoingNumber") or None,
-                        "internal_number": item.findtext("InternalNumber") or None,
-                        "incoming_numbers": _incoming_numbers(item.find("InComingNumbers")),
+                        "name": _field(item, "PhoneName"),
+                        "number": _field(item, "OutGoingNumber"),
+                        "internal_number": _field(item, "InternalNumber"),
+                        "incoming_numbers": _incoming_numbers(
+                            item.find("InComingNumbers")
+                            if item.find("InComingNumbers") is not None
+                            else item.find("X_AVM-DE_InComingNumbers")
+                        ),
                     }
                 )
         except (GROUP_ERRORS + (ET.ParseError,)) as err:
