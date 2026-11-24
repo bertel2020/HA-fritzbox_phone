@@ -436,6 +436,24 @@
           "description": "How long it stays on."
         }
       }
+    },
+    "call_phone": {
+      "name": "Call a phone",
+      "description": "Starts an internal call to one of the box's phones through the dial help: the phone chosen there rings first, and once you pick up, the target phone rings. Use a name from the phones sensor (DECT handsets, IP phones, FON sockets).",
+      "fields": {
+        "target_phone": {
+          "name": "Phone to call",
+          "description": "The phone that should ring, e.g. Mobilteil 1."
+        },
+        "phone": {
+          "name": "Phone",
+          "description": "Rings this phone first for this one call instead of the one chosen on the box."
+        },
+        "max_ring_seconds": {
+          "name": "Hang up after",
+          "description": "Cancels the call setup after this many seconds if nobody picked up."
+        }
+      }
     }
   },
   "exceptions": {
@@ -468,6 +486,9 @@
     },
     "contact_no_number": {
       "message": "A contact needs at least one number."
+    },
+    "unknown_target_phone": {
+      "message": "No internal number is known for the phone \"{phone}\". Use a name from the phones sensor."
     }
   },
   "issues": {

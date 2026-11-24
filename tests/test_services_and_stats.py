@@ -515,3 +515,36 @@ async def test_changing_and_deleting_a_contact_is_for_administrators(
             with pytest.raises(Unauthorized):
                 await hass.services.async_call(DOMAIN, "delete_contact", {"contact_id": "0"}, blocking=True, context=context)
     assert [entry[0] for entry in box.calls_log] == ["update_contact", "delete_contact"]
+
+
+async def test_call_phone_dials_the_internal_number(hass: HomeAssistant) -> None:
+    from custom_components.fritzbox_phone.api import Phones
+
+    box = FakeBox(
+        phones=Phones(
+            dial_phones=["FON1: Telefon", "DECT: Mobilteil 2"],
+            dect=[{"id": "2", "name": "Mobilteil 2", "model": None, "active": True}],
+            ip=[{"name": "FRITZ!App Fon", "internal_number": "620", "number": None,
+                 "incoming_numbers": []}],
+        )
+    )
+    await _setup(hass, box)
+
+    for target, number in (
+        ("Mobilteil 2", "**611"),
+        ("DECT: Mobilteil 2", "**611"),
+        ("FRITZ!App Fon", "**620"),
+        ("FON1: Telefon", "**1"),
+    ):
+        await hass.services.async_call(DOMAIN, "call_phone", {"target_phone": target}, blocking=True)
+        assert box.calls_log[-1] == ("dial", number)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "call_phone",
+        {"target_phone": "Mobilteil 2", "phone": "FON1: Telefon"},
+        blocking=True,
+    )
+    assert box.calls_log[-1] == ("dial", "**611", "FON1: Telefon")
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(DOMAIN, "call_phone", {"target_phone": "Nope"}, blocking=True)

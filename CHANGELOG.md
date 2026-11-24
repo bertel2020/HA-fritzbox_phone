@@ -6,6 +6,11 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Neu
 
+- Neue Aktion `call_phone` („Telefon anrufen“): ruft über die Wählhilfe ein Telefon der
+  Box intern an (`target_phone`, z. B. „Mobilteil 1“). Zuerst klingelt das Telefon der
+  Wählhilfe (oder `phone`), nach dem Abheben das Zieltelefon. Einzelne Telefone lassen
+  sich über die Box nicht ohne Gegenstelle klingeln. Nicht an einer echten FRITZ!Box
+  ausprobiert.
 - Der Anrufmonitor nennt jetzt das Telefon eines Anrufs (Attribut `phone`): wer
   abgehoben hat oder von wo aus angerufen wird. Erkannt werden FON-Anschlüsse,
   DECT-Mobilteile und IP-Telefone; nicht an einer echten FRITZ!Box mit allen

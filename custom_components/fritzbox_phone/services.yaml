@@ -92,6 +92,30 @@ dial:
           max: 300
           unit_of_measurement: seconds
 
+call_phone:
+  target:
+    entity:
+      integration: fritzbox_phone
+  fields:
+    target_phone:
+      required: true
+      example: "Mobilteil 1"
+      selector:
+        text:
+    phone:
+      required: false
+      example: "FON1: Telefon"
+      selector:
+        text:
+    max_ring_seconds:
+      required: false
+      example: 15
+      selector:
+        number:
+          min: 1
+          max: 300
+          unit_of_measurement: seconds
+
 turn_on_for:
   target:
     entity:

@@ -124,6 +124,9 @@
     "dial": {
       "service": "mdi:phone-outgoing"
     },
+    "call_phone": {
+      "service": "mdi:phone-in-talk"
+    },
     "hangup": {
       "service": "mdi:phone-hangup"
     },

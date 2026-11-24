@@ -436,6 +436,24 @@
           "description": "Wie lange eingeschaltet bleibt."
         }
       }
+    },
+    "call_phone": {
+      "name": "Telefon anrufen",
+      "description": "Startet über die Wählhilfe einen internen Anruf zu einem Telefon der Box: Zuerst klingelt das dort gewählte Telefon, nach dem Abheben klingelt das Zieltelefon. Einen Namen aus dem Sensor „Telefone“ verwenden (DECT-Mobilteile, IP-Telefone, FON-Anschlüsse).",
+      "fields": {
+        "target_phone": {
+          "name": "Anzurufendes Telefon",
+          "description": "Das Telefon, das klingeln soll, z. B. Mobilteil 1."
+        },
+        "phone": {
+          "name": "Telefon",
+          "description": "Lässt für diesen einen Anruf zuerst dieses Telefon klingeln statt des an der Box gewählten."
+        },
+        "max_ring_seconds": {
+          "name": "Auflegen nach",
+          "description": "Bricht den Verbindungsaufbau nach so vielen Sekunden ab, wenn niemand abgehoben hat."
+        }
+      }
     }
   },
   "exceptions": {
@@ -468,6 +486,9 @@
     },
     "contact_no_number": {
       "message": "Ein Kontakt braucht mindestens eine Nummer."
+    },
+    "unknown_target_phone": {
+      "message": "Zu dem Telefon „{phone}“ ist keine interne Nummer bekannt. Einen Namen aus dem Sensor „Telefone“ verwenden."
     }
   },
   "issues": {

@@ -280,6 +280,30 @@ def phone_for_extension(phones: Phones | None, extension: str | None) -> str | N
     return None
 
 
+def internal_number_for(phones: Phones | None, name: str) -> str | None:
+    """The internal number (**1, **610, **620 ...) that reaches the named phone.
+
+    Takes a name from the phones sensor: a dial phone ("FON1: Telefon",
+    "DECT: Mobilteil 1"), a DECT handset or an IP phone.
+    """
+    if phones is None or not name:
+        return None
+    wanted = name.strip().lower()
+    for entry in phones.ip:
+        if (entry.get("name") or "").strip().lower() == wanted and entry.get("internal_number"):
+            return f"**{entry['internal_number']}"
+    dect_name = wanted.removeprefix("dect:").strip()
+    for handset in phones.dect:
+        if (handset.get("name") or "").strip().lower() == dect_name:
+            handset_id = str(handset.get("id") or "")
+            if handset_id.isdigit() and 1 <= int(handset_id) <= 10:
+                return f"**61{int(handset_id) - 1}"
+    match = re.match(r"fon\s*([1-3])\b", wanted)
+    if match:
+        return f"**{match.group(1)}"
+    return None
+
+
 def path_key(path: str | None) -> tuple[str, tuple[tuple[str, str], ...]] | None:
     """Comparable form of a download path: the same file spelled with
     different session ids or parameter order compares equal."""

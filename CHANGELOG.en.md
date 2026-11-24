@@ -6,6 +6,10 @@ All notable changes to this integration are recorded here.
 
 ### New
 
+- New action `call_phone` ("Call a phone"): places an internal call to one of the
+  box's phones through the dial help (`target_phone`, e.g. "Mobilteil 1"). The dial
+  help phone (or `phone`) rings first, and the target phone once you pick up. The box
+  cannot ring a single phone without a far end. Not tried on a real FRITZ!Box.
 - The call monitor now names the phone of a call (attribute `phone`): who picked up
   or which phone places the call. FON sockets, DECT handsets and IP phones are
   recognised; not tried on a real FRITZ!Box with every kind of phone.
