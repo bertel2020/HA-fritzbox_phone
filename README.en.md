@@ -54,7 +54,7 @@ The integration talks to the FRITZ!Box locally (TR-064 and the CallMonitor on po
 
 ## Highlights
 
-- **Call list and answering machine**: sensors and a card for all calls and voice messages. Messages can be played, marked as read and deleted right in the card; recordings are streamed by the integration behind your Home Assistant login.
+- **Call list and answering machine**: sensors and a card for all calls and voice messages, with one call list per own number if the box has several. Messages can be played, marked as read and deleted right in the card; recordings are streamed by the integration behind your Home Assistant login.
 - **Phonebook**: all phonebooks of the box, searchable, with VIP marking. Known callers are shown by name.
 - **Live call monitor**: ringing, talking, dialing and hang-up as a sensor, event entity and logbook entry. Simultaneous calls are tracked separately. Name, spam check and reverse lookup follow after the call is shown and never delay it.
 - **Spam check**: incoming numbers are checked with PhoneBlock (only hashes of the number are sent).
@@ -62,7 +62,7 @@ The integration talks to the FRITZ!Box locally (TR-064 and the CallMonitor on po
 - **Place and country**: the origin of a number is determined offline.
 - **Dial and hang up**: the services `dial` (optionally with a chosen phone and automatic hang-up) and `hangup`, plus a call-back button in the card.
 - **Call forwarding**: every forwarding rule of the box as a switch, e.g. for "forward to my mobile at night", also for a limited time (`turn_on_for`) or on a schedule (blueprint).
-- **Lines and phones**: one sensor per telephone number showing whether the provider has it registered, and a sensor listing the box's phones.
+- **Lines and phones**: one sensor per telephone number showing whether the provider has it registered, and a sensor listing the box's phones, with the own numbers each IP phone rings for. One switch per alarm clock (disabled by default).
 - **Editing the phone book**: the services `add_contact`, `update_contact`, `delete_contact` and `add_number_to_contact` create contacts (with several numbers, e-mail and VIP), change or delete them, or add one more number.
 - **Call barring**: the services `block_number` and `unblock_number` add numbers to the box's call barring or remove them.
 - **Statistics**: calls today, missed calls, talk time and (with PhoneBlock) spam calls as sensors.

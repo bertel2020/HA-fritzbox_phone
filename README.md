@@ -52,15 +52,15 @@ Die Integration arbeitet lokal mit der FRITZ!Box (TR-064 und CallMonitor, Port 1
 
 ## Highlights
 
-- **Anrufliste und Anrufbeantworter**: Sensoren und Karte für alle Anrufe und Sprachnachrichten. Nachrichten lassen sich direkt in der Karte abspielen, als gelesen markieren und löschen; die Aufnahmen werden angemeldet von der Integration gestreamt.
+- **Anrufliste und Anrufbeantworter**: Sensoren und Karte für alle Anrufe und Sprachnachrichten, bei mehreren Rufnummern auch eine Anrufliste je Nummer. Nachrichten lassen sich direkt in der Karte abspielen, als gelesen markieren und löschen; die Aufnahmen werden angemeldet von der Integration gestreamt.
 - **Telefonbuch**: alle Telefonbücher der FRITZ!Box, durchsuchbar, mit VIP-Markierung. Bekannte Anrufer werden mit Namen angezeigt.
 - **Anrufmonitor in Echtzeit**: Klingeln, Gespräch, Wählen und Auflegen als Sensor, Ereignis-Entität und Logbuch-Eintrag. Mehrere gleichzeitige Anrufe werden einzeln verfolgt. Name, Spam-Prüfung und Rückwärtssuche folgen nach der Anzeige und blockieren sie nicht.
 - **Spam-Erkennung**: Prüfung eingehender Nummern mit PhoneBlock (nur Hashes der Nummer werden gesendet).
 - **Rückwärtssuche**: unbekannte Nummern werden über Tellows aufgelöst.
 - **Ort und Land**: Herkunft einer Nummer wird offline bestimmt, ohne Internetzugriff.
-- **Wählen und Auflegen**: Services `dial` (auf Wunsch mit gewähltem Telefon und automatischem Auflegen) und `hangup`, Rückruf-Knopf in der Karte.
+- **Wählen und Auflegen**: Services `dial` (auf Wunsch mit gewähltem Telefon und automatischem Auflegen) und `hangup`, Rückruf-Knopf in der Karte (auf Wunsch für ein festes Telefon).
 - **Rufumleitung**: jede Umleitung der Box als Schalter, z. B. für „nachts aufs Handy“, auch für eine begrenzte Zeit (`turn_on_for`) oder nach Zeitplan (Blueprint).
-- **Leitungen und Telefone**: je Rufnummer ein Sensor, ob der Anbieter sie angemeldet hat, und ein Sensor mit den Telefonen der Box.
+- **Leitungen und Telefone**: je Rufnummer ein Sensor, ob der Anbieter sie angemeldet hat, und ein Sensor mit den Telefonen der Box, für die IP-Telefone auch, für welche Rufnummern sie klingeln. Je Weckruf ein Schalter (standardmäßig deaktiviert).
 - **Telefonbuch bearbeiten**: Services `add_contact`, `update_contact`, `delete_contact` und `add_number_to_contact` legen Kontakte an (mit mehreren Nummern, E-Mail und VIP), ändern, löschen sie oder ergänzen eine Nummer.
 - **Rufsperre**: Services `block_number` und `unblock_number` tragen Nummern in die Rufsperre der Box ein oder entfernen sie.
 - **Statistik**: Anrufe heute, verpasste Anrufe, Gesprächszeit und (mit PhoneBlock) Spam-Anrufe als Sensoren.
