@@ -81,6 +81,9 @@ jobs:
           # so that re-running the workflow for an older tag (which does not
           # have the file) gets it too.
           git show origin/main:.github/release-footer.md >> notes.md
+          # The same in English, after the German one.
+          echo "" >> notes.md
+          git show origin/main:.github/release-footer.en.md >> notes.md
 
       - name: Determine release title
         id: title

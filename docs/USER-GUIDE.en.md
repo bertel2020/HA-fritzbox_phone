@@ -16,7 +16,7 @@ for TR-064 (`X_AVM-DE_OnTel`, `X_AVM-DE_TAM`, `X_VoIP`).
 
 Current integration version: **2.4.0** (see
 [`manifest.json`](../custom_components/fritzbox_phone/manifest.json) and the
-[changelog](../CHANGELOG.md)).
+[changelog](../CHANGELOG.en.md)).
 
 ## Contents
 
@@ -44,7 +44,7 @@ Current integration version: **2.4.0** (see
 - [Trademark notice](#trademark-notice)
 - [Notes](#notes)
 - [Troubleshooting](#troubleshooting)
-- [Changelog](../CHANGELOG.md)
+- [Changelog](../CHANGELOG.en.md)
 
 ## Requirements on the FRITZ!Box
 

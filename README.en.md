@@ -114,7 +114,7 @@ The entities are new and have new IDs. Update automations, dashboards and script
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) (German).
+See [CHANGELOG.en.md](CHANGELOG.en.md) (the German original is [CHANGELOG.md](CHANGELOG.md)).
 
 ## Disclaimer
 
