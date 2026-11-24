@@ -2,7 +2,7 @@
 
 Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
-## Unveröffentlicht
+## 2.6.0 – 2026-11-24
 
 ### Neu
 
@@ -15,11 +15,6 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
   alles. Die Nummern werden wie bei der Anrufliste aus der Anrufliste ermittelt.
   Ungelesene Nachrichten werden über die Nummer zugeordnet, auf der sie hinterlassen
   wurden. Nicht an einer Box mit mehreren Nummern ausprobiert.
-
-## 2.6.0 – 2026-11-24
-
-### Neu
-
 - Neue Option „Telefone ausblenden“: ausgeblendete Telefone (z. B. FON-Anschlüsse ohne
   Telefon) fehlen in den Auswahlen für Rückrufe, bei `call_phone` und in `dial_phones`.
 - Die Karte zeigt beim Anrufmonitor, an welchem Telefon ein Anruf läuft oder zuletzt

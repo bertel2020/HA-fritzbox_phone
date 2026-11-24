@@ -2,7 +2,7 @@
 
 All notable changes to this integration are recorded here.
 
-## Unreleased
+## 2.6.0 – 2026-11-24
 
 ### New
 
@@ -14,11 +14,6 @@ All notable changes to this integration are recorded here.
   still cover everything. The numbers are found in the call list, as for the call list.
   Unread messages are matched by the number the message was left on. Not tried on a box
   with several numbers.
-
-## 2.6.0 – 2026-11-24
-
-### New
-
 - New option "Hide phones": hidden phones (e.g. FON sockets with nothing plugged in)
   are left out of the call back choices, `call_phone` and `dial_phones`.
 - The card shows which phone a call is on, or last was on, in the call monitor view
