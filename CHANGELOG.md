@@ -2,6 +2,27 @@
 
 Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
+## 2.5.1 – 2026-11-24
+
+### Behoben
+
+- Der Sensor „Telefone“ blieb „nicht verfügbar“, wenn die Box auch nur eine der
+  Telefon-Abfragen ablehnte. Jetzt wird jede Gruppe (Wählhilfe, DECT, IP-Telefone)
+  einzeln gelesen; was sich nicht lesen lässt, bleibt leer.
+- Die Telefonleitungen standen auf „Getrennt“, obwohl der Anbieter sie registriert
+  hatte: Manche Boxen melden den Status als Zahl (`2` = registriert) statt als Wort.
+- Nach einem Neustart von Home Assistant war der Sensor „Anrufmonitor“ so lange
+  „nicht verfügbar“, wie die erste Abfrage der Box dauerte. Die Verbindung zum
+  Anrufmonitor wird jetzt schon währenddessen aufgebaut.
+
+### Geändert
+
+- Schlägt das Lesen der Telefone, Rufumleitungen, Weckrufe, Telefonleitungen oder
+  der Rufsperre fehl, steht dazu einmal eine Warnung mit dem Fehlertyp im Protokoll
+  (bisher nur auf Debug-Ebene).
+- Die Diagnosesensoren „Online-Rückwärtssuche“ und „PhoneBlock“ zeigen vor der
+  ersten Abfrage „Noch keine Abfrage“ statt „Unbekannt“.
+
 ## 2.5.0 – 2026-11-24
 
 ### Neu

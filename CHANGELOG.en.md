@@ -2,6 +2,28 @@
 
 All notable changes to this integration are recorded here.
 
+## 2.5.1 – 2026-11-24
+
+### Fixed
+
+- The "Phones" sensor stayed unavailable when the box refused even one of the phone
+  requests. Each group (dial help, DECT, IP phones) is now read on its own; what
+  cannot be read stays empty.
+- The telephone lines showed "Disconnected" although the provider had them
+  registered: some boxes report the status as a number (`2` = registered) instead
+  of a word.
+- After a Home Assistant restart the "Call monitor" sensor was unavailable for as
+  long as the first poll of the box took. The connection to the call monitor is now
+  opened while that poll runs.
+
+### Changed
+
+- When reading the phones, forwarding rules, alarm clocks, telephone lines or the
+  call barring fails, the log shows a warning with the error type once (before,
+  only on debug level).
+- The diagnostic sensors "Online reverse lookup" and "PhoneBlock" show "No lookup
+  yet" before the first query instead of "Unknown".
+
 ## 2.5.0 – 2026-11-24
 
 ### New

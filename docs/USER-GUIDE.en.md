@@ -14,7 +14,7 @@ services PhoneBlock and Tellows open internet connections. The technical
 basis is the [AVM interface descriptions](https://fritz.com/pages/schnittstellen)
 for TR-064 (`X_AVM-DE_OnTel`, `X_AVM-DE_TAM`, `X_VoIP`).
 
-Current integration version: **2.5.0** (see
+Current integration version: **2.5.1** (see
 [`manifest.json`](../custom_components/fritzbox_phone/manifest.json) and the
 [changelog](../CHANGELOG.en.md)).
 
