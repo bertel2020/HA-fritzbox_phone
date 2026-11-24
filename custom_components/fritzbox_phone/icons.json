@@ -7,6 +7,9 @@
       "call_list_number": {
         "default": "mdi:phone-log"
       },
+      "blocked_numbers": {
+        "default": "mdi:phone-off"
+      },
       "missed_calls": {
         "default": "mdi:phone-missed"
       },

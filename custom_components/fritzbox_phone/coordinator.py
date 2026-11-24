@@ -28,11 +28,13 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import (
     CallEntry,
     AlarmClock,
+    UNSUPPORTED_ERRORS,
     Deflection,
     Phones,
     VoipLine,
     FritzBoxPhoneClient,
     Phonebook,
+    PhonebookContact,
     Tam,
     TamMessage,
     path_key,
@@ -111,6 +113,8 @@ class FritzBoxPhoneData:
     alarm_clocks: list[AlarmClock] = field(default_factory=list)
     voip_lines: list[VoipLine] = field(default_factory=list)
     phones: Phones | None = None
+    # The call barring list; None when the box does not offer it.
+    blocked: list[PhonebookContact] | None = None
 
 
 class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
@@ -146,6 +150,8 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         self._phonebooks_fetched = 0.0
         self._deflections: list[Deflection] = []
         self._alarm_clocks: list[AlarmClock] = []
+        self._blocked: list[PhonebookContact] | None = None
+        self._blocked_fetched = 0.0
         self._voip_lines: list[VoipLine] = []
         self._phones: Phones | None = None
         self._phones_read_at = 0.0
@@ -495,6 +501,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             alarm_clocks=self._get_alarm_clocks(),
             voip_lines=self._get_voip_lines(),
             phones=self._get_phones(),
+            blocked=self._get_blocked(),
         )
 
     def _get_deflections(self) -> list[Deflection]:
@@ -507,6 +514,27 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             return self._deflections
         self._deflections = deflections
         return deflections
+
+    def _get_blocked(self) -> list[PhonebookContact] | None:
+        # A download of its own, so it follows the phonebook rhythm and is
+        # read again right after a number was blocked or released.
+        age = time.monotonic() - self._blocked_fetched
+        if self._blocked_fetched and age < PHONEBOOK_REFRESH_INTERVAL:
+            return self._blocked
+        try:
+            blocked = self.client.get_blocked_numbers()
+        except UNSUPPORTED_ERRORS as err:
+            _LOGGER.debug("Rufsperre nicht lesbar: %s", type(err).__name__)
+            blocked = None  # a box (or a box user) without call barring
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.debug("Rufsperre konnte nicht gelesen werden: %s", err)
+            return self._blocked
+        self._blocked, self._blocked_fetched = blocked, time.monotonic()
+        return blocked
+
+    def invalidate_blocked(self) -> None:
+        """Have the next poll read the call barring list again."""
+        self._blocked_fetched = 0.0
 
     def _get_alarm_clocks(self) -> list[AlarmClock]:
         # Secondary data, like the forwarding rules.

@@ -126,6 +126,9 @@
       "missed_calls": {
         "name": "Missed calls"
       },
+      "blocked_numbers": {
+        "name": "Blocked numbers"
+      },
       "call_monitor": {
         "name": "Call monitor",
         "state": {

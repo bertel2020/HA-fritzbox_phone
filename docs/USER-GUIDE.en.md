@@ -285,6 +285,7 @@ and firmware). Names and icons are translated (German/English).
 | `sensor.*_<phonebook>` (one per phonebook) | number of contacts | `contacts`: name, phone numbers incl. type, VIP flag, `has_image` |
 | `sensor.*_call_list` | number of loaded calls | `calls`: type, name, numbers, date, duration, device/port, fax/answering machine flag, `has_recording`, `tam_index`/`tam_message_index` (which answering machine message the call belongs to), `area_name` (place/country, offline), PhoneBlock spam fields, `reverse_name`/`reverse_category` (Tellows, each if enabled) |
 | `sensor.*_missed_calls` | number of missed calls | `calls`: missed calls only |
+| `sensor.*_blocked_numbers` (only if the box offers call barring) | number of blocked numbers | `numbers`, `entries`: name and numbers of each entry. Read every 15 minutes and right after `block_number` / `unblock_number` |
 | `sensor.*_call_list_<number>` (one per own number, only when the loaded calls use more than one) | number of calls of this number | `own_number`, `calls`: like the call list, but only the calls of this number (incoming: the number called, outgoing: the number used) |
 | `sensor.*_calls_today` | calls of today | `incoming`, `outgoing`, `missed` |
 | `sensor.*_talk_time_today` | minutes in accepted calls of today | - (the box rounds each call up to the minute) |

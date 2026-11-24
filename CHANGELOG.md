@@ -6,6 +6,10 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Neu
 
+- Neuer Sensor „Gesperrte Nummern“: Anzahl und Liste der Rufsperre der Box
+  (Attribute `numbers`, `entries`). Er erscheint nur, wenn die Box die Rufsperre
+  anbietet, und wird alle 15 Minuten sowie nach `block_number` und
+  `unblock_number` neu gelesen.
 - Die Karte hat die Option „Telefon für Rückrufe“: Der Rückruf-Knopf lässt dann
   genau dieses Telefon klingeln (`dial` mit `phone`), statt das an der Box
   eingestellte. Die Auswahl kommt aus dem Sensor „Telefone“.

@@ -126,6 +126,9 @@
       "missed_calls": {
         "name": "Verpasste Anrufe"
       },
+      "blocked_numbers": {
+        "name": "Gesperrte Nummern"
+      },
       "call_monitor": {
         "name": "Anrufmonitor",
         "state": {

@@ -223,6 +223,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                 hass, coordinator, coordinator.client.block_number, number, call.data.get(ATTR_NAME)
             )
             _announce(call, coordinator, EVENT_NUMBER_BLOCKED, number=number, already_blocked=not added)
+            coordinator.invalidate_blocked()
+            await coordinator.async_request_refresh()
 
     async def unblock_number(call: ServiceCall) -> None:
         number = call.data[ATTR_NUMBER]
@@ -235,6 +237,8 @@ async def async_setup_services(hass: HomeAssistant) -> None:
                     translation_placeholders={"number": number},
                 )
             _announce(call, coordinator, EVENT_NUMBER_UNBLOCKED, number=number)
+            coordinator.invalidate_blocked()
+            await coordinator.async_request_refresh()
 
     def _check_new_numbers(coordinator: FritzBoxPhoneCoordinator, numbers: list[str]) -> None:
         for number in numbers:

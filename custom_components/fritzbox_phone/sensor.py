@@ -91,9 +91,11 @@ async def async_setup_entry(
     known_phonebooks: set[int] = set()
     known_tams: set[int] = set()
     known_numbers: set[str] = set()
+    blocked_added = False
 
     @callback
     def _async_add_new_entities() -> None:
+        nonlocal blocked_added
         new: list[SensorEntity] = []
         for phonebook in coordinator.data.phonebooks:
             if phonebook.id not in known_phonebooks:
@@ -117,6 +119,9 @@ async def async_setup_entry(
                 if key not in known_numbers:
                     known_numbers.add(key)
                     new.append(FritzBoxOwnNumberCallListSensor(coordinator, entry, key, number))
+        if not blocked_added and coordinator.data.blocked is not None:
+            blocked_added = True
+            new.append(FritzBoxBlockedNumbersSensor(coordinator, entry))
         if new:
             async_add_entities(new)
 
@@ -197,6 +202,42 @@ class FritzBoxOwnNumberCallListSensor(FritzBoxPhoneEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         return {"own_number": self._number, "calls": self._calls, **self._privacy_attributes}
+
+
+class FritzBoxBlockedNumbersSensor(FritzBoxPhoneEntity, SensorEntity):
+    """The numbers on the box's call barring list."""
+
+    _attr_translation_key = "blocked_numbers"
+    _unrecorded_attributes = frozenset({"numbers", "entries"})
+
+    def __init__(self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_blocked_numbers"
+
+    @property
+    def available(self) -> bool:
+        return super().available and self.coordinator.data.blocked is not None
+
+    @property
+    def native_value(self) -> int | None:
+        blocked = self.coordinator.data.blocked
+        return sum(len(contact.numbers) for contact in blocked) if blocked is not None else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        blocked = self.coordinator.data.blocked or []
+        return {
+            "numbers": [number.number for contact in blocked for number in contact.numbers],
+            "entries": [
+                {
+                    "uniqueid": contact.uniqueid,
+                    "name": contact.name,
+                    "numbers": [number.number for number in contact.numbers],
+                }
+                for contact in blocked
+            ],
+            **self._privacy_attributes,
+        }
 
 
 class FritzBoxMissedCallsSensor(FritzBoxPhoneEntity, SensorEntity):

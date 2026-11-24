@@ -288,6 +288,7 @@ und Firmware). Namen und Symbole sind übersetzt (Deutsch/Englisch).
 | `sensor.*_<telefonbuch>` (je Telefonbuch) | Anzahl Kontakte | `contacts`: Name, Rufnummern inkl. Typ, VIP-Flag, `has_image` |
 | `sensor.*_anrufliste` | Anzahl geladener Anrufe | `calls`: Typ, Name, Nummern, Datum, Dauer, Gerät/Port, Fax-/Anrufbeantworter-Flag, `has_recording`, `tam_index`/`tam_message_index` (zu welcher AB-Nachricht der Anruf gehört), `area_name` (Ort/Land, offline), PhoneBlock-Spamfelder, `reverse_name`/`reverse_category` (Tellows, jeweils falls aktiviert) |
 | `sensor.*_verpasste_anrufe` | Anzahl verpasster Anrufe | `calls`: nur verpasste Anrufe |
+| `sensor.*_gesperrte_nummern` (nur wenn die Box die Rufsperre anbietet) | Anzahl gesperrter Nummern | `numbers`, `entries`: Name und Nummern je Eintrag. Wird alle 15 Minuten und direkt nach `block_number` / `unblock_number` gelesen |
 | `sensor.*_anrufliste_<nummer>` (je eigene Rufnummer, nur wenn die geladenen Anrufe mehr als eine nutzen) | Anzahl der Anrufe dieser Nummer | `own_number`, `calls`: wie die Anrufliste, aber nur die Anrufe dieser Nummer (eingehend: die angerufene, ausgehend: die benutzte Nummer) |
 | `sensor.*_anrufe_heute` | Anrufe von heute | `incoming`, `outgoing`, `missed` |
 | `sensor.*_gespraechszeit_heute` | Minuten in angenommenen Gesprächen von heute | - (die Box rundet jeden Anruf auf die Minute auf) |
