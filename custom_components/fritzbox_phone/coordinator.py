@@ -156,7 +156,8 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         self._voip_lines: list[VoipLine] = []
         self._phones: Phones | None = None
         self._phones_read_at = 0.0
-        self._phones_warned = False
+        # Secondary reads that failed and were already reported.
+        self._read_warned: set[str] = set()
         self._contacts_by_number: dict[str, tuple[str, bool]] = {}
         self._contacts_by_digits: dict[str, tuple[str, bool]] = {}
         # Change detection for the logbook events. `None` means "no poll
@@ -506,14 +507,26 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             blocked=self._get_blocked(),
         )
 
+    def _read_failed(self, key: str, what: str, err: BaseException) -> None:
+        """Say once per outage that a secondary read fails (debug afterwards)."""
+        if key in self._read_warned:
+            _LOGGER.debug("%s konnten nicht gelesen werden: %s", what, describe_error(err))
+            return
+        self._read_warned.add(key)
+        _LOGGER.warning("%s konnten nicht gelesen werden: %s", what, describe_error(err))
+
+    def _read_ok(self, key: str) -> None:
+        self._read_warned.discard(key)
+
     def _get_deflections(self) -> list[Deflection]:
         # Secondary data: a box without forwarding rules, or one that
         # refuses the request, must not fail the whole poll.
         try:
             deflections = self.client.get_deflections()
         except Exception as err:  # noqa: BLE001
-            _LOGGER.debug("Rufumleitungen konnten nicht gelesen werden: %s", err)
+            self._read_failed("deflections", "Rufumleitungen", err)
             return self._deflections
+        self._read_ok("deflections")
         self._deflections = deflections
         return deflections
 
@@ -529,8 +542,9 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             _LOGGER.debug("Rufsperre nicht lesbar: %s", type(err).__name__)
             blocked = None  # a box (or a box user) without call barring
         except Exception as err:  # noqa: BLE001
-            _LOGGER.debug("Rufsperre konnte nicht gelesen werden: %s", err)
+            self._read_failed("blocked", "Rufsperre", err)
             return self._blocked
+        self._read_ok("blocked")
         self._blocked, self._blocked_fetched = blocked, time.monotonic()
         return blocked
 
@@ -543,8 +557,9 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         try:
             clocks = self.client.get_alarm_clocks()
         except Exception as err:  # noqa: BLE001
-            _LOGGER.debug("Weckrufe konnten nicht gelesen werden: %s", err)
+            self._read_failed("alarm_clocks", "Weckrufe", err)
             return self._alarm_clocks
+        self._read_ok("alarm_clocks")
         self._alarm_clocks = clocks
         return clocks
 
@@ -557,12 +572,9 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         try:
             phones = self.client.get_phones()
         except Exception as err:  # noqa: BLE001
-            if not self._phones_warned:
-                # Said once: the sensor stays unavailable until a read works.
-                self._phones_warned = True
-                _LOGGER.warning("Telefone konnten nicht gelesen werden: %s", describe_error(err))
+            self._read_failed("phones", "Telefone", err)
             return self._phones
-        self._phones_warned = False
+        self._read_ok("phones")
         self._phones, self._phones_read_at = phones, now
         return phones
 
@@ -571,8 +583,9 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         try:
             lines = self.client.get_voip_lines()
         except Exception as err:  # noqa: BLE001
-            _LOGGER.debug("Telefonleitungen konnten nicht gelesen werden: %s", err)
+            self._read_failed("voip_lines", "Telefonleitungen", err)
             return self._voip_lines
+        self._read_ok("voip_lines")
         self._voip_lines = lines
         return lines
 
