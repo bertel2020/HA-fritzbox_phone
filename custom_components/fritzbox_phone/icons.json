@@ -130,6 +130,9 @@
     "hangup": {
       "service": "mdi:phone-hangup"
     },
+    "probe_phones": {
+      "service": "mdi:stethoscope"
+    },
     "lookup_number": {
       "service": "mdi:magnify"
     },

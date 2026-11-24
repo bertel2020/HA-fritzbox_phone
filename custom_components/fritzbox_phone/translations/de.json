@@ -454,6 +454,11 @@
           "description": "Bricht den Verbindungsaufbau nach so vielen Sekunden ab, wenn niemand abgehoben hat."
         }
       }
+    },
+    "probe_phones": {
+      "name": "Telefondaten roh auslesen",
+      "description": "Liefert die rohen Antworten der Box auf die Telefon-Abfragen (Wählhilfe, Telefonanschlüsse, IP-Telefone, DECT-Mobilteile), ohne Passwörter und SIP-Zugangsdaten. Zur Diagnose, wenn ein Telefon falsch angezeigt wird.",
+      "fields": {}
     }
   },
   "exceptions": {

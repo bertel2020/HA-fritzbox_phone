@@ -548,3 +548,30 @@ async def test_call_phone_dials_the_internal_number(hass: HomeAssistant) -> None
     assert box.calls_log[-1] == ("dial", "**611", "FON1: Telefon")
     with pytest.raises(ServiceValidationError):
         await hass.services.async_call(DOMAIN, "call_phone", {"target_phone": "Nope"}, blocking=True)
+
+
+async def test_probe_phones_returns_the_raw_answers(hass: HomeAssistant) -> None:
+    await _setup(hass, FakeBox())
+    raw = await hass.services.async_call(
+        DOMAIN, "probe_phones", {}, blocking=True, return_response=True
+    )
+    assert raw["dial_config"] == {"NewX_AVM-DE_PhoneName": "unconfigured"}
+
+
+def test_probe_phones_leaves_out_credentials() -> None:
+    from tests.test_call_barring import _client
+
+    client, box = _client([])
+
+    def call_action(service, action, **arguments):
+        if action == "X_AVM-DE_GetClients":
+            return {"NewX_AVM-DE_ClientList": "<List/>", "NewX_AVM-DE_ClientUsername": "sip-user"}
+        if action == "GetNumberOfDectEntries":
+            return {"NewNumberOfEntries": 0}
+        return {"NewX_AVM-DE_PhoneName": "Fon", "NewPassword": "secret"}
+
+    box.call_action = call_action
+    raw = client.probe_phones()
+    assert "secret" not in repr(raw) and "sip-user" not in repr(raw)
+    assert raw["phone_ports"]["1"] == {"NewX_AVM-DE_PhoneName": "Fon"}
+    assert raw["clients"] == {"NewX_AVM-DE_ClientList": "<List/>"}

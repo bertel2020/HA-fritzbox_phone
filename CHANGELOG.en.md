@@ -6,6 +6,9 @@ All notable changes to this integration are recorded here.
 
 ### New
 
+- New action `probe_phones` ("Read the phone data raw"): returns the box's raw answers
+  to the phone requests, without passwords or SIP credentials. For diagnosis when a
+  phone is shown wrongly (Developer tools → Actions).
 - New action `call_phone` ("Call a phone"): places an internal call to one of the
   box's phones through the dial help (`target_phone`, e.g. "Mobilteil 1"). The dial
   help phone (or `phone`) rings first, and the target phone once you pick up. The box

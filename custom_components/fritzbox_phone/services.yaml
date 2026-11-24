@@ -136,6 +136,11 @@ hangup:
     entity:
       integration: fritzbox_phone
 
+probe_phones:
+  target:
+    entity:
+      integration: fritzbox_phone
+
 lookup_number:
   target:
     entity:

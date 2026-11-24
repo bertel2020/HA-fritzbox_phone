@@ -31,6 +31,7 @@ from fritzconnection.core.exceptions import (
 from fritzconnection.core.utils import get_xml_root
 
 from .const import CALL_TYPE_NAMES, FAX_PORT, MAX_RECORDING_BYTES, TAM_PORT, TAM_PORT_RANGE
+from .health import describe_error
 from .phone_numbers import normalize
 
 _LOGGER = logging.getLogger(__name__)
@@ -60,6 +61,8 @@ def redact(error: object) -> str:
 class RecordingTooLarge(ValueError):
     """The box offered a recording bigger than MAX_RECORDING_BYTES."""
 
+
+_SECRET_FIELD = re.compile(r"password|username|clientid|secret|token", re.IGNORECASE)
 
 UNSUPPORTED_ERRORS = (FritzServiceError, FritzActionError, FritzSecurityError)
 # A phone group that cannot be read must not take the other groups down.
@@ -1024,6 +1027,43 @@ class FritzBoxPhoneClient:
             if name and name not in names:
                 names.append(name)
         return names
+
+    def probe_phones(self) -> dict[str, Any]:
+        """The raw answers of the box to every phone request, for diagnosis.
+
+        What the integration reads is a reading of these answers; when a box
+        shows a phone wrongly, this is what to look at. Passwords, SIP
+        credentials and client ids are left out.
+        """
+        def ask(service: str, action: str, **arguments: Any) -> Any:
+            try:
+                reply = self._call(service, action, **arguments)
+            except Exception as err:  # noqa: BLE001
+                return {"error": describe_error(err)}
+            return {k: v for k, v in reply.items() if not _SECRET_FIELD.search(k)}
+
+        result: dict[str, Any] = {
+            "dial_config": ask(VOIP_SERVICE, "X_AVM-DE_DialGetConfig"),
+            "phone_ports": {
+                str(i): ask(VOIP_SERVICE, "X_AVM-DE_GetPhonePort", NewIndex=i)
+                for i in range(12)
+            },
+            "clients": ask(VOIP_SERVICE, "X_AVM-DE_GetClients"),
+        }
+        dect_count = _to_int(
+            str(self._call_quiet(DECT_SERVICE, "GetNumberOfDectEntries", "NewNumberOfEntries"))
+        )
+        result["dect"] = [
+            ask(DECT_SERVICE, "GetGenericDectEntry", NewIndex=i)
+            for i in range(min(dect_count, MAX_DECT_HANDSETS))
+        ]
+        return result
+
+    def _call_quiet(self, service: str, action: str, key: str) -> Any:
+        try:
+            return self._call(service, action).get(key)
+        except Exception:  # noqa: BLE001
+            return None
 
     def get_phones(self) -> Phones:
         """The telephones of the box. Each group is optional: a box without

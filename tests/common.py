@@ -174,6 +174,9 @@ def build_client_class(box: FakeBox):
                 return
             box.calls_log.append(("dial", number))
 
+        def probe_phones(self):
+            return {"dial_config": {"NewX_AVM-DE_PhoneName": "unconfigured"}}
+
         def set_dial_phone(self, phone: str) -> None:
             if phone not in box.phones.dial_phones:
                 raise ValueError(f"Unknown phone: {phone}")

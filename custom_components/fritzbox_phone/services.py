@@ -48,6 +48,7 @@ from .const import (
     SERVICE_DIAL,
     SERVICE_HANGUP,
     SERVICE_LOOKUP_NUMBER,
+    SERVICE_PROBE_PHONES,
     SERVICE_MARK_MESSAGE_READ,
     SERVICE_PLAY_MESSAGE,
     SERVICE_TURN_ON_FOR,
@@ -228,6 +229,10 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     async def lookup_number(call: ServiceCall) -> dict[str, Any]:
         coordinator = (await _coordinators(hass, call))[0]
         return await coordinator.async_lookup_number(call.data[ATTR_NUMBER])
+
+    async def probe_phones(call: ServiceCall) -> dict[str, Any]:
+        coordinator = (await _coordinators(hass, call))[0]
+        return await _async_run(hass, coordinator, coordinator.client.probe_phones)
 
     def _announce(
         call: ServiceCall, coordinator: FritzBoxPhoneCoordinator, event: str, **data: Any
@@ -464,6 +469,13 @@ async def async_setup_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN, SERVICE_HANGUP, hangup, schema=vol.Schema({**_DEVICE_FIELD})
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_PROBE_PHONES,
+        probe_phones,
+        schema=vol.Schema({**_DEVICE_FIELD}),
+        supports_response=SupportsResponse.ONLY,
     )
     hass.services.async_register(
         DOMAIN,

@@ -454,6 +454,11 @@
           "description": "Cancels the call setup after this many seconds if nobody picked up."
         }
       }
+    },
+    "probe_phones": {
+      "name": "Read the phone data raw",
+      "description": "Returns the box's raw answers to the phone requests (dial help, phone ports, IP phones, DECT handsets), without passwords or SIP credentials. For diagnosis when a phone is shown wrongly.",
+      "fields": {}
     }
   },
   "exceptions": {

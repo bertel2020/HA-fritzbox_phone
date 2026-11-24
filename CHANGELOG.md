@@ -6,6 +6,9 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Neu
 
+- Neue Aktion `probe_phones` („Telefondaten roh auslesen“): liefert die rohen Antworten
+  der Box auf die Telefon-Abfragen, ohne Passwörter und SIP-Zugangsdaten. Zur
+  Diagnose, wenn ein Telefon falsch angezeigt wird (Entwicklerwerkzeuge → Aktionen).
 - Neue Aktion `call_phone` („Telefon anrufen“): ruft über die Wählhilfe ein Telefon der
   Box intern an (`target_phone`, z. B. „Mobilteil 1“). Zuerst klingelt das Telefon der
   Wählhilfe (oder `phone`), nach dem Abheben das Zieltelefon. Einzelne Telefone lassen
