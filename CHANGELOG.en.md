@@ -4,7 +4,7 @@ All notable changes to this integration are recorded here. The German
 [CHANGELOG.md](CHANGELOG.md) is the original and the source of the release notes;
 this file is its English translation.
 
-## Unreleased
+## 2.5.0 – 2026-11-24
 
 ### New
 
