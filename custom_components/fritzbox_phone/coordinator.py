@@ -556,11 +556,11 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
 
     def invalidate_phones(self) -> None:
         """Have the next poll read the phones again (after the dial phone changed)."""
-        self._phones_read_at = 0.0
+        self._phones_read_at = float("-inf")
 
     def invalidate_blocked(self) -> None:
         """Have the next poll read the call barring list again."""
-        self._blocked_fetched = 0.0
+        self._blocked_fetched = float("-inf")
 
     def _get_alarm_clocks(self) -> list[AlarmClock]:
         # Secondary data, like the forwarding rules.
@@ -642,7 +642,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
 
     def invalidate_phonebooks(self) -> None:
         """Have the next poll fetch the phonebooks again (after adding a contact)."""
-        self._phonebooks_fetched = 0.0
+        self._phonebooks_fetched = float("-inf")
 
     def _get_phonebooks(self) -> list[Phonebook]:
         age = time.monotonic() - self._phonebooks_fetched
