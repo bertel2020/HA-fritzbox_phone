@@ -58,9 +58,9 @@ Die Integration arbeitet lokal mit der FRITZ!Box (TR-064 und CallMonitor, Port 1
 - **Spam-Erkennung**: Prüfung eingehender Nummern mit PhoneBlock (nur Hashes der Nummer werden gesendet).
 - **Rückwärtssuche**: unbekannte Nummern werden über Tellows aufgelöst.
 - **Ort und Land**: Herkunft einer Nummer wird offline bestimmt, ohne Internetzugriff.
-- **Wählen und Auflegen**: Services `dial` (auf Wunsch mit gewähltem Telefon und automatischem Auflegen) und `hangup`, Rückruf-Knopf in der Karte (auf Wunsch für ein festes Telefon).
+- **Wählen und Auflegen**: Services `dial` (auf Wunsch mit gewähltem Telefon und automatischem Auflegen), `call_phone` (ein Telefon der Box intern anrufen) und `hangup`, eine Auswahl „Telefon für Rückrufe“, Rückruf-Knopf in der Karte (auf Wunsch für ein festes Telefon).
 - **Rufumleitung**: jede Umleitung der Box als Schalter, z. B. für „nachts aufs Handy“, auch für eine begrenzte Zeit (`turn_on_for`) oder nach Zeitplan (Blueprint).
-- **Leitungen und Telefone**: je Rufnummer ein Sensor, ob der Anbieter sie angemeldet hat, und ein Sensor mit den Telefonen der Box, für die IP-Telefone auch, für welche Rufnummern sie klingeln. Je Weckruf ein Schalter (standardmäßig deaktiviert).
+- **Leitungen und Telefone**: je Rufnummer ein Sensor, ob der Anbieter sie angemeldet hat, je DECT-Mobilteil ein Sensor und ein Sensor mit den Telefonen der Box (Wählhilfe, DECT, IP-Telefone), für die IP-Telefone auch, für welche Rufnummern sie klingeln. Bei Anrufen steht im Anrufmonitor, welches Telefon abgehoben hat (`phone`). Je Weckruf ein Schalter (standardmäßig deaktiviert).
 - **Telefonbuch bearbeiten**: Services `add_contact`, `update_contact`, `delete_contact` und `add_number_to_contact` legen Kontakte an (mit mehreren Nummern, E-Mail und VIP), ändern, löschen sie oder ergänzen eine Nummer.
 - **Rufsperre**: Services `block_number` und `unblock_number` tragen Nummern in die Rufsperre der Box ein oder entfernen sie.
 - **Statistik**: Anrufe heute, verpasste Anrufe, Gesprächszeit und (mit PhoneBlock) Spam-Anrufe als Sensoren.
@@ -105,7 +105,7 @@ Diese Integration ersetzt die Telefonie-Funktionen von **FRITZ!Box Tools** (`fri
 |---|---|
 | `fritz.dial` (Gerät, `max_ring_seconds`) | `fritzbox_phone.dial` (Ziel: Entität, Gerät, Bereich oder Label; optional `max_ring_seconds`) |
 | Rufumleitungs-Schalter (`switch.…_call_deflection_N`) | Schalter je Rufumleitung, mit denselben Attributen (`type`, `number`, `to_number`, `mode`, `outgoing`, `phonebook_id`; Core nennt `to_number` `deflection_to_number`) |
-| Anrufmonitor-Sensor (`idle`, `ringing`, `dialing`, `talking`) | Anruf-Sensor mit denselben Zuständen und Attributen (`from`, `to`, `device`, `initiated`, `accepted`, `closed`, `duration`, `from_name`, `to_name`, `with_name`, `vip`) |
+| Anrufmonitor-Sensor (`idle`, `ringing`, `dialing`, `talking`) | Anruf-Sensor mit denselben Zuständen und Attributen (`from`, `to`, `device`, `phone`, `initiated`, `accepted`, `closed`, `duration`, `from_name`, `to_name`, `with_name`, `vip`) |
 | Option „Präfixe“ | Option „Präfixe“, Zahlen werden zusätzlich in einheitlicher Form (E.164) verglichen |
 
 Die Entitäten sind neu und haben neue IDs. Passe Automationen, Dashboards und Skripte an, die die alten verwenden, und entferne die Core-Integrationen erst danach.

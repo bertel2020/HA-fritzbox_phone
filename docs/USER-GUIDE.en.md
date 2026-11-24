@@ -295,10 +295,12 @@ and firmware). Names and icons are translated (German/English).
 | `switch.*_<answering_machine>_active` | on/off | – |
 | `switch.*_forwarding_to_<target>` (one per call forwarding of the box) | on/off; switches the call forwarding on or off | `deflection_id`, `type`, `number`, `to_number`, `mode`, `outgoing`, `phonebook_id` |
 | `switch.*_alarm_clock_<name>` (one per alarm clock of the box, **disabled by default**: enable it under Settings → Entities) | on/off; switches the alarm clock on or off | `alarm_clock_index`, `time`, `weekdays`, `phone_name`. Time, days and phone cannot be changed through the box's interface, only on the box |
-| `binary_sensor.*_line_<number>` (one per phone number of the box) | on as long as the provider has the number registered | `number`, `status` (message from the box, e.g. `Registered`) |
-| `sensor.*_phones` (category Diagnostic) | number of phones that the dialing aid can ring | `dial_phones` (valid values for the `phone` field of `dial`), `dial_phone` (currently selected on the box), `dect` (name, model, active), `ip` (name, number, `internal_number`, `incoming_numbers`: the own numbers the phone rings for, empty means all). Read at most once per hour |
+| `binary_sensor.*_line_<number>` (one per phone number of the box) | on as long as the provider has the number registered | `number`, `status` (message from the box, e.g. `Registered`; some boxes report a number, `2` means registered) |
+| `binary_sensor.*_handset_<name>` (one per DECT handset; FRITZ!DECT sockets and other smart home devices do not count) | on as long as the handset is switched on and in range | `name`, `model`. FON sockets and IP phones report no such status to the box and so have no sensor |
+| `select.*_phone_for_call_backs` (category Configuration) | the phone the dialing aid rings first (`unknown` as long as none is chosen on the box) | `options`: the phones from `dial_phones`. A choice sets the same as Telephony → Telephony Devices on the box |
+| `sensor.*_phones` (category Diagnostic) | number of phones that the dialing aid can ring | `dial_phones` (valid values for the `phone` field of `dial`, such as `FON1: Telefon` or `DECT: Mobilteil 1`), `dial_phone` (currently selected on the box), `dect` (`id`, name, model, active; real handsets only), `ip` (name, number, `internal_number`, `incoming_numbers`: the own numbers the phone rings for, empty means all). Read at most once per hour |
 | `binary_sensor.*_unread_messages` | on as long as any answering machine has unheard messages | `count` |
-| `sensor.*_call_monitor` | `idle` / `ringing` / `dialing` / `talking`; `unavailable` as long as the connection to the CallMonitor is not up | depending on the state `from`/`to`/`with`, `from_name`/`to_name`/`with_name`, `vip`, `area_name` (place/country, offline), `device`, `duration`, for unknown incoming calls additionally PhoneBlock spam fields and `reverse_name`/`reverse_category` (Tellows, each if enabled); in state `idle` the fields of the most recently ended call are kept, supplemented by `initiated` (start of ringing/dialing), `accepted` (time of acceptance), `started` (start of the call = `accepted`, if present), `closed` (hang-up), `duration_formatted` (exact call duration incl. seconds, e.g. `1:09:18`) and `ring_duration_formatted` (ring time until acceptance, e.g. `0:11`, only if the call was accepted) |
+| `sensor.*_call_monitor` | `idle` / `ringing` / `dialing` / `talking`; `unavailable` as long as the connection to the CallMonitor is not up | depending on the state `from`/`to`/`with`, `from_name`/`to_name`/`with_name`, `vip`, `area_name` (place/country, offline), `device`, `phone` (the phone that picked up or places the call; FON sockets, DECT handsets and IP phones are recognised), `duration`, for unknown incoming calls additionally PhoneBlock spam fields and `reverse_name`/`reverse_category` (Tellows, each if enabled); in state `idle` the fields of the most recently ended call are kept, supplemented by `initiated` (start of ringing/dialing), `accepted` (time of acceptance), `started` (start of the call = `accepted`, if present), `closed` (hang-up), `duration_formatted` (exact call duration incl. seconds, e.g. `1:09:18`) and `ring_duration_formatted` (ring time until acceptance, e.g. `0:11`, only if the call was accepted) |
 | `binary_sensor.*_ringing` | on as long as a call is ringing | `number`, `name`, `is_spam` |
 | `event.*_call` | last call event | event type `ringing` / `dialing` / `talking` / `ended` / `updated`; attributes like the event `fritzbox_phone_call` |
 | Sensors "PhoneBlock" and "Online reverse lookup" (category Diagnostic, disabled by default, only with the service enabled) | `ok` / `error` / `unknown`: `error` after three failed queries in a row (e.g. rejected PhoneBlock credentials), `unknown` as long as no query has succeeded yet | `consecutive_failures`, `last_success`, `last_error` (error type only, e.g. `ClientResponseError 401`). Updates with every poll of the box. On an outage the integration writes a warning to the log once; if PhoneBlock rejects the login, a notice additionally appears under Settings → Repairs |
@@ -340,6 +342,7 @@ disappears as soon as the connection is up.
 | Call list, answering machine, call forwarding, statistics | Query of the box at the polling interval (default 120 s, adjustable under Options) |
 | Phonebook | Reload every 15 minutes, independent of the polling interval |
 | Call monitor, ringing, event "Call" | Push: persistent socket connection to the CallMonitor (port 1012), state changes arrive immediately, without waiting for the next poll |
+| Phones (dialing aid, DECT, IP phones) | At most once per hour; right away after a change with the selection "Phone for call backs" |
 | PhoneBlock / reverse lookup status | With every poll of the box |
 
 If you switch an answering machine or a call forwarding, the box is
@@ -350,6 +353,10 @@ re-established at growing intervals (30 s to 5 min).
 
 ## Known limitations
 
+- **Single phones** cannot be rung by the box without a far end: `call_phone` calls
+  through the dialing aid, and the phone chosen there rings first. FON sockets and
+  IP phones have no status sensor of their own, and the phone of a call (`phone`)
+  is derived from the box's numbering.
 - **The ringer lock** of the box is not reachable via its interface and is
   therefore not included as a switch.
 - **The call monitor** only works as long as the CallMonitor is enabled on
@@ -429,6 +436,8 @@ actions:
 | `fritzbox_phone.play_message` | Play an answering machine recording on a media player (signed address, valid for ten minutes; the speaker must be able to reach Home Assistant at the internal address) | Entity: answering machine sensor; `message_index`, `media_player`, optional `message_key` |
 | `fritzbox_phone.dial` | Start a call via the box's dialing aid: the phone selected there rings first, the number is dialed after pickup | Device (optional with only one box); `number`, optional `phone` (ring this phone for this call instead of the one selected on the box; afterwards the integration restores the box's selection), optional `max_ring_seconds` (1–300: hangs up after this time if nobody picked up) |
 | `fritzbox_phone.turn_on_for` | Switch an answering machine or call forwarding on for a while and then off again. The timer is stored and survives a restart; switching off by hand cancels it | Entity: switch of the answering machine or call forwarding; `minutes` (1–1440) |
+| `fritzbox_phone.call_phone` | Call one of the box's phones internally: the dialing aid phone rings first, and the target phone once you pick up. A single phone cannot be rung without a far end | Device (optional); `target_phone` (a name from the "Phones" sensor, e.g. `Mobilteil 1`, `FRITZ!App Fon` or `FON1: Telefon`), optional `phone` and `max_ring_seconds` as with `dial` |
+| `fritzbox_phone.probe_phones` | Responds with the box's raw answers to the phone requests (dialing aid, phone ports, IP phones, DECT handsets), without passwords or SIP credentials. For diagnosis | Device (optional) |
 | `fritzbox_phone.hangup` | Cancel a dialing process that has not yet been accepted | Device (optional) |
 | `fritzbox_phone.lookup_number` | Responds with what is known about a number | Device (optional); `number` |
 | `fritzbox_phone.add_contact` | Create a contact in a phonebook of the box, with one or more numbers (each with a type), e-mail addresses and VIP flag. Numbers that are already in a phonebook (also in a different spelling) are rejected | Device (optional); `name`, `number` or `numbers` (list of `number` and `type`: `home`, `mobile`, `work`, `fax_work`, `other`), optional `emails` (list), `vip` (default off), `phonebook_id` (default 0 = first phonebook; the number is available as the attribute `phonebook_id` on the phonebook sensor and as `id` in the websocket command `fritzbox_phone/phonebooks`) |
@@ -845,6 +854,7 @@ remain with FRITZ! GmbH.
 | New phonebook is missing | Phonebooks are reloaded every 15 minutes; a new one then appears by itself |
 | Login is rejected ("Re-authenticate" notice) | Password or user changed? Follow the notice and enter new credentials |
 | Call monitor "unavailable" | Enable the CallMonitor via `#96*5*`; the integration retries every 30 s to 5 min (message in the log) |
+| A phone is missing or shown wrongly | A read error leaves one warning in the log (e.g. `Telefone konnten nicht gelesen werden`). Run `fritzbox_phone.probe_phones` under Developer tools → Actions with the response and compare the raw data with the "Phones" sensor |
 | "Call back" does nothing | Enable the box's dialing aid (Telephony → Telephony Devices) and check that the user has the permission "FRITZ!Box Settings" |
 | Recording cannot be played | The message may have been deleted on the box or has no recording; note the message in the card or in the log |
 | Card does not appear in the card dialog | Integration loaded? Browser reloaded (Ctrl+F5)? An old resource entered by hand can be removed |

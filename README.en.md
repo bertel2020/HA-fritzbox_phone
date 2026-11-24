@@ -60,9 +60,9 @@ The integration talks to the FRITZ!Box locally (TR-064 and the CallMonitor on po
 - **Spam check**: incoming numbers are checked with PhoneBlock (only hashes of the number are sent).
 - **Reverse lookup**: unknown numbers are resolved through Tellows.
 - **Place and country**: the origin of a number is determined offline.
-- **Dial and hang up**: the services `dial` (optionally with a chosen phone and automatic hang-up) and `hangup`, plus a call-back button in the card.
+- **Dial and hang up**: the services `dial` (optionally with a chosen phone and automatic hang-up), `call_phone` (call one of the box's phones internally) and `hangup`, a selection "Phone for call backs", plus a call-back button in the card.
 - **Call forwarding**: every forwarding rule of the box as a switch, e.g. for "forward to my mobile at night", also for a limited time (`turn_on_for`) or on a schedule (blueprint).
-- **Lines and phones**: one sensor per telephone number showing whether the provider has it registered, and a sensor listing the box's phones, with the own numbers each IP phone rings for. One switch per alarm clock (disabled by default).
+- **Lines and phones**: one sensor per telephone number showing whether the provider has it registered, one sensor per DECT handset and a sensor listing the box's phones (dialing aid, DECT, IP phones), with the own numbers each IP phone rings for. The call monitor names the phone that picked up (`phone`). One switch per alarm clock (disabled by default).
 - **Editing the phone book**: the services `add_contact`, `update_contact`, `delete_contact` and `add_number_to_contact` create contacts (with several numbers, e-mail and VIP), change or delete them, or add one more number.
 - **Call barring**: the services `block_number` and `unblock_number` add numbers to the box's call barring or remove them.
 - **Statistics**: calls today, missed calls, talk time and (with PhoneBlock) spam calls as sensors.
@@ -107,7 +107,7 @@ This integration replaces the telephony features of **FRITZ!Box Tools** (`fritz`
 |---|---|
 | `fritz.dial` (device, `max_ring_seconds`) | `fritzbox_phone.dial` (target: entity, device, area or label; optional `max_ring_seconds`) |
 | Call deflection switches (`switch.…_call_deflection_N`) | One switch per call forwarding rule with the same attributes (`type`, `number`, `to_number`, `mode`, `outgoing`, `phonebook_id`; core calls `to_number` `deflection_to_number`) |
-| Call monitor sensor (`idle`, `ringing`, `dialing`, `talking`) | Call sensor with the same states and attributes (`from`, `to`, `device`, `initiated`, `accepted`, `closed`, `duration`, `from_name`, `to_name`, `with_name`, `vip`) |
+| Call monitor sensor (`idle`, `ringing`, `dialing`, `talking`) | Call sensor with the same states and attributes (`from`, `to`, `device`, `phone`, `initiated`, `accepted`, `closed`, `duration`, `from_name`, `to_name`, `with_name`, `vip`) |
 | “Prefixes” option | “Prefixes” option; numbers are also compared in one canonical form (E.164) |
 
 The entities are new and have new IDs. Update automations, dashboards and scripts that use the old ones, and remove the core integrations only afterwards.
