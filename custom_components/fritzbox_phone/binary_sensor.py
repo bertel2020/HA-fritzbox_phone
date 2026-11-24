@@ -9,9 +9,14 @@ from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .callmonitor import FritzCallMonitor
-from .const import CALLMONITOR_STATE_RINGING
+from .const import (
+    CALLMONITOR_STATE_RINGING,
+    CONF_PER_NUMBER_SENSORS,
+    DEFAULT_PER_NUMBER_SENSORS,
+)
 from .coordinator import FritzBoxPhoneCoordinator
 from .entity import FritzBoxPhoneEntity
+from .payloads import digits, own_numbers
 from .runtime import FritzBoxPhoneConfigEntry
 
 PARALLEL_UPDATES = 0
@@ -40,6 +45,33 @@ async def async_setup_entry(
 
     _async_add_unread_sensor()
     entry.async_on_unload(coordinator.async_add_listener(_async_add_unread_sensor))
+
+    # Ringing and unread messages per own number of the box, found in the
+    # calls like the per-number sensors of the sensor platform (only with
+    # more than one number; a number that has shown up keeps its sensors).
+    known_numbers: set[str] = set()
+
+    @callback
+    def _async_add_number_sensors() -> None:
+        if not entry.options.get(CONF_PER_NUMBER_SENSORS, DEFAULT_PER_NUMBER_SENSORS):
+            return
+        numbers = own_numbers(coordinator.data.calls)
+        if len(numbers) <= 1 and not known_numbers:
+            return
+        new: list[BinarySensorEntity] = []
+        for key, number in numbers.items():
+            if key in known_numbers:
+                continue
+            known_numbers.add(key)
+            if (monitor := entry.runtime_data.call_monitor) is not None:
+                new.append(FritzBoxOwnNumberRingingSensor(coordinator, entry, monitor, key, number))
+            if coordinator.data.tams:
+                new.append(FritzBoxOwnNumberUnreadMessagesSensor(coordinator, entry, key, number))
+        if new:
+            async_add_entities(new)
+
+    _async_add_number_sensors()
+    entry.async_on_unload(coordinator.async_add_listener(_async_add_number_sensors))
 
     # A number that is configured later gets its sensor without a reload.
     known_lines: set[int] = set()
@@ -116,6 +148,45 @@ class FritzBoxRingingSensor(FritzBoxPhoneEntity, BinarySensorEntity):
         self.async_write_ha_state()
 
 
+class FritzBoxOwnNumberRingingSensor(FritzBoxRingingSensor):
+    """On while a call to one of the box's own numbers is ringing."""
+
+    _attr_translation_key = "ringing_number"
+
+    def __init__(
+        self,
+        coordinator: FritzBoxPhoneCoordinator,
+        entry: ConfigEntry,
+        monitor: FritzCallMonitor,
+        key: str,
+        number: str,
+    ) -> None:
+        super().__init__(coordinator, entry, monitor)
+        self._key = key
+        self._number = number
+        self._attr_unique_id = f"{entry.entry_id}_ringing_{key}"
+
+    @property
+    def translation_placeholders(self) -> dict[str, str]:
+        return {"number": self._number}
+
+    @property
+    def is_on(self) -> bool:
+        return self._monitor.view_for(self._key)[0] == CALLMONITOR_STATE_RINGING
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        if not self.is_on:
+            return {}
+        attributes = self._monitor.view_for(self._key)[1]
+        return {
+            "own_number": self._number,
+            "number": attributes.get("from"),
+            "name": attributes.get("from_name") or attributes.get("reverse_name"),
+            "is_spam": bool(attributes.get("is_spam")),
+        }
+
+
 class FritzBoxUnreadMessagesSensor(FritzBoxPhoneEntity, BinarySensorEntity):
     """On while any answering machine holds a message nobody has heard."""
 
@@ -138,6 +209,37 @@ class FritzBoxUnreadMessagesSensor(FritzBoxPhoneEntity, BinarySensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         return {"count": self._unread}
+
+
+class FritzBoxOwnNumberUnreadMessagesSensor(FritzBoxUnreadMessagesSensor):
+    """On while an answering machine holds an unheard message left on one number."""
+
+    _attr_translation_key = "unread_messages_number"
+
+    def __init__(
+        self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry, key: str, number: str
+    ) -> None:
+        super().__init__(coordinator, entry)
+        self._key = key
+        self._number = number
+        self._attr_unique_id = f"{entry.entry_id}_unread_messages_{key}"
+
+    @property
+    def translation_placeholders(self) -> dict[str, str]:
+        return {"number": self._number}
+
+    @property
+    def _unread(self) -> int:
+        return sum(
+            1
+            for tam in self.coordinator.data.tams
+            for message in tam.messages
+            if message.new and digits(message.called or "") == self._key
+        )
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {"own_number": self._number, "count": self._unread}
 
 
 class FritzBoxLineSensor(FritzBoxPhoneEntity, BinarySensorEntity):

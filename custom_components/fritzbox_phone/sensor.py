@@ -26,12 +26,14 @@ from .const import (
     CONF_CALL_HISTORY_DAYS,
     CONF_CALL_LIST_DAYS,
     CONF_CALL_LIST_MAX,
+    CONF_PER_NUMBER_SENSORS,
     CONTEXT_KEY_CALL_LIST,
     CONTEXT_KEY_MISSED_CALLS,
     CONTEXT_KEY_TAM,
     DEFAULT_CALL_HISTORY_DAYS,
     DEFAULT_CALL_LIST_DAYS,
     DEFAULT_CALL_LIST_MAX,
+    DEFAULT_PER_NUMBER_SENSORS,
     DOMAIN,
     MISSED_CALL_TYPE,
     OUTGOING_CALL_TYPE,
@@ -40,7 +42,7 @@ from .coordinator import FritzBoxPhoneCoordinator
 from .runtime import FritzBoxPhoneConfigEntry
 from .entity import FritzBoxPhoneEntity
 from .health import STATUS_ERROR, STATUS_OK, STATUS_UNKNOWN, LookupHealth
-from .payloads import call_to_dict, contact_to_dict, message_to_dict, own_number
+from .payloads import call_to_dict, contact_to_dict, digits, message_to_dict, own_number, own_numbers
 from .views import recording_path
 
 _LOGGER = logging.getLogger(__name__)
@@ -105,20 +107,21 @@ async def async_setup_entry(
             if tam.index not in known_tams:
                 known_tams.add(tam.index)
                 new.append(FritzBoxTamSensor(coordinator, entry, tam.index))
-        # One call list per own number, found in the calls themselves (the
-        # box offers no list of its numbers over the call list). Only
+        # One set of sensors per own number, found in the calls themselves
+        # (the box offers no list of its numbers over the call list). Only
         # worth it with more than one number; a number that has shown up
-        # once keeps its sensor.
-        numbers = {
-            key: number
-            for call in coordinator.data.calls
-            if (number := own_number(call_to_dict(call))) and (key := _digits(number))
-        }
+        # once keeps its sensors.
+        numbers = own_numbers(coordinator.data.calls)
         if len(numbers) > 1 or known_numbers:
             for key, number in numbers.items():
                 if key not in known_numbers:
                     known_numbers.add(key)
                     new.append(FritzBoxOwnNumberCallListSensor(coordinator, entry, key, number))
+                    if entry.options.get(CONF_PER_NUMBER_SENSORS, DEFAULT_PER_NUMBER_SENSORS):
+                        new.extend(
+                            cls(coordinator, entry, key, number)
+                            for cls in _per_number_classes(coordinator, entry)
+                        )
         if not blocked_added and coordinator.data.blocked is not None:
             blocked_added = True
             new.append(FritzBoxBlockedNumbersSensor(coordinator, entry))
@@ -131,6 +134,40 @@ async def async_setup_entry(
 
 # Kept under its old name for code that imported it from here.
 _call_to_dict = call_to_dict
+
+
+class _OwnNumberMixin:
+    """Narrows a call sensor to the calls of one of the box's own numbers.
+
+    Goes in front of the sensor it narrows; the sensor then counts only
+    what `_source_calls` hands it.
+    """
+
+    _unique_base = ""
+
+    def __init__(
+        self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry, key: str, number: str
+    ) -> None:
+        super().__init__(coordinator, entry)
+        self._key = key
+        self._number = number
+        self._attr_unique_id = f"{entry.entry_id}_{self._unique_base}_{key}"
+
+    @property
+    def translation_placeholders(self) -> dict[str, str]:
+        return {"number": self._number}
+
+    @property
+    def _source_calls(self) -> list[CallEntry]:
+        return [
+            call
+            for call in self.coordinator.data.calls
+            if digits(own_number(call_to_dict(call)) or "") == self._key
+        ]
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {"own_number": self._number, **(super().extra_state_attributes or {})}
 
 
 class FritzBoxCallListSensor(FritzBoxPhoneEntity, SensorEntity):
@@ -164,10 +201,6 @@ class FritzBoxCallListSensor(FritzBoxPhoneEntity, SensorEntity):
         }
 
 
-def _digits(number: str) -> str:
-    return "".join(ch for ch in number if ch.isdigit())
-
-
 class FritzBoxOwnNumberCallListSensor(FritzBoxPhoneEntity, SensorEntity):
     """The call list narrowed to the calls of one of the box's own numbers."""
 
@@ -193,7 +226,7 @@ class FritzBoxOwnNumberCallListSensor(FritzBoxPhoneEntity, SensorEntity):
     @property
     def _calls(self) -> list[dict[str, Any]]:
         records = (call_to_dict(call) for call in self.coordinator.data.calls)
-        return [r for r in records if _digits(own_number(r) or "") == self._key]
+        return [r for r in records if digits(own_number(r) or "") == self._key]
 
     @property
     def native_value(self) -> int:
@@ -253,7 +286,7 @@ class FritzBoxMissedCallsSensor(FritzBoxPhoneEntity, SensorEntity):
 
     @property
     def _missed(self) -> list[CallEntry]:
-        return [call for call in self.coordinator.data.calls if call.type == MISSED_CALL_TYPE]
+        return [call for call in self._source_calls if call.type == MISSED_CALL_TYPE]
 
     @property
     def native_value(self) -> int:
@@ -301,7 +334,7 @@ class _TodaySensor(FritzBoxPhoneEntity, SensorEntity):
     @property
     def _today(self) -> list[CallEntry]:
         today = dt_util.now().date()
-        return [call for call in self.coordinator.data.calls if _call_date(call) == today]
+        return [call for call in self._source_calls if _call_date(call) == today]
 
 
 class FritzBoxCallsTodaySensor(_TodaySensor):
@@ -379,7 +412,7 @@ class FritzBoxSpamCallsTotalSensor(FritzBoxPhoneEntity, RestoreSensor):
         self._count_new()
 
     def _count_new(self) -> None:
-        calls = self.coordinator.data.calls
+        calls = self._source_calls
         current = {call.id for call in calls}
         if self._known is None:
             self._known = current
@@ -397,6 +430,47 @@ class FritzBoxSpamCallsTotalSensor(FritzBoxPhoneEntity, RestoreSensor):
     @property
     def native_value(self) -> int:
         return self._total
+
+
+class FritzBoxOwnNumberMissedCallsSensor(_OwnNumberMixin, FritzBoxMissedCallsSensor):
+    _attr_translation_key = "missed_calls_number"
+    _unique_base = "missed_calls"
+
+
+class FritzBoxOwnNumberCallsTodaySensor(_OwnNumberMixin, FritzBoxCallsTodaySensor):
+    _attr_translation_key = "calls_today_number"
+    _unique_base = "calls_today"
+
+
+class FritzBoxOwnNumberTalkTimeTodaySensor(_OwnNumberMixin, FritzBoxTalkTimeTodaySensor):
+    _attr_translation_key = "talk_time_today_number"
+    _unique_base = "talk_time_today"
+
+
+class FritzBoxOwnNumberSpamCallsTodaySensor(_OwnNumberMixin, FritzBoxSpamCallsTodaySensor):
+    _attr_translation_key = "spam_calls_today_number"
+    _unique_base = "spam_calls_today"
+
+
+class FritzBoxOwnNumberSpamCallsTotalSensor(_OwnNumberMixin, FritzBoxSpamCallsTotalSensor):
+    _attr_translation_key = "spam_calls_total_number"
+    _unique_base = "spam_calls_total"
+
+
+def _per_number_classes(
+    coordinator: FritzBoxPhoneCoordinator, entry: FritzBoxPhoneConfigEntry
+) -> list[type[SensorEntity]]:
+    """The sensors one own number gets besides its call list."""
+    classes: list[type[SensorEntity]] = [
+        FritzBoxOwnNumberMissedCallsSensor,
+        FritzBoxOwnNumberCallsTodaySensor,
+        FritzBoxOwnNumberTalkTimeTodaySensor,
+    ]
+    if coordinator.phoneblock is not None:
+        classes += [FritzBoxOwnNumberSpamCallsTodaySensor, FritzBoxOwnNumberSpamCallsTotalSensor]
+    if entry.runtime_data.call_monitor is not None:
+        classes.append(FritzBoxOwnNumberCallMonitorSensor)
+    return classes
 
 
 class FritzBoxPhonebookSensor(FritzBoxPhoneEntity, SensorEntity):
@@ -658,6 +732,32 @@ class FritzBoxCallMonitorSensor(FritzBoxPhoneEntity, SensorEntity):
         if context is not None:
             self.async_set_context(context)
         self.async_write_ha_state()
+
+
+class FritzBoxOwnNumberCallMonitorSensor(FritzBoxCallMonitorSensor):
+    """The call monitor narrowed to the calls on one of the box's own numbers."""
+
+    _attr_translation_key = "call_monitor_number"
+
+    def __init__(
+        self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry, key: str, number: str
+    ) -> None:
+        super().__init__(coordinator, entry, entry.runtime_data.call_monitor)
+        self._key = key
+        self._number = number
+        self._attr_unique_id = f"{entry.entry_id}_call_monitor_{key}"
+
+    @property
+    def translation_placeholders(self) -> dict[str, str]:
+        return {"number": self._number}
+
+    @property
+    def native_value(self) -> str:
+        return self._monitor.view_for(self._key)[0]
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {"own_number": self._number, **self._monitor.view_for(self._key)[1]}
 
 
 class FritzBoxPhonesSensor(FritzBoxPhoneEntity, SensorEntity):

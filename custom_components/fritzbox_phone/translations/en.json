@@ -93,7 +93,8 @@
           "phoneblock_spam_threshold": "Spam threshold (%, a number counts as spam from this spam probability)",
           "reverse_lookup_enabled": "Enable online reverse lookup via Tellows (sends unknown phone numbers in clear text to tellows.de, no account needed)",
           "privacy_mode": "Hide names and numbers in the dashboard card until a row is tapped (for wall tablets)",
-          "hidden_phones": "Hide phones"
+          "hidden_phones": "Hide phones",
+          "per_number_sensors": "Also split the other sensors per own number (call monitor, ringing, calls today, missed calls, talk time, spam, unread messages)"
         },
         "data_description": {
           "scan_interval": "How often the call list, answering machine and phonebooks are read from the FRITZ!Box.",
@@ -109,7 +110,8 @@
           "phoneblock_spam_threshold": "Callers at or above this spam probability are marked as spam.",
           "reverse_lookup_enabled": "Sends unknown numbers in clear text to tellows.de to find a name and a rating.",
           "privacy_mode": "Only affects the dashboard card.",
-          "hidden_phones": "Phones listed here are left out of the choices for call backs (for example FON sockets with nothing plugged in). The list shows what the box offered when it was last read."
+          "hidden_phones": "Phones listed here are left out of the choices for call backs (for example FON sockets with nothing plugged in). The list shows what the box offered when it was last read.",
+          "per_number_sensors": "Only with several own numbers. The call list is split per number anyway."
         }
       }
     },
@@ -176,6 +178,30 @@
       },
       "phones": {
         "name": "Phones"
+      },
+      "missed_calls_number": {
+        "name": "Missed calls {number}"
+      },
+      "calls_today_number": {
+        "name": "Calls today {number}"
+      },
+      "talk_time_today_number": {
+        "name": "Talk time today {number}"
+      },
+      "spam_calls_today_number": {
+        "name": "Spam calls today {number}"
+      },
+      "spam_calls_total_number": {
+        "name": "Spam calls detected {number}"
+      },
+      "call_monitor_number": {
+        "name": "Call monitor {number}",
+        "state": {
+          "idle": "Idle",
+          "ringing": "Ringing",
+          "dialing": "Dialing",
+          "talking": "Talking"
+        }
       }
     },
     "select": {
@@ -214,6 +240,12 @@
           "on": "Active",
           "off": "Idle"
         }
+      },
+      "ringing_number": {
+        "name": "Ringing {number}"
+      },
+      "unread_messages_number": {
+        "name": "Unread messages {number}"
       }
     },
     "event": {

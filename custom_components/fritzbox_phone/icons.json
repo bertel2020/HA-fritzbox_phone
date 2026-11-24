@@ -63,6 +63,30 @@
       },
       "phones": {
         "default": "mdi:phone-classic"
+      },
+      "missed_calls_number": {
+        "default": "mdi:phone-missed"
+      },
+      "calls_today_number": {
+        "default": "mdi:phone-log"
+      },
+      "talk_time_today_number": {
+        "default": "mdi:timer-outline"
+      },
+      "spam_calls_today_number": {
+        "default": "mdi:phone-alert"
+      },
+      "spam_calls_total_number": {
+        "default": "mdi:counter"
+      },
+      "call_monitor_number": {
+        "default": "mdi:phone",
+        "state": {
+          "idle": "mdi:phone-hangup",
+          "ringing": "mdi:phone-ring",
+          "dialing": "mdi:phone-outgoing",
+          "talking": "mdi:phone-in-talk"
+        }
       }
     },
     "switch": {
@@ -106,6 +130,15 @@
         "state": {
           "on": "mdi:phone-check"
         }
+      },
+      "ringing_number": {
+        "default": "mdi:phone-hangup",
+        "state": {
+          "on": "mdi:phone-ring"
+        }
+      },
+      "unread_messages_number": {
+        "default": "mdi:voicemail"
       }
     },
     "event": {

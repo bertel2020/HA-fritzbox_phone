@@ -2,6 +2,20 @@
 
 Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
+## Unveröffentlicht
+
+### Neu
+
+- Neue Option „Sensoren je Nummer“ (standardmäßig aus): Bei mehr als einer eigenen Nummer
+  werden auch die übrigen Sensoren pro Nummer aufgeteilt, wie die Anrufliste: **Anrufmonitor**, **Klingelt**, **Anrufe heute**,
+  **Verpasste Anrufe**, **Gesprächszeit heute**, **Ungelesene Nachrichten** und, mit
+  PhoneBlock, **Spam-Anrufe heute** und **Erkannte Spam-Anrufe**. Jeder bekommt je Nummer
+  einen zusätzlichen Sensor, benannt wie das Original plus Nummer (z. B. „Verpasste
+  Anrufe 030 1111"); die bestehenden Sensoren bleiben unverändert und zeigen weiter
+  alles. Die Nummern werden wie bei der Anrufliste aus der Anrufliste ermittelt.
+  Ungelesene Nachrichten werden über die Nummer zugeordnet, auf der sie hinterlassen
+  wurden. Nicht an einer Box mit mehreren Nummern ausprobiert.
+
 ## 2.6.0 – 2026-11-24
 
 ### Neu

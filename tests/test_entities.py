@@ -2,8 +2,13 @@
 from __future__ import annotations
 
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 
-from custom_components.fritzbox_phone.const import DOMAIN
+from custom_components.fritzbox_phone.const import (
+    CONF_ENABLE_CALLMONITOR,
+    CONF_PER_NUMBER_SENSORS,
+    DOMAIN,
+)
 from custom_components.fritzbox_phone.sensor import (
     FritzBoxCallListSensor,
     FritzBoxMissedCallsSensor,
@@ -100,4 +105,55 @@ async def test_call_list_per_own_number(hass: HomeAssistant) -> None:
     assert first.state == "2"  # the incoming call and the outgoing one
     assert first.attributes["own_number"] == "0301111"
     assert hass.states.get(sensor("0302222")).state == "1"
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_other_sensors_per_own_number(hass: HomeAssistant, fake_monitor) -> None:
+    from homeassistant.helpers import entity_registry as er
+
+    today = dt_util.now().strftime("%d.%m.%y %H:%M")
+    box = FakeBox(
+        calls=[
+            make_call("1", called_number="0301111", date=today, duration="0:05"),
+            make_call("2", 2, called_number="0302222", date=today),
+            make_call("3", 3, caller_number="0301111", called_number="0309999", date=today),
+        ],
+        tams=[
+            make_tam(
+                [
+                    make_message(1, called="0301111"),
+                    make_message(2, called="0302222"),
+                    make_message(3, called="0302222"),
+                ]
+            )
+        ],
+    )
+    entry = await setup_integration(
+        hass, box, {CONF_ENABLE_CALLMONITOR: True, CONF_PER_NUMBER_SENSORS: True}
+    )
+    registry = er.async_get(hass)
+
+    def state(platform: str, base: str, number: str):
+        entity = registry.async_get_entity_id(
+            platform, DOMAIN, f"{entry.entry_id}_{base}_{number}"
+        )
+        assert entity is not None, base
+        return hass.states.get(entity)
+
+    assert state("sensor", "calls_today", "0301111").state == "2"
+    assert state("sensor", "calls_today", "0302222").state == "1"
+    assert state("sensor", "missed_calls", "0301111").state == "0"
+    assert state("sensor", "missed_calls", "0302222").state == "1"
+    assert state("sensor", "talk_time_today", "0301111").state == "6"
+    assert state("sensor", "call_monitor", "0302222").state == "idle"
+    assert state("binary_sensor", "ringing", "0301111").state == "off"
+    assert state("binary_sensor", "unread_messages", "0301111").attributes["count"] == 1
+    assert state("binary_sensor", "unread_messages", "0302222").attributes["count"] == 2
+    # Spam detection is off, so there is nothing to split.
+    assert (
+        registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{entry.entry_id}_spam_calls_today_0301111"
+        )
+        is None
+    )
     assert await hass.config_entries.async_unload(entry.entry_id)

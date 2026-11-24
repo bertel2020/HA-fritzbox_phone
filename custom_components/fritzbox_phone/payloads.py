@@ -124,6 +124,19 @@ def own_number(record: dict[str, Any]) -> str | None:
     return record.get("called_number") or record.get("called")
 
 
+def digits(number: str) -> str:
+    return "".join(ch for ch in number if ch.isdigit())
+
+
+def own_numbers(calls: list[CallEntry]) -> dict[str, str]:
+    """The box's own numbers found in the call list: digits -> number as shown."""
+    return {
+        key: number
+        for call in calls
+        if (number := own_number(call_to_dict(call))) and (key := digits(number))
+    }
+
+
 def message_to_dict(entry_id: str, tam_index: int, message: TamMessage, key: str) -> dict[str, Any]:
     """An answering machine message as the answering machine sensor lists it."""
     return {

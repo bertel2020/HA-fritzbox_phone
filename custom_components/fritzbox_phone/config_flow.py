@@ -42,6 +42,7 @@ from .const import (
     CONF_PHONEBLOCK_THRESHOLD,
     CONF_PHONEBLOCK_USERNAME,
     CONF_PREFIXES,
+    CONF_PER_NUMBER_SENSORS,
     CONF_PRIVACY_MODE,
     CONF_REVERSE_LOOKUP_ENABLED,
     CONF_SCAN_INTERVAL,
@@ -53,6 +54,7 @@ from .const import (
     DEFAULT_ENABLE_CALLMONITOR,
     DEFAULT_PHONEBLOCK_ENABLED,
     DEFAULT_PHONEBLOCK_THRESHOLD,
+    DEFAULT_PER_NUMBER_SENSORS,
     DEFAULT_PRIVACY_MODE,
     DEFAULT_REVERSE_LOOKUP_ENABLED,
     DEFAULT_SCAN_INTERVAL,
@@ -408,6 +410,10 @@ class FritzBoxPhoneOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_PRIVACY_MODE,
                     default=options.get(CONF_PRIVACY_MODE, DEFAULT_PRIVACY_MODE),
+                ): bool,
+                vol.Optional(
+                    CONF_PER_NUMBER_SENSORS,
+                    default=options.get(CONF_PER_NUMBER_SENSORS, DEFAULT_PER_NUMBER_SENSORS),
                 ): bool,
                 vol.Optional(
                     CONF_HIDDEN_PHONES,

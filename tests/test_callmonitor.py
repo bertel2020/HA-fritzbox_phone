@@ -19,6 +19,7 @@ from custom_components.fritzbox_phone.callmonitor import (
 )
 from custom_components.fritzbox_phone.const import (
     CONF_ENABLE_CALLMONITOR,
+    CONF_PER_NUMBER_SENSORS,
     EVENT_CALL,
 )
 from custom_components.fritzbox_phone.logbook import _describe_call
@@ -49,9 +50,9 @@ def line(text: str):
     return parsed
 
 
-async def setup_monitor(hass: HomeAssistant, box: FakeBox | None = None):
+async def setup_monitor(hass: HomeAssistant, box: FakeBox | None = None, options=None):
     box = box or FakeBox()
-    entry = await setup_integration(hass, box, {CONF_ENABLE_CALLMONITOR: True})
+    entry = await setup_integration(hass, box, {CONF_ENABLE_CALLMONITOR: True, **(options or {})})
     monitor = entry.runtime_data.call_monitor
     assert monitor is not None
     await wait_for(lambda: monitor.connected)
@@ -432,3 +433,42 @@ async def test_a_call_names_the_phone_that_picked_up(hass: HomeAssistant, fake_m
     monitor.async_handle_line(line("24.10.26 10:01:05;CONNECT;2;0;0309999;"))
     await hass.async_block_till_done()
     assert hass.states.get(sensor).attributes["phone"] == "FON1: Telefon"
+
+
+async def test_call_monitor_per_own_number(hass: HomeAssistant, fake_monitor) -> None:
+    from homeassistant.helpers import entity_registry as er
+
+    from .common import make_call
+
+    box = FakeBox(
+        calls=[make_call("1", called_number="0301111"), make_call("2", called_number="0302222")]
+    )
+    entry, monitor = await setup_monitor(hass, box, {CONF_PER_NUMBER_SENSORS: True})
+    registry = er.async_get(hass)
+
+    def ids(platform: str, base: str, number: str) -> str:
+        entity = registry.async_get_entity_id(platform, "fritzbox_phone", f"{entry.entry_id}_{base}_{number}")
+        assert entity is not None
+        return entity
+
+    first = ids("sensor", "call_monitor", "0301111")
+    second = ids("sensor", "call_monitor", "0302222")
+    ringing = ids("binary_sensor", "ringing", "0302222")
+
+    monitor.async_handle_line(line("24.10.26 10:00:00;RING;7;030123456;0302222;SIP1;"))
+    await hass.async_block_till_done()
+    assert hass.states.get(first).state == "idle"
+    assert hass.states.get(second).state == "ringing"
+    assert hass.states.get(ringing).state == "on"
+
+    # An outgoing call on the other number does not disturb it.
+    monitor.async_handle_line(line("24.10.26 10:00:02;CALL;8;1;0301111;030999;SIP0;"))
+    await hass.async_block_till_done()
+    assert hass.states.get(first).state == "dialing"
+    assert hass.states.get(second).state == "ringing"
+
+    monitor.async_handle_line(line("24.10.26 10:00:09;DISCONNECT;7;0;"))
+    await hass.async_block_till_done()
+    assert hass.states.get(second).state == "idle"
+    assert hass.states.get(second).attributes["from"] == "030123456"
+    assert hass.states.get(first).state == "dialing"

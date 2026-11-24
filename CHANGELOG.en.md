@@ -2,6 +2,19 @@
 
 All notable changes to this integration are recorded here.
 
+## Unreleased
+
+### New
+
+- New option "Per-number sensors" (off by default): with more than one own number, the
+  other sensors are split per number as well, like the call list: **Call monitor**, **Ringing**, **Calls today**, **Missed calls**,
+  **Talk time today**, **Unread messages** and, with PhoneBlock, **Spam calls today** and
+  **Spam calls detected**. Each gets one extra sensor per number, named like the original
+  plus the number (e.g. "Missed calls 030 1111"); the existing sensors are unchanged and
+  still cover everything. The numbers are found in the call list, as for the call list.
+  Unread messages are matched by the number the message was left on. Not tried on a box
+  with several numbers.
+
 ## 2.6.0 – 2026-11-24
 
 ### New

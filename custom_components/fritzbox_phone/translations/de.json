@@ -93,7 +93,8 @@
           "phoneblock_spam_threshold": "Spam-Schwellwert (%, ab dieser Spam-Wahrscheinlichkeit gilt eine Nummer als Spam)",
           "reverse_lookup_enabled": "Online-Rückwärtssuche über Tellows aktivieren (sendet unbekannte Rufnummern im Klartext an tellows.de, kein Account nötig)",
           "privacy_mode": "Namen und Rufnummern in der Dashboard-Karte verbergen, bis eine Zeile angetippt wird (für Wandtablets)",
-          "hidden_phones": "Telefone ausblenden"
+          "hidden_phones": "Telefone ausblenden",
+          "per_number_sensors": "Auch die übrigen Sensoren je eigener Nummer aufteilen (Anrufmonitor, Klingelt, Anrufe heute, Verpasste Anrufe, Gesprächszeit, Spam, Ungelesene Nachrichten)"
         },
         "data_description": {
           "scan_interval": "Wie oft Anrufliste, Anrufbeantworter und Telefonbücher von der FRITZ!Box gelesen werden.",
@@ -109,7 +110,8 @@
           "phoneblock_spam_threshold": "Anrufer ab dieser Spam-Wahrscheinlichkeit werden als Spam markiert.",
           "reverse_lookup_enabled": "Sendet unbekannte Nummern im Klartext an tellows.de, um Name und Bewertung zu finden.",
           "privacy_mode": "Wirkt nur auf die Dashboard-Karte.",
-          "hidden_phones": "Hier gewählte Telefone fehlen in den Auswahlen für Rückrufe (z. B. FON-Anschlüsse ohne angeschlossenes Telefon). Die Liste zeigt, was die Box beim letzten Lesen angeboten hat."
+          "hidden_phones": "Hier gewählte Telefone fehlen in den Auswahlen für Rückrufe (z. B. FON-Anschlüsse ohne angeschlossenes Telefon). Die Liste zeigt, was die Box beim letzten Lesen angeboten hat.",
+          "per_number_sensors": "Nur mit mehreren eigenen Nummern. Die Anrufliste wird ohnehin je Nummer aufgeteilt."
         }
       }
     },
@@ -176,6 +178,30 @@
       },
       "phones": {
         "name": "Telefone"
+      },
+      "missed_calls_number": {
+        "name": "Verpasste Anrufe {number}"
+      },
+      "calls_today_number": {
+        "name": "Anrufe heute {number}"
+      },
+      "talk_time_today_number": {
+        "name": "Gesprächszeit heute {number}"
+      },
+      "spam_calls_today_number": {
+        "name": "Spam-Anrufe heute {number}"
+      },
+      "spam_calls_total_number": {
+        "name": "Erkannte Spam-Anrufe {number}"
+      },
+      "call_monitor_number": {
+        "name": "Anrufmonitor {number}",
+        "state": {
+          "idle": "Inaktiv",
+          "ringing": "Klingelt",
+          "dialing": "Wählt",
+          "talking": "Gespräch"
+        }
       }
     },
     "select": {
@@ -214,6 +240,12 @@
           "on": "Aktiv",
           "off": "Ruhezustand"
         }
+      },
+      "ringing_number": {
+        "name": "Klingelt {number}"
+      },
+      "unread_messages_number": {
+        "name": "Ungelesene Nachrichten {number}"
       }
     },
     "event": {

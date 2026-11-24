@@ -16,6 +16,7 @@ CONF_PHONEBLOCK_THRESHOLD = "phoneblock_spam_threshold"
 CONF_REVERSE_LOOKUP_ENABLED = "reverse_lookup_enabled"
 CONF_HIDDEN_PHONES = "hidden_phones"
 CONF_PRIVACY_MODE = "privacy_mode"
+CONF_PER_NUMBER_SENSORS = "per_number_sensors"
 CONF_CALL_HISTORY_DAYS = "call_history_days"
 
 DEFAULT_CALL_LIST_DAYS = 7
@@ -33,6 +34,8 @@ DEFAULT_COUNTRY_PREFIX = "+49"
 PHONEBOOK_REFRESH_INTERVAL = 900  # seconds
 DEFAULT_REVERSE_LOOKUP_ENABLED = False
 DEFAULT_PRIVACY_MODE = False
+# The call list is split per own number on its own; the other sensors only on request.
+DEFAULT_PER_NUMBER_SENSORS = False
 # Opt-in call history (history.py): 0 = off, nothing is written to disk.
 DEFAULT_CALL_HISTORY_DAYS = 0
 MAX_CALL_HISTORY_DAYS = 365

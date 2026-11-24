@@ -83,6 +83,18 @@ def normalize_number(number: str | None) -> str:
     return NUMBER_STRIP_RE.sub("", number or "")
 
 
+def own_number_key(attributes: dict[str, Any]) -> str:
+    """The digits of the box's own number a call used ("" if not known).
+
+    An incoming call was made *to* the box's number, an outgoing one comes
+    *from* it. A call that Home Assistant only saw connect has neither.
+    """
+    own = attributes.get("to") if attributes.get("type") == "incoming" else attributes.get("from")
+    if attributes.get("type") not in ("incoming", "outgoing"):
+        return ""
+    return "".join(ch for ch in str(own or "") if ch.isdigit())
+
+
 @dataclass
 class MonitorLine:
     """One parsed line of the CallMonitor protocol."""
@@ -190,6 +202,8 @@ class FritzCallMonitor:
 
         self._active: dict[str, ActiveCall] = {}
         self._last_summary: dict[str, Any] = {}
+        # The last finished call per own number (same dicts as _last_summary).
+        self._summaries: dict[str, dict[str, Any]] = {}
         self._listeners: list[Callable[[Context | None], None]] = []
         self._event_listeners: list[Callable[[str, dict[str, Any]], None]] = []
 
@@ -514,6 +528,8 @@ class FritzCallMonitor:
             )
         self._active.pop(line.connection_id, None)
         self._last_summary = attributes
+        if key := own_number_key(attributes):
+            self._summaries[key] = attributes
         return ActiveCall(line.connection_id, CALLMONITOR_STATE_IDLE, attributes)
 
     def _worth_online_lookup(self, call: ActiveCall) -> bool:
@@ -588,6 +604,15 @@ class FritzCallMonitor:
         )
         self.state = best.phase
         self.attributes = dict(best.attributes)
+
+    def view_for(self, key: str) -> tuple[str, dict[str, Any]]:
+        """State and attributes as `_recompute` shows them, narrowed to the
+        calls on one of the box's own numbers (`key`: its digits)."""
+        mine = [c for c in self._active.values() if own_number_key(c.attributes) == key]
+        if not mine:
+            return CALLMONITOR_STATE_IDLE, dict(self._summaries.get(key, {}))
+        best = max(mine, key=lambda call: _PHASE_PRIORITY.get(call.phase, 0))
+        return best.phase, dict(best.attributes)
 
     def _event_payload(
         self, state: str, attributes: dict[str, Any], enriched: bool

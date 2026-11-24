@@ -15,7 +15,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONF_PRIVACY_MODE, CONF_USE_TLS, DEFAULT_PRIVACY_MODE, DOMAIN
-from .api import redact
+from .api import CallEntry, redact
 from .coordinator import FritzBoxPhoneCoordinator
 
 
@@ -35,6 +35,11 @@ class FritzBoxPhoneEntity(CoordinatorEntity[FritzBoxPhoneCoordinator]):
         return {
             "privacy_mode": bool(self._entry.options.get(CONF_PRIVACY_MODE, DEFAULT_PRIVACY_MODE))
         }
+
+    @property
+    def _source_calls(self) -> list[CallEntry]:
+        """The calls a call sensor counts (narrowed per own number by a mixin)."""
+        return self.coordinator.data.calls
 
     def __init__(self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator)
