@@ -6,6 +6,8 @@ All notable changes to this integration are recorded here.
 
 ### New
 
+- New option "Hide phones": hidden phones (e.g. FON sockets with nothing plugged in)
+  are left out of the call back choices, `call_phone` and `dial_phones`.
 - The card shows which phone a call is on, or last was on, in the call monitor view
   (attribute `phone`).
 - New action `probe_phones` ("Read the phone data raw"): returns the box's raw answers

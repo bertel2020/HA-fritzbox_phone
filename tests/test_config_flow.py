@@ -167,6 +167,35 @@ async def test_options_offer_the_call_history(hass: HomeAssistant) -> None:
     assert result["data"]["call_history_days"] == 90
 
 
+async def test_options_offer_the_phones_to_hide(hass: HomeAssistant) -> None:
+    from types import SimpleNamespace
+
+    entry = MockConfigEntry(domain=DOMAIN, unique_id="ABC123", data=USER_INPUT)
+    entry.add_to_hass(hass)
+    # The setup is mocked in this file: stand in for what a loaded entry holds.
+    entry.runtime_data = SimpleNamespace(
+        coordinator=SimpleNamespace(
+            all_dial_phones=["FON1: Telefon", "FON2: Telefon", "DECT: Mobilteil 1"]
+        )
+    )
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    key = next(key for key in result["data_schema"].schema if str(key) == "hidden_phones")
+    assert key.default() == []
+    options = result["data_schema"].schema[key].config["options"]
+    assert [o["value"] if isinstance(o, dict) else o for o in options] == [
+        "FON1: Telefon",
+        "FON2: Telefon",
+        "DECT: Mobilteil 1",
+    ]
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"hidden_phones": ["FON1: Telefon", "FON2: Telefon"]}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"]["hidden_phones"] == ["FON1: Telefon", "FON2: Telefon"]
+
+
 async def test_reauth_updates_credentials(hass: HomeAssistant) -> None:
     entry = MockConfigEntry(domain=DOMAIN, unique_id="ABC123", data=USER_INPUT)
     entry.add_to_hass(hass)

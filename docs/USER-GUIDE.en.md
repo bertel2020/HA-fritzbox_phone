@@ -180,6 +180,7 @@ credentials, Home Assistant itself asks for new ones (reauth):
 | Spam threshold | 50 % | the PhoneBlock spam probability from which `is_spam` is set |
 | Enable online reverse lookup (Tellows) | off | switches name resolution of unknown numbers via Tellows on/off, see below |
 | Hide names and numbers in the dashboard card | off | the card shows dots instead of names and numbers until a row is tapped (then readable for 15 seconds); intended for wall tablets. Display only: sensors, logbook and automations keep the real data. Can be overridden per card with the card option `privacy` (`auto`, `on`, `off`); the call monitor stays uncovered |
+| Hide phones | none | Phones chosen here are left out of the "Phone for call backs" selection, the card dropdown, `call_phone` and `dial_phones`; `dial` with a hidden phone is rejected. Meant for FON sockets with nothing plugged in. The list shows what the box offered when it was last read; the phone chosen on the box stays visible in the selection. The handset sensors and the call list are not affected |
 
 ## Spam detection (PhoneBlock)
 

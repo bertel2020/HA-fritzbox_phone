@@ -39,13 +39,19 @@ class FritzBoxDialPhoneSelect(FritzBoxPhoneEntity, SelectEntity):
     @property
     def options(self) -> list[str]:
         phones = self.coordinator.data.phones
-        return list(phones.dial_phones) if phones else []
+        if not phones:
+            return []
+        options = list(phones.dial_phones)
+        # A phone hidden in the options stays visible while the box has it chosen.
+        if phones.dial_phone in self.coordinator.hidden_phones:
+            options.append(phones.dial_phone)
+        return options
 
     @property
     def current_option(self) -> str | None:
         phones = self.coordinator.data.phones
         # "unconfigured" is the box's word for "none chosen".
-        return phones.dial_phone if phones and phones.dial_phone in phones.dial_phones else None
+        return phones.dial_phone if phones and phones.dial_phone in self.options else None
 
     async def async_select_option(self, option: str) -> None:
         await self._async_box_call(self.coordinator.client.set_dial_phone, option)

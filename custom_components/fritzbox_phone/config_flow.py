@@ -36,6 +36,7 @@ from .const import (
     CONF_CALL_LIST_MAX,
     CONF_CALLMONITOR_PORT,
     CONF_ENABLE_CALLMONITOR,
+    CONF_HIDDEN_PHONES,
     CONF_PHONEBLOCK_ENABLED,
     CONF_PHONEBLOCK_PASSWORD,
     CONF_PHONEBLOCK_THRESHOLD,
@@ -408,6 +409,25 @@ class FritzBoxPhoneOptionsFlow(config_entries.OptionsFlow):
                     CONF_PRIVACY_MODE,
                     default=options.get(CONF_PRIVACY_MODE, DEFAULT_PRIVACY_MODE),
                 ): bool,
+                vol.Optional(
+                    CONF_HIDDEN_PHONES,
+                    default=list(options.get(CONF_HIDDEN_PHONES) or []),
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=self._phone_choices(options),
+                        multiple=True,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
+
+    def _phone_choices(self, options: Mapping[str, Any]) -> list[str]:
+        """The phones the box offers (as last read) plus those already hidden."""
+        runtime = getattr(self.config_entry, "runtime_data", None)
+        known = list(runtime.coordinator.all_dial_phones) if runtime else []
+        for name in options.get(CONF_HIDDEN_PHONES) or []:
+            if name not in known:
+                known.append(name)
+        return known

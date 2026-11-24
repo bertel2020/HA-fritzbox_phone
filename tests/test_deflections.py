@@ -3,14 +3,17 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+import pytest
+
 from homeassistant.const import STATE_OFF, STATE_ON
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.fritzbox_phone.api import Deflection, Phones, VoipLine
 
-from .common import FakeBox, entity_id, setup_integration
+from .common import FakeBox, entity_id, get_coordinator, setup_integration
 
 
 def _deflection(deflection_id: int, enabled: bool, to_number: str = "0171 1234567") -> Deflection:
@@ -160,3 +163,28 @@ async def test_dect_handsets_get_a_sensor_each(hass: HomeAssistant) -> None:
     assert (kitchen.state, bathroom.state) == (STATE_ON, STATE_OFF)
     assert kitchen.attributes["friendly_name"].endswith("Handset Kueche")
     assert kitchen.attributes["model"] == "C6"
+
+
+async def test_hidden_phones_leave_the_choices(hass: HomeAssistant) -> None:
+    from custom_components.fritzbox_phone.const import CONF_HIDDEN_PHONES
+
+    box = FakeBox(
+        phones=Phones(dial_phones=["FON1: Telefon", "FON2: Telefon", "DECT: Mobilteil 1"],
+                      dial_phone="FON2: Telefon")
+    )
+    entry = await setup_integration(hass, box, {CONF_HIDDEN_PHONES: ["FON1: Telefon", "FON2: Telefon"]})
+
+    sensor = hass.states.get(entity_id(hass, entry, "phones", "sensor"))
+    assert sensor.attributes["dial_phones"] == ["DECT: Mobilteil 1"]
+    assert get_coordinator(hass, entry).all_dial_phones == [
+        "FON1: Telefon", "FON2: Telefon", "DECT: Mobilteil 1"
+    ]
+    select = hass.states.get(entity_id(hass, entry, "dial_phone", "select"))
+    # The phone the box has chosen stays visible although it is hidden.
+    assert select.attributes["options"] == ["DECT: Mobilteil 1", "FON2: Telefon"]
+    assert select.state == "FON2: Telefon"
+
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            "fritzbox_phone", "dial", {"number": "030 1", "phone": "FON1: Telefon"}, blocking=True
+        )

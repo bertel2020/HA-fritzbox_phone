@@ -92,7 +92,8 @@
           "phoneblock_password": "PhoneBlock-Kennwort (leer lassen = unverändert)",
           "phoneblock_spam_threshold": "Spam-Schwellwert (%, ab dieser Spam-Wahrscheinlichkeit gilt eine Nummer als Spam)",
           "reverse_lookup_enabled": "Online-Rückwärtssuche über Tellows aktivieren (sendet unbekannte Rufnummern im Klartext an tellows.de, kein Account nötig)",
-          "privacy_mode": "Namen und Rufnummern in der Dashboard-Karte verbergen, bis eine Zeile angetippt wird (für Wandtablets)"
+          "privacy_mode": "Namen und Rufnummern in der Dashboard-Karte verbergen, bis eine Zeile angetippt wird (für Wandtablets)",
+          "hidden_phones": "Telefone ausblenden"
         },
         "data_description": {
           "scan_interval": "Wie oft Anrufliste, Anrufbeantworter und Telefonbücher von der FRITZ!Box gelesen werden.",
@@ -107,7 +108,8 @@
           "phoneblock_password": "Leer lassen, um das gespeicherte Kennwort zu behalten.",
           "phoneblock_spam_threshold": "Anrufer ab dieser Spam-Wahrscheinlichkeit werden als Spam markiert.",
           "reverse_lookup_enabled": "Sendet unbekannte Nummern im Klartext an tellows.de, um Name und Bewertung zu finden.",
-          "privacy_mode": "Wirkt nur auf die Dashboard-Karte."
+          "privacy_mode": "Wirkt nur auf die Dashboard-Karte.",
+          "hidden_phones": "Hier gewählte Telefone fehlen in den Auswahlen für Rückrufe (z. B. FON-Anschlüsse ohne angeschlossenes Telefon). Die Liste zeigt, was die Box beim letzten Lesen angeboten hat."
         }
       }
     },
@@ -494,6 +496,9 @@
     },
     "unknown_target_phone": {
       "message": "Zu dem Telefon „{phone}“ ist keine interne Nummer bekannt. Einen Namen aus dem Sensor „Telefone“ verwenden."
+    },
+    "hidden_phone": {
+      "message": "Das Telefon „{phone}“ ist in den Optionen ausgeblendet und kann hier nicht verwendet werden."
     }
   },
   "issues": {

@@ -178,6 +178,12 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         phone: str | None,
         seconds: int | None,
     ) -> None:
+        if phone is not None and phone in coordinator.hidden_phones:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="hidden_phone",
+                translation_placeholders={"phone": phone},
+            )
         try:
             await _async_run(
                 hass,

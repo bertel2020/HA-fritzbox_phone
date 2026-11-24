@@ -92,7 +92,8 @@
           "phoneblock_password": "PhoneBlock password (leave empty = unchanged)",
           "phoneblock_spam_threshold": "Spam threshold (%, a number counts as spam from this spam probability)",
           "reverse_lookup_enabled": "Enable online reverse lookup via Tellows (sends unknown phone numbers in clear text to tellows.de, no account needed)",
-          "privacy_mode": "Hide names and numbers in the dashboard card until a row is tapped (for wall tablets)"
+          "privacy_mode": "Hide names and numbers in the dashboard card until a row is tapped (for wall tablets)",
+          "hidden_phones": "Hide phones"
         },
         "data_description": {
           "scan_interval": "How often the call list, answering machine and phonebooks are read from the FRITZ!Box.",
@@ -107,7 +108,8 @@
           "phoneblock_password": "Leave empty to keep the stored password.",
           "phoneblock_spam_threshold": "Callers at or above this spam probability are marked as spam.",
           "reverse_lookup_enabled": "Sends unknown numbers in clear text to tellows.de to find a name and a rating.",
-          "privacy_mode": "Only affects the dashboard card."
+          "privacy_mode": "Only affects the dashboard card.",
+          "hidden_phones": "Phones listed here are left out of the choices for call backs (for example FON sockets with nothing plugged in). The list shows what the box offered when it was last read."
         }
       }
     },
@@ -494,6 +496,9 @@
     },
     "unknown_target_phone": {
       "message": "No internal number is known for the phone \"{phone}\". Use a name from the phones sensor."
+    },
+    "hidden_phone": {
+      "message": "The phone \"{phone}\" is hidden in the options and cannot be used here."
     }
   },
   "issues": {

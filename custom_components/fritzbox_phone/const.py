@@ -14,6 +14,7 @@ CONF_PHONEBLOCK_USERNAME = "phoneblock_username"
 CONF_PHONEBLOCK_PASSWORD = "phoneblock_password"
 CONF_PHONEBLOCK_THRESHOLD = "phoneblock_spam_threshold"
 CONF_REVERSE_LOOKUP_ENABLED = "reverse_lookup_enabled"
+CONF_HIDDEN_PHONES = "hidden_phones"
 CONF_PRIVACY_MODE = "privacy_mode"
 CONF_CALL_HISTORY_DAYS = "call_history_days"
 

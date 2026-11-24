@@ -51,6 +51,7 @@ from .phone_numbers import normalize as normalize_phone_number
 from .const import (
     CONF_CALL_LIST_DAYS,
     CONF_CALL_LIST_MAX,
+    CONF_HIDDEN_PHONES,
     CONF_PHONEBLOCK_ENABLED,
     CONF_PHONEBLOCK_PASSWORD,
     CONF_PHONEBLOCK_THRESHOLD,
@@ -157,6 +158,10 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         self._voip_lines: list[VoipLine] = []
         self._phones: Phones | None = None
         self._phones_read_at = 0.0
+        # Phones the user hid in the options (e.g. FON sockets with nothing
+        # plugged in) and everything the box offers, hidden or not.
+        self.hidden_phones: frozenset[str] = frozenset(entry.options.get(CONF_HIDDEN_PHONES) or [])
+        self.all_dial_phones: list[str] = []
         # Secondary reads that failed and were already reported.
         self._read_warned: set[str] = set()
         self._contacts_by_number: dict[str, tuple[str, bool]] = {}
@@ -580,6 +585,8 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             self._read_failed("phones", "Telefone", err)
             return self._phones
         self._read_ok("phones")
+        self.all_dial_phones = list(phones.dial_phones)
+        phones.dial_phones = [n for n in phones.dial_phones if n not in self.hidden_phones]
         self._phones, self._phones_read_at = phones, now
         return phones
 

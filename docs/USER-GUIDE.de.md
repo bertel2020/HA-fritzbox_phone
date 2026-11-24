@@ -183,6 +183,7 @@ gespeicherten Zugangsdaten ab, fragt Home Assistant selbst nach neuen
 | Spam-Schwellwert | 50 % | ab welcher PhoneBlock-Spam-Wahrscheinlichkeit `is_spam` gesetzt wird |
 | Online-Rückwärtssuche (Tellows) aktivieren | aus | schaltet die Namensauflösung unbekannter Nummern über Tellows an/aus, siehe unten |
 | Namen und Rufnummern in der Dashboard-Karte verbergen | aus | die Karte zeigt Punkte statt Namen und Nummern, bis eine Zeile angetippt wird (dann 15 Sekunden lesbar); gedacht für Wandtablets. Reine Anzeige: Sensoren, Logbuch und Automationen behalten die echten Daten. Pro Karte überschreibbar mit der Kartenoption `privacy` (`auto`, `on`, `off`); der Anrufmonitor bleibt unverdeckt |
+| Telefone ausblenden | keine | Hier gewählte Telefone fehlen in der Auswahl „Telefon für Rückrufe“, im Karten-Dropdown, bei `call_phone` und in `dial_phones`; `dial` mit einem ausgeblendeten Telefon wird abgelehnt. Gedacht für FON-Anschlüsse, an denen nichts angeschlossen ist. Die Liste zeigt, was die Box beim letzten Lesen angeboten hat; das an der Box gewählte Telefon bleibt in der Auswahl sichtbar. Die Mobilteil-Sensoren und die Anrufliste bleiben unberührt |
 
 ## Spam-Erkennung (PhoneBlock)
 

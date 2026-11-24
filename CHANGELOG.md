@@ -6,6 +6,8 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Neu
 
+- Neue Option „Telefone ausblenden“: ausgeblendete Telefone (z. B. FON-Anschlüsse ohne
+  Telefon) fehlen in den Auswahlen für Rückrufe, bei `call_phone` und in `dial_phones`.
 - Die Karte zeigt beim Anrufmonitor, an welchem Telefon ein Anruf läuft oder zuletzt
   lief (Attribut `phone`).
 - Neue Aktion `probe_phones` („Telefondaten roh auslesen“): liefert die rohen Antworten
