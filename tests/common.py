@@ -19,6 +19,7 @@ from custom_components.fritzbox_phone.api import (
     PhonebookNumber,
     Tam,
     TamMessage,
+    AlarmClock,
     Deflection,
 )
 from custom_components.fritzbox_phone.const import CONF_ENABLE_CALLMONITOR, DOMAIN
@@ -108,6 +109,7 @@ class FakeBox:
     calls_log: list[tuple] = field(default_factory=list)
     blocked: list[str] = field(default_factory=list)
     deflections: list[Deflection] = field(default_factory=list)
+    alarm_clocks: list[AlarmClock] = field(default_factory=list)
     voip_lines: list[VoipLine] = field(default_factory=list)
     phones: Phones = field(default_factory=Phones)
     # Raised by get_blocked_numbers (e.g. a box without call barring).
@@ -182,6 +184,16 @@ def build_client_class(box: FakeBox):
         def get_deflections(self):
             self._poll()
             return [replace(d) for d in box.deflections]
+
+        def get_alarm_clocks(self):
+            self._poll()
+            return [replace(c) for c in box.alarm_clocks]
+
+        def set_alarm_clock_enable(self, index: int, enable: bool) -> None:
+            box.calls_log.append(("set_alarm_clock_enable", index, enable))
+            for clock in box.alarm_clocks:
+                if clock.index == index:
+                    clock.enabled = enable
 
         def get_voip_lines(self):
             self._poll()

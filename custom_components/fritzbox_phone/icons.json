@@ -69,6 +69,12 @@
         "state": {
           "off": "mdi:phone-forward-outline"
         }
+      },
+      "alarm_clock_enabled": {
+        "default": "mdi:alarm",
+        "state": {
+          "off": "mdi:alarm-off"
+        }
       }
     },
     "binary_sensor": {

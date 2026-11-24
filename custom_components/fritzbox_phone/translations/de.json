@@ -179,6 +179,9 @@
       },
       "deflection_enabled": {
         "name": "Umleitung auf {target}"
+      },
+      "alarm_clock_enabled": {
+        "name": "Weckruf {name}"
       }
     },
     "binary_sensor": {

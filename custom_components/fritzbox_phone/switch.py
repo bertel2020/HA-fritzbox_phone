@@ -31,6 +31,7 @@ async def async_setup_entry(
     await timers.async_load()
     known: set[int] = set()
     known_deflections: set[int] = set()
+    known_alarms: set[int] = set()
 
     @callback
     def _async_add_new_entities() -> None:
@@ -40,11 +41,16 @@ async def async_setup_entry(
             d for d in coordinator.data.deflections if d.id not in known_deflections
         ]
         known_deflections.update(d.id for d in new_deflections)
+        new_alarms = [c for c in coordinator.data.alarm_clocks if c.index not in known_alarms]
+        known_alarms.update(c.index for c in new_alarms)
         entities: list[SwitchEntity] = [
             FritzBoxTamSwitch(coordinator, entry, tam.index, timers) for tam in new_tams
         ]
         entities.extend(
             FritzBoxDeflectionSwitch(coordinator, entry, d.id, timers) for d in new_deflections
+        )
+        entities.extend(
+            FritzBoxAlarmClockSwitch(coordinator, entry, c.index, timers) for c in new_alarms
         )
         if entities:
             async_add_entities(entities)
@@ -231,5 +237,62 @@ class FritzBoxDeflectionSwitch(TimedSwitchMixin, FritzBoxPhoneEntity, SwitchEnti
     async def _async_set_enable(self, enable: bool) -> None:
         await self._async_box_call(
             self.coordinator.client.set_deflection_enable, self._deflection_id, enable
+        )
+        await self.coordinator.async_request_refresh()
+
+
+class FritzBoxAlarmClockSwitch(TimedSwitchMixin, FritzBoxPhoneEntity, SwitchEntity):
+    """Enables/disables an alarm clock (X_VoIP SetAlarmClockEnable)."""
+
+    _attr_translation_key = "alarm_clock_enabled"
+
+    def __init__(
+        self,
+        coordinator: FritzBoxPhoneCoordinator,
+        entry: ConfigEntry,
+        index: int,
+        timers: TimedSwitchStore,
+    ) -> None:
+        super().__init__(coordinator, entry)
+        self._timers = timers
+        self._index = index
+        self._attr_unique_id = f"{entry.entry_id}_alarm_clock_{index}_enabled"
+
+    @property
+    def _clock(self):
+        return self.coordinator.get_alarm_clock(self._index)
+
+    @property
+    def available(self) -> bool:
+        return super().available and self._clock is not None
+
+    @property
+    def translation_placeholders(self) -> dict[str, str]:
+        clock = self._clock
+        return {"name": clock.name if clock and clock.name else str(self._index + 1)}
+
+    @property
+    def is_on(self) -> bool | None:
+        clock = self._clock
+        return clock.enabled if clock else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        clock = self._clock
+        if clock is None:
+            return {}
+        return {
+            "alarm_clock_index": clock.index,
+            "time": clock.time,
+            "weekdays": clock.weekdays,
+            "phone_name": clock.phone_name,
+        }
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self._async_set_enable(True)
+
+    async def _async_set_enable(self, enable: bool) -> None:
+        await self._async_box_call(
+            self.coordinator.client.set_alarm_clock_enable, self._index, enable
         )
         await self.coordinator.async_request_refresh()

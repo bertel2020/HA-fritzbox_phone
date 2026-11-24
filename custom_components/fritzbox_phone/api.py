@@ -69,6 +69,7 @@ DEVICEINFO_SERVICE = "DeviceInfo1"
 VOIP_SERVICE = "X_VoIP1"
 # More rules than this are not expected; it only bounds the requests per poll.
 MAX_DEFLECTIONS = 32
+MAX_ALARM_CLOCKS = 3
 DECT_SERVICE = "X_AVM-DE_Dect1"
 # Upper bounds that only limit the requests per refresh.
 MAX_PHONE_PORTS = 20
@@ -178,6 +179,18 @@ class Deflection:
     mode: str | None
     outgoing: str | None = None
     phonebook_id: int | None = None
+
+
+@dataclass
+class AlarmClock:
+    """An alarm clock of the box (X_VoIP GetAlarmClock)."""
+
+    index: int
+    enabled: bool
+    name: str | None
+    time: str | None
+    weekdays: str | None
+    phone_name: str | None
 
 
 @dataclass
@@ -596,6 +609,40 @@ class FritzBoxPhoneClient:
             "SetDeflectionEnable",
             NewDeflectionId=deflection_id,
             NewEnable=int(enable),
+        )
+
+    # ------------------------------------------------------------------
+    # Alarm clocks (Weckruf)
+    # ------------------------------------------------------------------
+
+    def get_alarm_clocks(self) -> list[AlarmClock]:
+        count = _to_int(
+            str(
+                self._call(VOIP_SERVICE, "X_AVM-DE_GetNumberOfAlarmClocks").get(
+                    "NewX_AVM-DE_NumberOfAlarmClocks"
+                )
+            )
+        )
+        clocks: list[AlarmClock] = []
+        for index in range(min(count, MAX_ALARM_CLOCKS)):
+            info = self._call(VOIP_SERVICE, "X_AVM-DE_GetAlarmClock", NewIndex=index)
+            clocks.append(
+                AlarmClock(
+                    index=index,
+                    enabled=str(info.get("NewX_AVM-DE_AlarmClockEnable")).lower() in ("1", "true"),
+                    name=info.get("NewX_AVM-DE_AlarmClockName") or None,
+                    time=info.get("NewX_AVM-DE_AlarmClockTime") or None,
+                    weekdays=info.get("NewX_AVM-DE_AlarmClockWeekdays") or None,
+                    phone_name=info.get("NewX_AVM-DE_AlarmClockPhoneName") or None,
+                )
+            )
+        return clocks
+
+    def set_alarm_clock_enable(self, index: int, enable: bool) -> None:
+        self._call(
+            VOIP_SERVICE,
+            "X_AVM-DE_SetAlarmClockEnable",
+            **{"NewIndex": index, "NewX_AVM-DE_AlarmClockEnable": int(enable)},
         )
 
     # ------------------------------------------------------------------

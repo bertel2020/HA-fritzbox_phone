@@ -6,6 +6,10 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Neu
 
+- Je Weckruf der Box ein Schalter „Weckruf …“ (Attribute `time`, `weekdays`,
+  `phone_name`). Nicht an einer echten FRITZ!Box zum Schalten ausprobiert; die
+  Aktionen sind in der Dienstbeschreibung einer Box vorhanden. „Nicht stören“
+  bietet die Box über TR-064 nicht an.
 - Hat die Box mehrere Rufnummern, gibt es je Rufnummer einen Sensor „Anrufliste …“
   mit den Anrufen genau dieser Nummer (Attribute `own_number` und `calls`).
 

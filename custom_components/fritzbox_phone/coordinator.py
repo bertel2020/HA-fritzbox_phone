@@ -27,6 +27,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import (
     CallEntry,
+    AlarmClock,
     Deflection,
     Phones,
     VoipLine,
@@ -107,6 +108,7 @@ class FritzBoxPhoneData:
     calls: list[CallEntry]
     tams: list[Tam]
     deflections: list[Deflection] = field(default_factory=list)
+    alarm_clocks: list[AlarmClock] = field(default_factory=list)
     voip_lines: list[VoipLine] = field(default_factory=list)
     phones: Phones | None = None
 
@@ -143,6 +145,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         self._phonebooks: list[Phonebook] | None = None
         self._phonebooks_fetched = 0.0
         self._deflections: list[Deflection] = []
+        self._alarm_clocks: list[AlarmClock] = []
         self._voip_lines: list[VoipLine] = []
         self._phones: Phones | None = None
         self._phones_read_at = 0.0
@@ -489,6 +492,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             calls=calls,
             tams=tams,
             deflections=self._get_deflections(),
+            alarm_clocks=self._get_alarm_clocks(),
             voip_lines=self._get_voip_lines(),
             phones=self._get_phones(),
         )
@@ -503,6 +507,16 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
             return self._deflections
         self._deflections = deflections
         return deflections
+
+    def _get_alarm_clocks(self) -> list[AlarmClock]:
+        # Secondary data, like the forwarding rules.
+        try:
+            clocks = self.client.get_alarm_clocks()
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.debug("Weckrufe konnten nicht gelesen werden: %s", err)
+            return self._alarm_clocks
+        self._alarm_clocks = clocks
+        return clocks
 
     def _get_phones(self) -> Phones | None:
         # Handsets are rarely added or renamed: one read per hour is plenty
@@ -739,6 +753,9 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
 
     def get_deflection(self, deflection_id: int) -> Deflection | None:
         return next((d for d in self.data.deflections if d.id == deflection_id), None)
+
+    def get_alarm_clock(self, index: int) -> AlarmClock | None:
+        return next((c for c in self.data.alarm_clocks if c.index == index), None)
 
     def get_tam(self, tam_index: int) -> Tam | None:
         return next((t for t in self.data.tams if t.index == tam_index), None)
