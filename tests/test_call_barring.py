@@ -170,7 +170,10 @@ def _phone_box(box, restore_fails: bool = False) -> None:
         if action == "X_AVM-DE_GetClients":
             return {
                 "NewX_AVM-DE_ClientList": "<List><Item><PhoneName>Softphone</PhoneName>"
-                "<OutGoingNumber>030 1</OutGoingNumber></Item></List>"
+                "<OutGoingNumber>030 1</OutGoingNumber><InternalNumber>620</InternalNumber>"
+                "<InComingNumbers><Item>030 1</Item><Item>030 2</Item></InComingNumbers></Item>"
+                "<Item><PhoneName>Tisch</PhoneName><InComingNumbers>030 2, 030 3</InComingNumbers>"
+                "</Item></List>"
             }
         return {}
 
@@ -184,7 +187,20 @@ def test_phones_are_collected_from_all_groups() -> None:
     assert phones.dial_phones == ["Fon 1", "DECT Kueche"]
     assert phones.dial_phone == "Fon 1"
     assert phones.dect == [{"name": "Kueche", "model": "FRITZ!Fon C6", "active": True}]
-    assert phones.ip == [{"name": "Softphone", "number": "030 1"}]
+    assert phones.ip == [
+        {
+            "name": "Softphone",
+            "number": "030 1",
+            "internal_number": "620",
+            "incoming_numbers": ["030 1", "030 2"],
+        },
+        {
+            "name": "Tisch",
+            "number": None,
+            "internal_number": None,
+            "incoming_numbers": ["030 2", "030 3"],
+        },
+    ]
 
 
 def test_dial_with_a_phone_restores_the_dial_help() -> None:

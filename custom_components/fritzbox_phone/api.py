@@ -217,6 +217,17 @@ class Phones:
     ip: list[dict[str, Any]] = field(default_factory=list)
 
 
+def _incoming_numbers(element: ET.Element | None) -> list[str]:
+    """The own numbers a phone rings for, as a list; empty means all of them.
+
+    The box lists them either as text ("123,456") or as nested items.
+    """
+    if element is None:
+        return []
+    parts = [child.text or "" for child in element] or (element.text or "").split(",")
+    return [part.strip() for part in parts if part.strip()]
+
+
 def path_key(path: str | None) -> tuple[str, tuple[tuple[str, str], ...]] | None:
     """Comparable form of a download path: the same file spelled with
     different session ids or parameter order compares equal."""
@@ -944,11 +955,16 @@ class FritzBoxPhoneClient:
             pass
         try:
             raw = self._call(VOIP_SERVICE, "X_AVM-DE_GetClients").get("NewX_AVM-DE_ClientList")
-            for item in ET.fromstring(raw).iter("Item") if raw else ():
+            root = ET.fromstring(raw) if raw else None
+            # Only the phones themselves: a number list may nest its own Items.
+            items = (root.findall("Item") or list(root.iter("Item"))) if root is not None else []
+            for item in items:
                 phones.ip.append(
                     {
                         "name": item.findtext("PhoneName"),
                         "number": item.findtext("OutGoingNumber") or None,
+                        "internal_number": item.findtext("InternalNumber") or None,
+                        "incoming_numbers": _incoming_numbers(item.find("InComingNumbers")),
                     }
                 )
         except (UNSUPPORTED_ERRORS + (ET.ParseError,)):

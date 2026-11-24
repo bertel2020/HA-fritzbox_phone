@@ -6,6 +6,10 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Neu
 
+- Der Sensor „Telefone“ nennt bei den IP-Telefonen jetzt auch `internal_number` und
+  `incoming_numbers`: für welche eigenen Rufnummern ein Telefon klingelt (leer =
+  für alle). Nicht an einer echten FRITZ!Box ausprobiert; das Format der Liste
+  wird auf beide bekannten Schreibweisen geprüft.
 - Je Weckruf der Box ein Schalter „Weckruf …“ (Attribute `time`, `weekdays`,
   `phone_name`). Nicht an einer echten FRITZ!Box zum Schalten ausprobiert; die
   Aktionen sind in der Dienstbeschreibung einer Box vorhanden. „Nicht stören“
