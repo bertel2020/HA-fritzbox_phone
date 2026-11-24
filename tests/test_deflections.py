@@ -142,3 +142,21 @@ async def test_dial_phone_select_follows_and_sets_the_box(hass: HomeAssistant) -
     await hass.async_block_till_done()
     assert box.calls_log[-1] == ("set_dial_phone", "DECT Kueche")
     assert hass.states.get(select).state == "DECT Kueche"
+
+
+async def test_dect_handsets_get_a_sensor_each(hass: HomeAssistant) -> None:
+    box = FakeBox(
+        phones=Phones(
+            dect=[
+                {"id": "1", "name": "Kueche", "model": "C6", "active": True},
+                {"id": "2", "name": "Bad", "model": None, "active": False},
+            ]
+        )
+    )
+    entry = await setup_integration(hass, box)
+
+    kitchen = hass.states.get(entity_id(hass, entry, "dect_1", "binary_sensor"))
+    bathroom = hass.states.get(entity_id(hass, entry, "dect_2", "binary_sensor"))
+    assert (kitchen.state, bathroom.state) == (STATE_ON, STATE_OFF)
+    assert kitchen.attributes["friendly_name"].endswith("Handset Kueche")
+    assert kitchen.attributes["model"] == "C6"

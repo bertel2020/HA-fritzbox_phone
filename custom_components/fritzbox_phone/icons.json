@@ -95,6 +95,12 @@
       "unread_messages": {
         "default": "mdi:voicemail"
       },
+      "dect_handset": {
+        "default": "mdi:phone-off",
+        "state": {
+          "on": "mdi:phone-classic"
+        }
+      },
       "line_registered": {
         "default": "mdi:phone-off",
         "state": {

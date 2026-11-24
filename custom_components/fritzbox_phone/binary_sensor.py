@@ -56,6 +56,20 @@ async def async_setup_entry(
     _async_add_line_sensors()
     entry.async_on_unload(coordinator.async_add_listener(_async_add_line_sensors))
 
+    # A handset that is registered later gets its sensor without a reload.
+    known_handsets: set[str] = set()
+
+    @callback
+    def _async_add_handset_sensors() -> None:
+        phones = coordinator.data.phones
+        new = [h["id"] for h in (phones.dect if phones else []) if h["id"] not in known_handsets]
+        known_handsets.update(new)
+        if new:
+            async_add_entities(FritzBoxHandsetSensor(coordinator, entry, hid) for hid in new)
+
+    _async_add_handset_sensors()
+    entry.async_on_unload(coordinator.async_add_listener(_async_add_handset_sensors))
+
 
 class FritzBoxRingingSensor(FritzBoxPhoneEntity, BinarySensorEntity):
     """On while a call is ringing - the simplest trigger for automations."""
@@ -163,3 +177,42 @@ class FritzBoxLineSensor(FritzBoxPhoneEntity, BinarySensorEntity):
         if line is None:
             return {}
         return {"number": line.number, "status": line.status}
+
+
+class FritzBoxHandsetSensor(FritzBoxPhoneEntity, BinarySensorEntity):
+    """On while a DECT handset of the box is switched on and in range."""
+
+    _attr_translation_key = "dect_handset"
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+
+    def __init__(
+        self, coordinator: FritzBoxPhoneCoordinator, entry: ConfigEntry, handset_id: str
+    ) -> None:
+        super().__init__(coordinator, entry)
+        self._handset_id = handset_id
+        self._attr_unique_id = f"{entry.entry_id}_dect_{handset_id}"
+
+    @property
+    def _handset(self) -> dict[str, Any] | None:
+        return self.coordinator.get_dect_handset(self._handset_id)
+
+    @property
+    def available(self) -> bool:
+        return super().available and self._handset is not None
+
+    @property
+    def translation_placeholders(self) -> dict[str, str]:
+        handset = self._handset
+        return {"name": (handset.get("name") if handset else None) or self._handset_id}
+
+    @property
+    def is_on(self) -> bool | None:
+        handset = self._handset
+        return bool(handset["active"]) if handset else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        handset = self._handset
+        if handset is None:
+            return {}
+        return {"name": handset.get("name"), "model": handset.get("model"), **self._privacy_attributes}

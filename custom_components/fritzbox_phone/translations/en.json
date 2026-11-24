@@ -201,6 +201,9 @@
       },
       "line_registered": {
         "name": "Line {number}"
+      },
+      "dect_handset": {
+        "name": "Handset {name}"
       }
     },
     "event": {

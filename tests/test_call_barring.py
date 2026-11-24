@@ -187,7 +187,9 @@ def test_phones_are_collected_from_all_groups() -> None:
     phones = client.get_phones()
     assert phones.dial_phones == ["Fon 1", "DECT Kueche"]
     assert phones.dial_phone == "Fon 1"
-    assert phones.dect == [{"name": "Kueche", "model": "FRITZ!Fon C6", "active": True}]
+    assert phones.dect == [
+        {"id": "0", "name": "Kueche", "model": "FRITZ!Fon C6", "active": True}
+    ]
     assert phones.ip == [
         {
             "name": "Softphone",

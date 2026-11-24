@@ -1000,6 +1000,7 @@ class FritzBoxPhoneClient:
                     continue
                 phones.dect.append(
                     {
+                        "id": str(entry.get("NewID") or index),
                         "name": entry.get("NewName"),
                         "model": entry.get("NewModel") or None,
                         "active": str(entry.get("NewActive")).lower() in ("1", "true"),

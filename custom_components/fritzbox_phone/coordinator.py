@@ -802,6 +802,10 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
     def get_voip_line(self, index: int) -> VoipLine | None:
         return next((line for line in self.data.voip_lines if line.index == index), None)
 
+    def get_dect_handset(self, handset_id: str) -> dict[str, Any] | None:
+        phones = self.data.phones
+        return next((h for h in phones.dect if h.get("id") == handset_id), None) if phones else None
+
     def get_deflection(self, deflection_id: int) -> Deflection | None:
         return next((d for d in self.data.deflections if d.id == deflection_id), None)
 

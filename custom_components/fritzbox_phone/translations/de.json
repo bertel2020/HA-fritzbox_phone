@@ -201,6 +201,9 @@
       },
       "line_registered": {
         "name": "Leitung {number}"
+      },
+      "dect_handset": {
+        "name": "Mobilteil {name}"
       }
     },
     "event": {

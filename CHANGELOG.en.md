@@ -6,6 +6,8 @@ All notable changes to this integration are recorded here.
 
 ### New
 
+- One sensor "Handset …" per DECT handset (on while it is switched on and in range;
+  attributes `name`, `model`).
 - New selection "Phone for call backs" (configuration): sets the phone of the dial
   help that rings first, as under Telephony → Telephony devices on the box.
 

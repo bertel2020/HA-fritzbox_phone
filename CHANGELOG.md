@@ -6,6 +6,8 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Neu
 
+- Je DECT-Mobilteil ein Sensor „Mobilteil …“ (an, solange es eingeschaltet und in
+  Reichweite ist; Attribute `name`, `model`).
 - Neue Auswahl „Telefon für Rückrufe“ (Konfiguration): stellt das Telefon der Wählhilfe ein,
   das als Erstes klingelt, wie unter Telefonie → Telefoniegeräte an der Box.
 
