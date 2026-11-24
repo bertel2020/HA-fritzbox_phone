@@ -6,6 +6,9 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Neu
 
+- Die Karte hat die Option „Telefon für Rückrufe“: Der Rückruf-Knopf lässt dann
+  genau dieses Telefon klingeln (`dial` mit `phone`), statt das an der Box
+  eingestellte. Die Auswahl kommt aus dem Sensor „Telefone“.
 - Der Anrufbeantworter-Sensor nennt jetzt auch `mode`, `ring_seconds`,
   `phone_numbers` und `stick` (Betriebsart, nach wie vielen Sekunden er rangeht,
   für welche Rufnummern er annimmt, wo er speichert). Nur lesbar: Die Box lässt

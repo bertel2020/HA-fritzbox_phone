@@ -137,6 +137,8 @@ const TEXTS = {
     e_show_legend: "Filter-Legende anzeigen",
     e_show_stats: "Tageszusammenfassung anzeigen",
     e_show_dial: "Anruf-Knöpfe anzeigen",
+    e_dial_phone: "Telefon für Rückrufe",
+    e_dial_phone_box: "Wie an der Box eingestellt",
     e_show_manage: "Knöpfe zum Sperren und Speichern anzeigen",
     e_tam_entity:
       "Verknüpfter Anrufbeantworter (optional) - zeigt dessen Nachrichten in derselben Karte",
@@ -262,6 +264,8 @@ const TEXTS = {
     e_show_legend: "Show filter legend",
     e_show_stats: "Show today's summary",
     e_show_dial: "Show call buttons",
+    e_dial_phone: "Phone for call backs",
+    e_dial_phone_box: "As set on the box",
     e_show_manage: "Show block and save-contact buttons",
     e_tam_entity:
       "Linked answering machine (optional) - shows its messages in the same card",
@@ -1253,7 +1257,9 @@ class FritzboxPhoneCard extends HTMLElement {
         await this._hass.callService(
           "fritzbox_phone",
           "dial",
-          { number },
+          // A phone chosen in the card rings for this call only; without one
+          // the box uses the phone set in its dial help.
+          this._config.dial_phone ? { number, phone: this._config.dial_phone } : { number },
           deviceId ? { device_id: deviceId } : undefined
         );
         this._toast(t("dial_started"));
@@ -2280,6 +2286,20 @@ class FritzboxPhoneCardEditor extends HTMLElement {
     return { entity: { domain: "sensor", integration: "fritzbox_phone", include_entities: ids } };
   }
 
+  // The phones the box can ring for a call back, from the integration's
+  // phones sensor (attribute dial_phones).
+  _dialPhones() {
+    const states = (this._hass && this._hass.states) || {};
+    for (const id of Object.keys(states)) {
+      if (!id.startsWith("sensor.")) continue;
+      const entry = this._hass.entities && this._hass.entities[id];
+      if (entry && entry.platform !== "fritzbox_phone") continue;
+      const phones = (states[id].attributes || {}).dial_phones;
+      if (Array.isArray(phones) && phones.length) return phones;
+    }
+    return [];
+  }
+
   _schema() {
     const t = makeTranslator(this._hass);
     const ownEntities = this._pickable();
@@ -2304,6 +2324,21 @@ class FritzboxPhoneCardEditor extends HTMLElement {
     }
     if (["calls", "messages", "phonebook"].includes(kind)) {
       schema.push({ name: "show_dial", selector: { boolean: {} } });
+      const phones = this._dialPhones();
+      if (phones.length) {
+        schema.push({
+          name: "dial_phone",
+          selector: {
+            select: {
+              mode: "dropdown",
+              options: [
+                { value: "", label: t("e_dial_phone_box") },
+                ...phones.map((phone) => ({ value: phone, label: phone })),
+              ],
+            },
+          },
+        });
+      }
     }
     if (["calls", "messages"].includes(kind)) {
       schema.push({ name: "show_manage", selector: { boolean: {} } });

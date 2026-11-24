@@ -898,3 +898,30 @@ test("the answering machine picker lists only entities with messages", () => {
   const schema = editorSchema(load());
   assert.deepEqual([...schema.tam_entity.entity.include_entities], ["sensor.answering_machine"]);
 });
+
+test("call back rings the phone chosen in the card, only that one", async () => {
+  const window = load();
+  const hass = makeHass({ "sensor.calls": state("sensor.calls", "1", { calls: [call("1")] }) });
+  const card = mount(window, { entity: "sensor.calls", dial_phone: "DECT Kueche" }, hass);
+  root(card).querySelector(".fb-link-btn").click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(JSON.parse(JSON.stringify(hass.calls[0].data)), {
+    number: "030123456",
+    phone: "DECT Kueche",
+  });
+});
+
+test("the editor offers the phones of the box for call backs", () => {
+  const window = load();
+  const editor = window.document.createElement("fritzbox-phone-card-editor");
+  window.document.body.appendChild(editor);
+  editor.setConfig({ entity: "sensor.call_list" });
+  const hass = pickerHass();
+  hass.states["sensor.phones"] = state("sensor.phones", "2", { dial_phones: ["Fon 1", "DECT Kueche"] });
+  editor.hass = hass;
+  const field = editor._schema().find((item) => item.name === "dial_phone");
+  assert.deepEqual(
+    [...field.selector.select.options].map((option) => option.value),
+    ["", "Fon 1", "DECT Kueche"],
+  );
+});
