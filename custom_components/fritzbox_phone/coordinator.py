@@ -43,6 +43,7 @@ from .api import (
 from .cache import LookupCache
 from .callmonitor import normalize_number
 from .geocoding import describe_number
+from .health import describe_error
 from .history import CallHistory
 from .payloads import call_record
 from .phone_numbers import normalize as normalize_phone_number
@@ -155,6 +156,7 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         self._voip_lines: list[VoipLine] = []
         self._phones: Phones | None = None
         self._phones_read_at = 0.0
+        self._phones_warned = False
         self._contacts_by_number: dict[str, tuple[str, bool]] = {}
         self._contacts_by_digits: dict[str, tuple[str, bool]] = {}
         # Change detection for the logbook events. `None` means "no poll
@@ -555,8 +557,12 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         try:
             phones = self.client.get_phones()
         except Exception as err:  # noqa: BLE001
-            _LOGGER.debug("Telefone konnten nicht gelesen werden: %s", err)
+            if not self._phones_warned:
+                # Said once: the sensor stays unavailable until a read works.
+                self._phones_warned = True
+                _LOGGER.warning("Telefone konnten nicht gelesen werden: %s", describe_error(err))
             return self._phones
+        self._phones_warned = False
         self._phones, self._phones_read_at = phones, now
         return phones
 

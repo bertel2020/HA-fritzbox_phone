@@ -62,6 +62,8 @@ class RecordingTooLarge(ValueError):
 
 
 UNSUPPORTED_ERRORS = (FritzServiceError, FritzActionError, FritzSecurityError)
+# A phone group that cannot be read must not take the other groups down.
+GROUP_ERRORS = UNSUPPORTED_ERRORS + (requests.RequestException, OSError, ValueError)
 
 ONTEL_SERVICE = "X_AVM-DE_OnTel1"
 TAM_SERVICE = "X_AVM-DE_TAM1"
@@ -951,14 +953,18 @@ class FritzBoxPhoneClient:
     def get_phones(self) -> Phones:
         """The telephones of the box. Each group is optional: a box without
         DECT or IP phones just leaves it empty."""
-        phones = Phones(dial_phones=self.get_dial_phones())
+        phones = Phones()
+        try:
+            phones.dial_phones = self.get_dial_phones()
+        except GROUP_ERRORS as err:
+            _LOGGER.debug("Wählhilfe-Telefone nicht lesbar: %s", err)
         try:
             phones.dial_phone = (
                 self._call(VOIP_SERVICE, "X_AVM-DE_DialGetConfig").get("NewX_AVM-DE_PhoneName")
                 or None
             )
-        except UNSUPPORTED_ERRORS:
-            pass
+        except GROUP_ERRORS as err:
+            _LOGGER.debug("Telefongruppe nicht lesbar: %s", err)
         try:
             count = _to_int(
                 str(self._call(DECT_SERVICE, "GetNumberOfDectEntries").get("NewNumberOfEntries"))
@@ -972,8 +978,8 @@ class FritzBoxPhoneClient:
                         "active": str(entry.get("NewActive")).lower() in ("1", "true"),
                     }
                 )
-        except UNSUPPORTED_ERRORS:
-            pass
+        except GROUP_ERRORS as err:
+            _LOGGER.debug("Telefongruppe nicht lesbar: %s", err)
         try:
             raw = self._call(VOIP_SERVICE, "X_AVM-DE_GetClients").get("NewX_AVM-DE_ClientList")
             root = ET.fromstring(raw) if raw else None
@@ -988,8 +994,8 @@ class FritzBoxPhoneClient:
                         "incoming_numbers": _incoming_numbers(item.find("InComingNumbers")),
                     }
                 )
-        except (UNSUPPORTED_ERRORS + (ET.ParseError,)):
-            pass
+        except (GROUP_ERRORS + (ET.ParseError,)) as err:
+            _LOGGER.debug("Telefongruppe nicht lesbar: %s", err)
         return phones
 
     def hangup(self) -> None:
