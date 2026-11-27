@@ -8,6 +8,10 @@ All notable changes to this integration are recorded here.
 
 - The switches of the answering machines, call forwarding rules and alarm clocks now say when the timer of `turn_on_for` switches them off again (attribute `turn_off_at`, UTC) while it runs.
 
+### Fixed
+
+- The call monitor hints showed `#965` instead of `#96*5*` because the asterisks were rendered as Markdown italics. The key codes are now shown as code.
+
 ## 2.6.0 – 2026-11-24
 
 ### New

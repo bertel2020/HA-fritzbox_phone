@@ -101,7 +101,7 @@
           "call_list_days": "Ältere Anrufe werden nicht geladen.",
           "call_list_max": "Obergrenze der Anrufe im Anruflisten-Sensor.",
           "call_history_days": "Führt jede Anrufliste zu einem längeren Verlauf für die Statistik eines Panels zusammen, ohne Doppelte, und behält ihn so viele Tage (höchstens 365). Die Anrufdaten (Nummern, Namen, Zeiten) liegen dann im Ordner .storage von Home Assistant und in dessen Backups. 0 löscht den gespeicherten Verlauf.",
-          "enable_call_monitor": "Der Anrufmonitor muss in der FRITZ!Box aktiviert sein (an einem angeschlossenen Telefon #96*5* wählen).",
+          "enable_call_monitor": "Der Anrufmonitor muss in der FRITZ!Box aktiviert sein (an einem angeschlossenen Telefon `#96*5*` wählen).",
           "callmonitor_port": "TCP-Port des FRITZ!Box-Anrufmonitors, normalerweise 1012.",
           "prefixes": "Für den Rufnummernabgleich, kommagetrennt; leer = Land von Home Assistant. Damit dieselbe Nummer in verschiedenen Schreibweisen erkannt wird, z. B. 030 123456 und +49 30 123456.",
           "phoneblock_enabled": "Fragt unbekannte Anrufer bei phoneblock.net ab. Es wird nur ein Hash der Nummer gesendet.",
@@ -548,7 +548,7 @@
     },
     "callmonitor_unreachable": {
       "title": "Der Anrufmonitor ist nicht erreichbar",
-      "description": "Die FRITZ!Box unter {host} nimmt auf Port {port} keine Verbindung an, deshalb werden eingehende und ausgehende Anrufe nicht live gemeldet. Vermutlich ist der Anrufmonitor an der Box ausgeschaltet: Wähle an einem angeschlossenen Telefon #96*5* (mit #96*4* wird er wieder ausgeschaltet). Wenn du den Live-Anrufmonitor nicht brauchst, schalte ihn in den Optionen der Integration aus (Einstellungen → Geräte & Dienste → FRITZ!Box Telefon → Konfigurieren)."
+      "description": "Die FRITZ!Box unter {host} nimmt auf Port {port} keine Verbindung an, deshalb werden eingehende und ausgehende Anrufe nicht live gemeldet. Vermutlich ist der Anrufmonitor an der Box ausgeschaltet: Wähle an einem angeschlossenen Telefon `#96*5*` (mit `#96*4*` wird er wieder ausgeschaltet). Wenn du den Live-Anrufmonitor nicht brauchst, schalte ihn in den Optionen der Integration aus (Einstellungen → Geräte & Dienste → FRITZ!Box Telefon → Konfigurieren)."
     }
   }
 }

@@ -8,6 +8,10 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 - Die Schalter der Anrufbeantworter, Rufumleitungen und Weckrufe nennen jetzt, wann der Timer von `turn_on_for` sie wieder ausschaltet (Attribut `turn_off_at`, UTC), solange er läuft.
 
+### Behoben
+
+- Die Hinweise zum Anrufmonitor zeigten `#965` statt `#96*5*`, weil die Sternchen als Markdown-Kursivschrift gerendert wurden. Die Tastencodes stehen jetzt als Code.
+
 ## 2.6.0 – 2026-11-24
 
 ### Neu

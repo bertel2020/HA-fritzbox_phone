@@ -499,11 +499,13 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         max_entries = self.entry.options.get(CONF_CALL_LIST_MAX, DEFAULT_CALL_LIST_MAX)
         calls = self.client.get_call_list(days=days, max_entries=max_entries)
         tams = self.client.get_tams()
+        phonebooks = self._get_phonebooks()
+        self._fill_names_from_phonebooks(calls, tams)
         self._enrich_calls_with_area_info(calls)
         self._enrich_tam_messages_with_area_info(tams)
         self._link_calls_to_messages(calls, tams)
         return FritzBoxPhoneData(
-            phonebooks=self._get_phonebooks(),
+            phonebooks=phonebooks,
             calls=calls,
             tams=tams,
             deflections=self._get_deflections(),
@@ -681,6 +683,25 @@ class FritzBoxPhoneCoordinator(DataUpdateCoordinator[FritzBoxPhoneData]):
         if call.type == OUTGOING_CALL_TYPE:
             return call.called_number or call.called
         return call.caller_number or call.caller
+
+    def _fill_names_from_phonebooks(self, calls: list[CallEntry], tams: list[Tam]) -> None:
+        """Name entries the box left unnamed when a phonebook knows the number.
+
+        The box only names a caller when it matches the number spelling
+        exactly (or it was added after the call/message was recorded), so
+        the answering machine often shows a known contact as unknown.
+        """
+        for call in calls:
+            if call.name or call.type == OUTGOING_CALL_TYPE:
+                continue
+            if number := call.caller_number or call.caller:
+                call.name = self.resolve_contact(number)[0] or call.name
+        for tam in tams:
+            for message in tam.messages:
+                if not message.name and message.number:
+                    if name := self.resolve_contact(message.number)[0]:
+                        message.name = name
+                        message.inbook = True
 
     def _enrich_calls_with_area_info(self, calls: list[CallEntry]) -> None:
         # Always on - purely local/offline lookup, no network call and no

@@ -101,7 +101,7 @@
           "call_list_days": "Calls older than this are not loaded.",
           "call_list_max": "Upper limit of calls kept in the call list sensor.",
           "call_history_days": "Merges every call list into a longer history for the statistics of a panel, deduplicated and kept for this many days (at most 365). The call records (numbers, names, times) are then stored in Home Assistant's .storage folder and in its backups. 0 deletes the stored history.",
-          "enable_call_monitor": "Needs the call monitor enabled on the FRITZ!Box (dial #96*5* on a connected phone).",
+          "enable_call_monitor": "Needs the call monitor enabled on the FRITZ!Box (dial `#96*5*` on a connected phone).",
           "callmonitor_port": "TCP port of the FRITZ!Box call monitor, normally 1012.",
           "prefixes": "For number matching, comma separated; empty = country of Home Assistant. Used to recognise the same number written differently, e.g. 030 123456 and +49 30 123456.",
           "phoneblock_enabled": "Looks up unknown callers on phoneblock.net. Only a hash of the number is sent.",
@@ -548,7 +548,7 @@
     },
     "callmonitor_unreachable": {
       "title": "The call monitor cannot be reached",
-      "description": "The FRITZ!Box at {host} does not accept connections on port {port}, so incoming and outgoing calls are not reported live. The call monitor is probably switched off on the box: dial #96*5* on a phone connected to it (#96*4* switches it off again). If you do not want the live call monitor, turn it off in the integration's options (Settings → Devices & services → FRITZ!Box Telefon → Configure)."
+      "description": "The FRITZ!Box at {host} does not accept connections on port {port}, so incoming and outgoing calls are not reported live. The call monitor is probably switched off on the box: dial `#96*5*` on a phone connected to it (`#96*4*` switches it off again). If you do not want the live call monitor, turn it off in the integration's options (Settings → Devices & services → FRITZ!Box Telefon → Configure)."
     }
   }
 }
