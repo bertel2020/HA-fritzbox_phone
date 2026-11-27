@@ -108,10 +108,14 @@ async def test_turn_on_for_switches_off_again(hass: HomeAssistant) -> None:
         "fritzbox_phone", "turn_on_for", {"entity_id": switch, "minutes": 30}, blocking=True
     )
     assert box.calls_log[-1] == ("set_deflection_enable", 0, True)
+    # the switch tells when the timer ends, so a panel can show it
+    end = dt_util.parse_datetime(hass.states.get(switch).attributes["turn_off_at"])
+    assert timedelta(minutes=29) < end - dt_util.utcnow() <= timedelta(minutes=30)
 
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=31))
     await hass.async_block_till_done()
     assert box.calls_log[-1] == ("set_deflection_enable", 0, False)
+    assert "turn_off_at" not in hass.states.get(switch).attributes
 
 
 async def test_switching_off_by_hand_cancels_the_timer(hass: HomeAssistant) -> None:

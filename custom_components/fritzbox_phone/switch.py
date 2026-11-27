@@ -112,6 +112,13 @@ class TimedSwitchMixin:
             self.hass, HassJob(self._async_timer_ran_out, cancel_on_shutdown=True), expiry
         )
 
+    def _timer_attributes(self) -> dict[str, Any]:
+        """`turn_off_at`: when the timer of turn_on_for switches this off again (UTC), while it is on."""
+        expiry = self._timers.get(self.unique_id)
+        if expiry is None or not self.is_on:
+            return {}
+        return {"turn_off_at": expiry.isoformat()}
+
     async def _async_timer_ran_out(self, _now: datetime) -> None:
         self._unsub_timer = None
         self._timers.set(self.unique_id, None)
@@ -122,6 +129,7 @@ class TimedSwitchMixin:
         expiry = dt_util.utcnow() + timedelta(minutes=minutes)
         self._timers.set(self.unique_id, expiry)
         self._arm_timer(expiry)
+        self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         # Switched off by hand: the timer has nothing left to do.
@@ -168,7 +176,7 @@ class FritzBoxTamSwitch(TimedSwitchMixin, FritzBoxPhoneEntity, SwitchEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         # Ties the switch to its answering machine sensor (same tam_index).
-        return {"tam_index": self._tam_index}
+        return {"tam_index": self._tam_index, **self._timer_attributes()}
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self._async_set_enable(True)
@@ -229,6 +237,7 @@ class FritzBoxDeflectionSwitch(TimedSwitchMixin, FritzBoxPhoneEntity, SwitchEnti
             "mode": deflection.mode,
             "outgoing": deflection.outgoing,
             "phonebook_id": deflection.phonebook_id,
+            **self._timer_attributes(),
         }
 
     async def async_turn_on(self, **kwargs: Any) -> None:
@@ -289,6 +298,7 @@ class FritzBoxAlarmClockSwitch(TimedSwitchMixin, FritzBoxPhoneEntity, SwitchEnti
             "time": clock.time,
             "weekdays": clock.weekdays,
             "phone_name": clock.phone_name,
+            **self._timer_attributes(),
         }
 
     async def async_turn_on(self, **kwargs: Any) -> None:

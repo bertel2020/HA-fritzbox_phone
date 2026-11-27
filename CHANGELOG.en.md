@@ -2,6 +2,12 @@
 
 All notable changes to this integration are recorded here.
 
+## Unreleased
+
+### New
+
+- The switches of the answering machines, call forwarding rules and alarm clocks now say when the timer of `turn_on_for` switches them off again (attribute `turn_off_at`, UTC) while it runs.
+
 ## 2.6.0 – 2026-11-24
 
 ### New

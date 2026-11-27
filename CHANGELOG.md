@@ -2,6 +2,12 @@
 
 Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
+## Unveröffentlicht
+
+### Neu
+
+- Die Schalter der Anrufbeantworter, Rufumleitungen und Weckrufe nennen jetzt, wann der Timer von `turn_on_for` sie wieder ausschaltet (Attribut `turn_off_at`, UTC), solange er läuft.
+
 ## 2.6.0 – 2026-11-24
 
 ### Neu
