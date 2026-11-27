@@ -2,7 +2,7 @@
 
 All notable changes to this integration are recorded here.
 
-## Unreleased
+## 2.7.0 – 2026-11-27
 
 ### New
 
