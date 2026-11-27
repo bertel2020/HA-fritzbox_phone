@@ -10,6 +10,7 @@ All notable changes to this integration are recorded here.
 
 ### Fixed
 
+- A caller stayed unknown on the answering machine and in the call list although the number is in the phonebook (the box only recognises it when spelled exactly the same). Missing names are now filled in from the phonebooks (#15).
 - The call monitor hints showed `#965` instead of `#96*5*` because the asterisks were rendered as Markdown italics. The key codes are now shown as code.
 
 ## 2.6.0 – 2026-11-24

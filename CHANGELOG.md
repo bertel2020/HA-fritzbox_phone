@@ -10,6 +10,7 @@ Alle nennenswerten Änderungen an dieser Integration werden hier festgehalten.
 
 ### Behoben
 
+- Auf dem Anrufbeantworter und in der Anrufliste blieb ein Anrufer als unbekannt stehen, obwohl seine Nummer im Telefonbuch steht (die Box erkennt sie nur bei exakt gleicher Schreibweise). Fehlende Namen werden jetzt aus den Telefonbüchern ergänzt (#15).
 - Die Hinweise zum Anrufmonitor zeigten `#965` statt `#96*5*`, weil die Sternchen als Markdown-Kursivschrift gerendert wurden. Die Tastencodes stehen jetzt als Code.
 
 ## 2.6.0 – 2026-11-24
